@@ -10,6 +10,7 @@ WORKDIR /src
 
 COPY Cargo.lock Cargo.toml ./
 COPY crates crates
+COPY migrations migrations
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-${TARGETARCH}},sharing=locked \
     --mount=type=cache,target=/src/target,id=cargo-target-${TARGETARCH}},sharing=locked \
