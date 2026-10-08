@@ -1,4 +1,23 @@
+import {
+  ActivityIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "./api/client";
 import type { components } from "./api/schema";
 
@@ -49,55 +68,83 @@ export function SystemPage() {
       <p className="intro">
         Check the connection between Convex, its API, and PostgreSQL.
       </p>
-      <section aria-labelledby="connection-heading" className="connection">
-        <div className="section-heading">
-          <h2 id="connection-heading">System connection</h2>
-          <button
-            type="button"
-            disabled={connection.state === "loading"}
-            onClick={() => setAttempt(attempt + 1)}
+      <Card className="mt-8 max-w-2xl" aria-labelledby="connection-heading">
+        <CardHeader>
+          <CardTitle>
+            <h2 id="connection-heading">System connection</h2>
+          </CardTitle>
+          <CardDescription>
+            Convex API and database availability
+          </CardDescription>
+          <CardAction>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={connection.state === "loading"}
+              onClick={() => setAttempt(attempt + 1)}
+            >
+              {connection.state === "loading" ? (
+                <Spinner
+                  data-icon="inline-start"
+                  role="presentation"
+                  aria-hidden="true"
+                />
+              ) : (
+                <RefreshCwIcon data-icon="inline-start" />
+              )}
+              {connection.state === "loading" ? "Checking…" : "Check again"}
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <Alert
+            variant={connection.state === "error" ? "destructive" : "default"}
+            role="status"
+            aria-live="polite"
           >
-            {connection.state === "loading" ? "Checking…" : "Check again"}
-          </button>
-        </div>
-        <div
-          role="status"
-          aria-live="polite"
-          className={`status status-${connection.state}`}
-        >
-          <span className="status-dot" aria-hidden="true" />
-          <div>
-            <strong>
+            {connection.state === "ready" ? (
+              <CircleCheckIcon aria-hidden="true" />
+            ) : connection.state === "error" ? (
+              <CircleAlertIcon aria-hidden="true" />
+            ) : (
+              <ActivityIcon aria-hidden="true" />
+            )}
+            <AlertTitle>
               {connection.state === "loading"
                 ? "Connecting to Convex"
                 : connection.state === "ready"
                   ? "Ready to build"
                   : "Connection unavailable"}
-            </strong>
-            <p>
+            </AlertTitle>
+            <AlertDescription>
               {connection.state === "loading"
                 ? "Checking the API and PostgreSQL connection…"
                 : connection.state === "ready"
                   ? "The API is responding and PostgreSQL is ready."
                   : connection.message}
-            </p>
-          </div>
-        </div>
-        <dl>
-          <div>
-            <dt>Application version</dt>
-            <dd>
-              {connection.state === "ready" ? connection.health.version : "—"}
-            </dd>
-          </div>
-          <div>
-            <dt>API contract</dt>
-            <dd>
-              <a href="/api/openapi.json">Open specification</a>
-            </dd>
-          </div>
-        </dl>
-      </section>
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <dl className="flex w-full flex-col gap-3 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt>Application version</dt>
+              <dd className="tabular-nums">
+                {connection.state === "ready" ? connection.health.version : "—"}
+              </dd>
+            </div>
+            <Separator />
+            <div className="flex justify-between gap-4">
+              <dt>API contract</dt>
+              <dd>
+                <Button asChild variant="link" className="h-auto p-0">
+                  <a href="/api/openapi.json">Open specification</a>
+                </Button>
+              </dd>
+            </div>
+          </dl>
+        </CardFooter>
+      </Card>
     </>
   );
 }

@@ -6,10 +6,12 @@
       "!**/dist",
       "!**/node_modules",
       "!**/test-results",
-      "!**/playwright-report"
+      "!**/playwright-report",
+      "!**/routeTree.gen.ts"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2 },
+  "css": { "parser": { "tailwindDirectives": true } },
   "linter": { "enabled": true, "rules": { "preset": "recommended" } },
   "overrides": [
     { "includes": ["src/api/schema.d.ts"], "linter": { "enabled": false } }
