@@ -1,0 +1,77 @@
+---
+name: Release containers
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+jobs:
+  versions:
+    name: Get Versions
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    outputs:
+      rust-version: ${{ steps.versions.outputs.rust-version }}
+      node-version: ${{ steps.versions.outputs.node-version }}
+      pnpm-version: ${{ steps.versions.outputs.pnpm-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-repo
+        with:
+          rust: false
+
+      - name: Fetch versions via Mise
+        id: versions
+        run: |
+          {
+            echo "rust-version=$(mise tool rust --active)"
+            echo "node-version=$(mise tool node --active)"
+            echo "pnpm-version=$(mise tool pnpm --active)"
+          } >> "${GITHUB_OUTPUT}"
+
+  docker:
+    name: Release container
+    needs: versions
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: docker/github-builder/.github/workflows/build.yml@58cb9f5b71b1836d6f690c1e95effdeb9b98cb8a # v1.17.0
+    with:
+      build-args: |
+        RUST_VERSION=${{ needs.versions.outputs.rust-version }}
+        NODE_VERSION=${{ needs.versions.outputs.node-version }}
+        PNPM_VERSION=${{ needs.versions.outputs.pnpm-version }}
+      cache: true
+      file: Dockerfile
+      meta-images: ghcr.io/${{ github.repository }}
+      meta-tags: |
+        type=semver,pattern={{version}}
+        type=semver,pattern={{major}}.{{minor}}
+        type=raw,value=rolling,enable=${{ github.event_name == 'release' }}
+        type=ref,event=branch
+      output: image
+      platforms: linux/amd64,linux/arm64
+      push: true
+      sbom: true
+      set-meta-annotations: true
+      set-meta-labels: true
+      sign: "true"
+    secrets:
+      registry-auths: |
+        - registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
