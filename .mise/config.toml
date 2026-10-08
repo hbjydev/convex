@@ -1,6 +1,6 @@
 [env]
-_.file = { path = "{{ config_root }}/../.env", optional = true }
-_.path = "{{ config_root }}/../web/node_modules/.bin"
+_.file = { path = "{{ config_root }}/.env", optional = true }
+_.path = "{{ config_root }}/web/node_modules/.bin"
 DATABASE_URL = "{{ env.DATABASE_URL | default(value='postgres://convex:convex@127.0.0.1:5432/convex') }}"
 TEST_DATABASE_URL = "{{ env.TEST_DATABASE_URL | default(value='postgres://convex:convex@127.0.0.1:5433/convex_test') }}"
 SQLX_OFFLINE = "true"
@@ -26,7 +26,7 @@ run = "docker compose up -d --wait postgres"
 
 [tasks."db:down"]
 description = "Stop local services, preserving development data"
-run = "docker compose --profile test down"
+run = "docker compose --profile test --profile mail down"
 
 [tasks."db:migrate"]
 description = "Apply embedded migrations to DATABASE_URL"
@@ -155,3 +155,28 @@ run = "pnpm --dir web exec playwright install --with-deps chromium"
 description = "Verify the browser-to-API request against the isolated test database"
 depends = ["db:test:up"]
 run = "DATABASE_URL=\"$TEST_DATABASE_URL\" pnpm --dir web exec playwright test"
+
+[tasks."account:recover"]
+description = "Issue an operator-authorized reset link for an existing local account (EMAIL [--enable])"
+usage = '''
+arg "<email>" help="Email of an existing local account"
+flag "--enable" help="Explicitly re-enable a disabled account"
+'''
+run = '''
+if [ "${usage_enable:-false}" = "true" ]; then
+  cargo run --locked -p convex --bin recover-account -- "${usage_email?}" --enable
+else
+  cargo run --locked -p convex --bin recover-account -- "${usage_email?}"
+fi
+'''
+
+[tasks."dev:e2e:api"]
+description = "Run a browser-test API with a fresh disposable database"
+run = [
+  "cargo build --locked -p convex --bin recover-account",
+  'DATABASE_URL="$TEST_DATABASE_URL" CONVEX_BIND_ADDRESS="127.0.0.1:3001" CONVEX_PUBLIC_URL="http://127.0.0.1:5174" CONVEX_SETUP_TOKEN="browser-test-installer-credential-12345" CONVEX_SMTP_HOST="" cargo run --locked -p convex --features integration --bin e2e-server',
+]
+
+[tasks."mail:up"]
+description = "Start optional development SMTP and the Mailpit inbox"
+run = "docker compose --profile mail up -d mailpit"

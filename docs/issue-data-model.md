@@ -2,6 +2,8 @@
 
 This model supports Convex's first issue-management milestone using Rust, Axum, SQLx, and PostgreSQL. It describes persisted entities and their rules before writing migrations. UUIDs are internal references; human-readable issue identifiers are a separate concept. The HTTP contract is defined separately in the [backend and API plan](backend-and-api.md).
 
+CP02 now persists accounts, workspace memberships, teams, and their initial workflow statuses. Its settled policies are recorded in [CP02 authentication decisions](authentication.md#cp02-implementation-decisions). Issue, label, comment, and activity entities below remain proposals for later checkpoints.
+
 ## Shared conventions
 
 - Each entity has an immutable UUID primary key unless a composite key is specified below.
@@ -107,4 +109,4 @@ Likely initial indexes cover active issues by workspace/team and creation time, 
 
 Projects and cycles should be separate entities referenced by issues when their behavior is defined. Dependencies should use typed issue relationships; sub-issues need explicit hierarchy rules. Cross-team issue transfers require a decision about identifier aliases and status mapping. Attachments, reactions, due dates, estimates, subscribers, notifications, saved views, board ordering, and private teams are intentionally absent from the first schema proposal.
 
-Before migrations, settle authentication policies, permission details, deletion/retention policy, and description storage. PostgreSQL and support for both local and OIDC login are agreed; the detailed models are proposals, not implemented guarantees.
+Before issue migrations, settle deletion/retention policy and description storage. CP02 settles local authentication, workspace permissions, and workflow defaults; OIDC behavior remains CP03 work. Unimplemented issue and collaboration models remain proposals.

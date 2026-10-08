@@ -1,11 +1,11 @@
 [package]
 name = "convex"
-version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 default-run = "convex"
 autotests = false
+version = "0.1.0"
 
 [features]
 integration = []
@@ -16,6 +16,11 @@ path = "tests/database.rs"
 required-features = ["integration"]
 
 [dependencies]
+argon2.workspace = true
+sha2.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+lettre.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 serde.workspace = true
@@ -34,3 +39,8 @@ tower.workspace = true
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "e2e-server"
+path = "src/bin/e2e-server.rs"
+required-features = ["integration"]

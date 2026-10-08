@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  workers: 1,
   use: { baseURL: "http://127.0.0.1:5174", trace: "retain-on-failure" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
@@ -12,9 +13,8 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "mise run dev:api",
+      command: "mise run dev:e2e:api",
       cwd: "..",
-      env: { CONVEX_BIND_ADDRESS: "127.0.0.1:3001" },
       url: "http://127.0.0.1:3001/api/v1/health",
       timeout: 120_000,
       reuseExistingServer: false,

@@ -6,7 +6,7 @@ CP01 through CP08 define the path to the first self-hosted alpha. CP09 onward de
 
 ## Current position
 
-CP01 has established the runnable application, development tooling, and generated API contract. Its completion checks passed locally; later checkpoints remain planned.
+CP01 and CP02 are complete. Convex now has the runnable application and generated API contract, plus local accounts, workspace onboarding, invitations, session/recovery controls, and essential workspace/team settings. Completion checks passed locally; CP03 onward remain planned.
 
 - Backend: Rust, Axum, PostgreSQL, and SQLx.
 - Contract: utoipa and utoipa-axum generate OpenAPI alongside route registration; TypeScript contract types are generated from that specification and checked in CI.
@@ -28,7 +28,7 @@ Build each checkpoint across the backend and frontend where applicable. Include 
 | ID | Checkpoint | Depends on | Status |
 | --- | --- | --- | --- |
 | CP01 | Application foundation and API contract | Agreed stack | Complete |
-| CP02 | Local accounts and workspace onboarding | CP01 | Planned |
+| CP02 | Local accounts and workspace onboarding | CP01 | Complete |
 | CP03 | OIDC login and account linking | CP02 | Planned |
 | CP04 | Complete issue workflow | CP02 | Planned |
 | CP05 | Labels and finding work | CP04 | Planned |
@@ -83,6 +83,17 @@ Included work:
 Complete when a fresh instance can create its first admin, onboard a second person, authenticate both, and enforce workspace roles. Verify invitation single-use behavior, session revocation, workspace isolation, and membership removal. Demonstrate the chosen onboarding and recovery paths with SMTP unavailable as well as configured, where applicable.
 
 Resolve here: signup/invitation policy, roles, email handling, session/CSRF policy, SMTP behavior, recovery, and workflow defaults. See [Accounts and OIDC login](authentication.md) and [Issue data model](issue-data-model.md).
+
+Verification recorded on 2026-10-08:
+
+- `mise run check` passed Rust formatting/Clippy, Biome, TypeScript, and database-free generated-artifact consistency checks. `mise run build` passed for both the application and frontend.
+- `mise run test:rust:unit` passed two hermetic tests, and `mise run test:web` passed two HTTP-client tests. `mise run test:rust:integration` passed eight isolated PostgreSQL tests; exercised success and error responses were validated against generated schemas.
+- Database tests verified installer authority and concurrent one-time setup; concurrent single-use invitation acceptance and password reset; password/session revocation; expiration and throttling; role restrictions and inviter authority; membership reactivation without duplicate rows; last-owner protection; account disablement; and cross-workspace isolation.
+- SMTP-unavailable tests verified direct invitation sharing, uniform recovery responses, and operator-issued recovery tokens. A configured loopback SMTP fixture received invitation and recovery messages, and its reset link changed the password and revoked sessions. `mise run mail:up` also started the pinned development Mailpit service successfully. Production SMTP/STARTTLS delivery has not been exercised against an external provider.
+- `mise run test:e2e` passed eight desktop/mobile Chromium scenarios. Two people completed onboarding and local authentication; invitation replay failed; password change and membership removal revoked access; the real `recover-account --enable` binary re-enabled a disabled local account, issued a reset link, and completed browser password recovery without restoring removed membership. Browser tests use a fresh database and fixed test origin/configuration, independent of local `.env` overrides.
+- Browser checks verified API/network recovery, retained login drafts after a failed request, and no overflow for valid 100-character unbroken workspace/team/display names. Desktop and mobile onboarding, invitation, login/recovery, account, and workspace-settings screenshots were inspected. The UI reviewer scored its long-name and network-error fixes resolved; the documentation check confirmed the existing visual system and CP02 documentation.
+
+The [CP02 implementation decisions](authentication.md#cp02-implementation-decisions) record onboarding, roles, email normalization, sessions/CSRF, SMTP, recovery, and workflow defaults. The [installation and operator-recovery instructions](authentication.md#first-installation-and-operator-recovery) document both mail-enabled and mail-unavailable operation.
 
 ## CP03 OIDC login and account linking
 

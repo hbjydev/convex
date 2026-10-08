@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("the frontend makes a real documented request and can retry", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/system");
   await expect(page.getByRole("status")).toContainText("Ready to build");
   await expect(page.getByText("0.1.0", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Check again" }).click();
@@ -24,7 +24,7 @@ test("the frontend makes a real documented request and can retry", async ({
 
 test("a network failure offers recovery", async ({ page }) => {
   await page.route("**/api/v1/health", (route) => route.abort());
-  await page.goto("/");
+  await page.goto("/system");
   await expect(page.getByRole("status")).toContainText(
     "Connection unavailable",
   );

@@ -14,9 +14,12 @@ async fn main() -> Result<()> {
     MIGRATOR.run(&pool).await?;
     let listener = tokio::net::TcpListener::bind(config.bind_address).await?;
     tracing::info!(address = %listener.local_addr()?, "Convex listening");
-    axum::serve(listener, http::router(pool.clone()))
-        .with_graceful_shutdown(shutdown())
-        .await?;
+    axum::serve(
+        listener,
+        http::router_with_config(pool.clone(), convex::security::SecurityConfig::from_env()?),
+    )
+    .with_graceful_shutdown(shutdown())
+    .await?;
     pool.close().await;
     Ok(())
 }

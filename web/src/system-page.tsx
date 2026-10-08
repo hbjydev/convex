@@ -47,8 +47,7 @@ export function SystemPage() {
     <>
       <h1>A place for your team's work.</h1>
       <p className="intro">
-        Convex is taking shape. This first step connects the application to its
-        API and database.
+        Check the connection between Convex, its API, and PostgreSQL.
       </p>
       <section aria-labelledby="connection-heading" className="connection">
         <div className="section-heading">
@@ -99,7 +98,6 @@ export function SystemPage() {
           </div>
         </dl>
       </section>
-      <p className="next">Up next: local accounts and workspace onboarding.</p>
     </>
   );
 }

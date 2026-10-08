@@ -14,7 +14,7 @@ mise run setup
 mise run dev
 ```
 
-Open <http://127.0.0.1:5173>. The frontend checks the API and PostgreSQL connection. The API listens on <http://127.0.0.1:3000> and applies migrations before serving requests. Stop development with Ctrl-C; `mise run db:down` stops the database containers while preserving development data.
+Open <http://127.0.0.1:5173>. The frontend opens first-admin onboarding, then local login and workspace settings. Configure `CONVEX_SETUP_TOKEN` before creating the first admin; see [installation and recovery](docs/authentication.md#first-installation-and-operator-recovery). The system connection screen is available at `/system`. The API listens on <http://127.0.0.1:3000> and applies migrations before serving requests. Stop development with Ctrl-C; `mise run db:down` stops the database containers while preserving development data.
 
 Local defaults work without an `.env` file. Copy `.env.example` to `.env` to customize the database URLs, bind address, or log filter. The frontend uses Vite's `/api` proxy; `CONVEX_API_PROXY` changes its backend target. Never expose the local Compose databases outside your machine; their credentials are development defaults.
 
@@ -31,8 +31,10 @@ Local defaults work without an `.env` file. Copy `.env.example` to `.env` to cus
 | `mise run test:e2e:install` | Install Chromium and its system dependencies (once) |
 | `mise run test:e2e` | Run desktop/mobile browser tests against the test database |
 | `mise run fmt` | Format and apply safe lint fixes |
+| `mise run account:recover EMAIL [--enable]` | Issue a short-lived operator recovery link for an existing local account |
+| `mise run mail:up` | Start optional development SMTP and the Mailpit inbox |
 
-`mise run db:up` and `mise run db:test:up` can start services independently. Database tests use PostgreSQL on port 5433, separate from development on port 5432. SQLx creates a fresh database for each integration test, applies migrations, and removes successful test databases. The test server uses disposable storage; it is not a place to keep work. Browser tests run their own API on port 3001 and Vite on port 5174.
+`mise run db:up` and `mise run db:test:up` can start services independently. Database tests use PostgreSQL on port 5433, separate from development on port 5432. SQLx creates a fresh database for each integration test, applies migrations, and removes successful test databases. The test server uses disposable storage; it is not a place to keep work. Browser tests run their own API on port 3001 and Vite on port 5174, creating a new database for each suite run and dropping it on graceful shutdown. They require a configured test-database name ending in `_test` and never clear the configured database.
 
 The Rust workspace lives under `crates/`, with the `convex` application as its first crate. React, Vite, TypeScript, React Router, and the generated HTTP client types live in `web/`. `api/openapi.json` and `web/src/api/schema.d.ts` are generated artifacts: edit the Rust HTTP types and documented handlers, run `mise run generate`, and commit both files.
 
@@ -50,6 +52,6 @@ Start with the [canonical delivery checkpoints](docs/checkpoints.md) for the imp
 - [Backend and API contract](docs/backend-and-api.md)
 - [Domain vocabulary](CONTEXT.md)
 
-The stack is Rust, Axum, PostgreSQL, and SQLx on the backend, with utoipa-generated OpenAPI and generated TypeScript contract types for a React frontend. CP01 establishes the runnable application and contract pipeline; account and issue features follow in later checkpoints.
+The stack is Rust, Axum, PostgreSQL, and SQLx on the backend, with utoipa-generated OpenAPI and generated TypeScript contract types for a React frontend. CP01 establishes the runnable application and contract pipeline. CP02 adds local accounts, invitations, sessions, recovery, and workspace/team settings; issue features follow in CP04.
 
 Developer tooling uses Mise and Docker Compose almost exclusively: Mise manages toolchains and development tasks; Docker Compose runs local services and dependencies. See the [developer tooling policy](docs/backend-and-api.md#developer-tooling) for the planning requirements.
