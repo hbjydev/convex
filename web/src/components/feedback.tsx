@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
+import type { ReactNode } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 
 export function Notice({
   children,
@@ -12,8 +12,8 @@ export function Notice({
 }) {
   return (
     <Alert
-      variant={error ? "destructive" : "default"}
-      role={error ? "alert" : "status"}
+      variant={error ? 'destructive' : 'default'}
+      role={error ? 'alert' : 'status'}
     >
       <AlertDescription>{children}</AlertDescription>
     </Alert>

@@ -1,20 +1,20 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRightIcon } from "lucide-react";
-import { api } from "@/api/client";
-import { useAuth } from "@/auth";
-import { Field, Form, text } from "@/components/app-form";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Link, useNavigate } from '@tanstack/react-router';
+import { ArrowRightIcon } from 'lucide-react';
+import { api } from '@/api/client';
+import { useAuth } from '@/auth';
+import { Field, Form, text } from '@/components/app-form';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
-} from "@/components/ui/empty";
-import { FieldGroup } from "@/components/ui/field";
-import { Separator } from "@/components/ui/separator";
-import { WorkspaceFields } from "@/features/workspaces/workspace-fields";
-import { unwrap } from "@/lib/requests";
+} from '@/components/ui/empty';
+import { FieldGroup } from '@/components/ui/field';
+import { Separator } from '@/components/ui/separator';
+import { WorkspaceFields } from '@/features/workspaces/workspace-fields';
+import { unwrap } from '@/lib/requests';
 
 export function Home() {
   const { account, reload } = useAuth();
@@ -73,18 +73,18 @@ export function Home() {
             submit="Create workspace"
             action={async (form) => {
               const space = unwrap(
-                await api.POST("/api/v1/workspaces", {
+                await api.POST('/api/v1/workspaces', {
                   body: {
-                    name: text(form, "name"),
-                    slug: text(form, "slug"),
-                    team_name: text(form, "team_name"),
-                    team_key: text(form, "team_key"),
+                    name: text(form, 'name'),
+                    slug: text(form, 'slug'),
+                    team_name: text(form, 'team_name'),
+                    team_key: text(form, 'team_key'),
                   },
                 }),
               );
               await reload();
               await navigate({
-                to: "/$workspaceSlug",
+                to: '/$workspaceSlug',
                 params: { workspaceSlug: space.slug },
               });
               return undefined;

@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["unicorn", "typescript", "oxc", "react", "jsx-a11y"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/set-state-in-effect": "off",
+    "react/purity": "off",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "react/exhaustive-effect-dependencies": "error",
+    "typescript/no-explicit-any": "error",
+    "unicorn/no-document-cookie": "error",
+    "prefer-const": "error"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/.tanstack/**",
+    "**/test-results/**",
+    "**/playwright-report/**",
+    "**/routeTree.gen.ts",
+    "src/api/schema.d.ts"
+  ]
+}

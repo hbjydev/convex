@@ -4,12 +4,12 @@ import {
   Link,
   useRouter,
   Outlet,
-} from "@tanstack/react-router";
-import type { AuthStore } from "@/auth";
-import { LoadingState, Notice } from "@/components/feedback";
-import { Button } from "@/components/ui/button";
-import { errorMessage } from "@/lib/requests";
-import { Toaster } from "@/components/ui/sonner";
+} from '@tanstack/react-router';
+import type { AuthStore } from '@/auth';
+import { LoadingState, Notice } from '@/components/feedback';
+import { Button } from '@/components/ui/button';
+import { errorMessage } from '@/lib/requests';
+import { Toaster } from '@/components/ui/sonner';
 
 export const Route = createRootRouteWithContext<{ auth: AuthStore }>()({
   beforeLoad: ({ context }) =>

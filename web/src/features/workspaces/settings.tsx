@@ -1,47 +1,47 @@
-import { Link, useLocation, useRouteContext } from "@tanstack/react-router";
-import { ArrowLeftIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/api/client";
-import type { components } from "@/api/schema";
-import { useAuth } from "@/auth";
-import { Field, Form, RoleField, text } from "@/components/app-form";
-import { LoadingState, Notice } from "@/components/feedback";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Link, useLocation, useRouteContext } from '@tanstack/react-router';
+import { ArrowLeftIcon } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '@/api/client';
+import type { components } from '@/api/schema';
+import { useAuth } from '@/auth';
+import { Field, Form, RoleField, text } from '@/components/app-form';
+import { LoadingState, Notice } from '@/components/feedback';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   FieldGroup,
   FieldLabel,
   Field as UIField,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { errorMessage, unwrap } from "@/lib/requests";
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { errorMessage, unwrap } from '@/lib/requests';
 
-type Schema = components["schemas"];
+type Schema = components['schemas'];
 export function WorkspaceSettings() {
   const { hash } = useLocation();
   const { workspaceId } = useRouteContext({
-    from: "/_app/$workspaceSlug",
+    from: '/_app/$workspaceSlug',
   });
   const { account, reload, bootstrap } = useAuth();
-  const [detail, setDetail] = useState<Schema["WorkspaceDetail"] | null>(null);
-  const [invitations, setInvitations] = useState<Schema["Invitation"][]>([]);
-  const [error, setError] = useState("");
+  const [detail, setDetail] = useState<Schema['WorkspaceDetail'] | null>(null);
+  const [invitations, setInvitations] = useState<Schema['Invitation'][]>([]);
+  const [error, setError] = useState('');
   const load = useCallback(async () => {
     if (!workspaceId)
       throw new Error(
-        "This workspace is unavailable or you no longer have access.",
+        'This workspace is unavailable or you no longer have access.',
       );
     const detail = unwrap(
-      await api.GET("/api/v1/workspaces/{workspace_id}", {
+      await api.GET('/api/v1/workspaces/{workspace_id}', {
         params: { path: { workspace_id: workspaceId } },
       }),
     );
     setDetail(detail);
-    if (detail.workspace.role !== "member")
+    if (detail.workspace.role !== 'member')
       setInvitations(
         unwrap(
-          await api.GET("/api/v1/workspaces/{workspace_id}/invitations", {
+          await api.GET('/api/v1/workspaces/{workspace_id}/invitations', {
             params: { path: { workspace_id: workspaceId } },
           }),
         ),
@@ -49,19 +49,19 @@ export function WorkspaceSettings() {
   }, [workspaceId]);
   useEffect(() => {
     setDetail(null);
-    setError("");
+    setError('');
     load().catch((error) => setError(errorMessage(error)));
   }, [load]);
   useEffect(() => {
-    if (!detail || (hash !== "people" && hash !== "teams")) return;
+    if (!detail || (hash !== 'people' && hash !== 'teams')) return;
     const frame = requestAnimationFrame(() => {
-      document.getElementById(hash)?.scrollIntoView({ block: "start" });
+      document.getElementById(hash)?.scrollIntoView({ block: 'start' });
     });
     return () => cancelAnimationFrame(frame);
   }, [detail, hash]);
-  const [link, setLink] = useState<Schema["InviteLink"] | null>(null);
+  const [link, setLink] = useState<Schema['InviteLink'] | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
-  const [copyMessage, setCopyMessage] = useState("");
+  const [copyMessage, setCopyMessage] = useState('');
   if (error)
     return (
       <>
@@ -72,12 +72,12 @@ export function WorkspaceSettings() {
     );
   if (!detail || !account || !workspaceId)
     return <LoadingState>Loading workspace…</LoadingState>;
-  const owner = detail.workspace.role === "owner";
-  const manage = owner || detail.workspace.role === "admin";
+  const owner = detail.workspace.role === 'owner';
+  const manage = owner || detail.workspace.role === 'admin';
   const params = { path: { workspace_id: workspaceId } };
-  async function changeMember(member: Schema["Member"], role: string | null) {
+  async function changeMember(member: Schema['Member'], role: string | null) {
     unwrap(
-      await api.POST("/api/v1/workspaces/{workspace_id}/members", {
+      await api.POST('/api/v1/workspaces/{workspace_id}/members', {
         params,
         body: { membership_id: member.id, role, remove: role === null },
       }),
@@ -111,9 +111,9 @@ export function WorkspaceSettings() {
             submit="Save workspace name"
             action={async (form) => {
               const result = unwrap(
-                await api.POST("/api/v1/workspaces/{workspace_id}/rename", {
+                await api.POST('/api/v1/workspaces/{workspace_id}/rename', {
                   params,
-                  body: { name: text(form, "name") },
+                  body: { name: text(form, 'name') },
                 }),
               );
               await load();
@@ -141,18 +141,18 @@ export function WorkspaceSettings() {
                 <strong>{member.display_name}</strong>
                 <span>
                   {member.role}
-                  {member.disabled ? " · Account disabled" : ""}
+                  {member.disabled ? ' · Account disabled' : ''}
                 </span>
               </div>
-              {manage && (owner || member.role === "member") && (
+              {manage && (owner || member.role === 'member') && (
                 <div className="member-actions">
                   <Form
                     inline
                     variant="outline"
                     submit="Save role"
                     action={async (form) => {
-                      await changeMember(member, text(form, "role"));
-                      return "Role saved. Their sessions were revoked.";
+                      await changeMember(member, text(form, 'role'));
+                      return 'Role saved. Their sessions were revoked.';
                     }}
                   >
                     <RoleField
@@ -169,7 +169,7 @@ export function WorkspaceSettings() {
                       submit="Confirm removal"
                       action={async () => {
                         await changeMember(member, null);
-                        return "Membership removed.";
+                        return 'Membership removed.';
                       }}
                     >
                       <p>Remove {member.display_name} from this workspace?</p>
@@ -209,23 +209,23 @@ export function WorkspaceSettings() {
             action={async (form) => {
               const result = unwrap(
                 await api.POST(
-                  "/api/v1/workspaces/{workspace_id}/invitations",
+                  '/api/v1/workspaces/{workspace_id}/invitations',
                   {
                     params,
                     body: {
-                      role: text(form, "role"),
-                      deliver_to: text(form, "deliver_to") || null,
+                      role: text(form, 'role'),
+                      deliver_to: text(form, 'deliver_to') || null,
                     },
                   },
                 ),
               );
               setLink(result);
               await load();
-              return text(form, "deliver_to")
+              return text(form, 'deliver_to')
                 ? result.email_delivered
-                  ? "Invitation sent by email."
-                  : "Email delivery failed. Share the link below directly."
-                : "Invitation ready to share.";
+                  ? 'Invitation sent by email.'
+                  : 'Email delivery failed. Share the link below directly.'
+                : 'Invitation ready to share.';
             }}
           >
             <RoleField label="Invitation role" owner={owner} />
@@ -258,10 +258,10 @@ export function WorkspaceSettings() {
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(link.url);
-                    setCopyMessage("Copied");
+                    setCopyMessage('Copied');
                   } catch {
                     setCopyMessage(
-                      "Select and copy the invitation link manually.",
+                      'Select and copy the invitation link manually.',
                     );
                   }
                 }}
@@ -276,13 +276,13 @@ export function WorkspaceSettings() {
               {invitations.map((invite) => (
                 <li key={invite.id}>
                   <span>
-                    {invite.role} ·{" "}
+                    {invite.role} ·{' '}
                     {invite.accepted_at
-                      ? "Accepted"
+                      ? 'Accepted'
                       : invite.revoked_at
-                        ? "Revoked"
+                        ? 'Revoked'
                         : new Date(invite.expires_at) < new Date()
-                          ? "Expired"
+                          ? 'Expired'
                           : `Expires ${new Date(invite.expires_at).toLocaleDateString()}`}
                   </span>
                   {!invite.accepted_at && !invite.revoked_at && (
@@ -293,7 +293,7 @@ export function WorkspaceSettings() {
                       action={async () => {
                         const result = unwrap(
                           await api.POST(
-                            "/api/v1/workspaces/{workspace_id}/invitations/revoke",
+                            '/api/v1/workspaces/{workspace_id}/invitations/revoke',
                             { params, body: { invitation_id: invite.id } },
                           ),
                         );
@@ -329,9 +329,9 @@ export function WorkspaceSettings() {
               ))}
             </ol>
             <p className="muted">
-              New issues will start in{" "}
+              New issues will start in{' '}
               {
-                team.statuses.find((status) => status.category === "unstarted")
+                team.statuses.find((status) => status.category === 'unstarted')
                   ?.name
               }
               . Team keys stay fixed to preserve issue identifiers.
@@ -343,12 +343,12 @@ export function WorkspaceSettings() {
                 action={async (form) => {
                   const result = unwrap(
                     await api.POST(
-                      "/api/v1/workspaces/{workspace_id}/teams/{team_id}/rename",
+                      '/api/v1/workspaces/{workspace_id}/teams/{team_id}/rename',
                       {
                         params: {
                           path: { workspace_id: workspaceId, team_id: team.id },
                         },
-                        body: { name: text(form, "name") },
+                        body: { name: text(form, 'name') },
                       },
                     ),
                   );
@@ -372,9 +372,9 @@ export function WorkspaceSettings() {
               submit="Create team"
               action={async (form) => {
                 const result = unwrap(
-                  await api.POST("/api/v1/workspaces/{workspace_id}/teams", {
+                  await api.POST('/api/v1/workspaces/{workspace_id}/teams', {
                     params,
-                    body: { name: text(form, "name"), key: text(form, "key") },
+                    body: { name: text(form, 'name'), key: text(form, 'key') },
                   }),
                 );
                 await load();

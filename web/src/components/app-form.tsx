@@ -5,24 +5,24 @@ import {
   useContext,
   useId,
   useState,
-} from "react";
-import { Notice } from "@/components/feedback";
-import { Button } from "@/components/ui/button";
+} from 'react';
+import { Notice } from '@/components/feedback';
+import { Button } from '@/components/ui/button';
 import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldSet,
   Field as UIField,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import {
   NativeSelect,
   NativeSelectOption,
-} from "@/components/ui/native-select";
-import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/requests";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/native-select';
+import { Spinner } from '@/components/ui/spinner';
+import { errorMessage } from '@/lib/requests';
+import { cn } from '@/lib/utils';
 
 const FormPending = createContext(false);
 
@@ -33,7 +33,7 @@ export function Form({
   action,
   onSuccess,
   inline = false,
-  variant = "default",
+  variant = 'default',
 }: {
   children: ReactNode;
   className?: string;
@@ -41,20 +41,20 @@ export function Form({
   action: (form: FormData) => Promise<string | undefined>;
   onSuccess?: () => void;
   inline?: boolean;
-  variant?: "default" | "outline" | "destructive";
+  variant?: 'default' | 'outline' | 'destructive';
 }) {
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   async function handle(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
-    setError("");
-    setMessage("");
+    setError('');
+    setMessage('');
     const form = event.currentTarget;
     try {
       const message = await action(new FormData(form));
-      setMessage(message ?? "Saved.");
+      setMessage(message ?? 'Saved.');
       onSuccess?.();
     } catch (error) {
       setError(errorMessage(error));
@@ -63,7 +63,7 @@ export function Form({
     }
   }
 
-  const formClassName = cn("app-form", className, inline && "inline-form");
+  const formClassName = cn('app-form', className, inline && 'inline-form');
 
   return (
     <form onSubmit={handle} className={formClassName} aria-busy={pending}>
@@ -72,7 +72,7 @@ export function Form({
           <FieldGroup
             className={cn(
               inline &&
-                "flex-row flex-wrap items-center gap-2 [container-type:normal]",
+                'flex-row flex-wrap items-center gap-2 [container-type:normal]',
             )}
           >
             {children}
@@ -89,7 +89,7 @@ export function Form({
                   aria-hidden="true"
                 />
               )}
-              {pending ? "Working…" : submit}
+              {pending ? 'Working…' : submit}
             </Button>
           </FieldGroup>
         </FieldSet>
@@ -102,7 +102,7 @@ export function Form({
 export function Field({
   name,
   label,
-  type = "text",
+  type = 'text',
   autoComplete,
   value,
   hint,
@@ -129,8 +129,8 @@ export function Field({
         defaultValue={value}
         required={required}
         disabled={pending}
-        minLength={type === "password" ? 12 : undefined}
-        maxLength={type === "password" ? 128 : type === "email" ? 254 : 100}
+        minLength={type === 'password' ? 12 : undefined}
+        maxLength={type === 'password' ? 128 : type === 'email' ? 254 : 100}
         aria-describedby={hint ? `${id}-hint` : undefined}
       />
       {hint && <FieldDescription id={`${id}-hint`}>{hint}</FieldDescription>}
@@ -138,11 +138,11 @@ export function Field({
   );
 }
 export function text(form: FormData, key: string) {
-  return String(form.get(key) ?? "");
+  return String(form.get(key) ?? '');
 }
 export function RoleField({
   label,
-  value = "member",
+  value = 'member',
   owner,
   includeOwner = false,
   hiddenLabel = false,
@@ -158,9 +158,9 @@ export function RoleField({
   return (
     <UIField
       data-disabled={pending}
-      className={cn(hiddenLabel && "w-28 shrink-0")}
+      className={cn(hiddenLabel && 'w-28 shrink-0')}
     >
-      <FieldLabel htmlFor={id} className={cn(hiddenLabel && "sr-only")}>
+      <FieldLabel htmlFor={id} className={cn(hiddenLabel && 'sr-only')}>
         {label}
       </FieldLabel>
       <NativeSelect id={id} name="role" defaultValue={value} disabled={pending}>
@@ -184,8 +184,8 @@ export function Credentials({ creating = false }: { creating?: boolean }) {
         name="password"
         label="Password"
         type="password"
-        autoComplete={creating ? "new-password" : "current-password"}
-        hint={creating ? "Use 12–128 characters." : undefined}
+        autoComplete={creating ? 'new-password' : 'current-password'}
+        hint={creating ? 'Use 12–128 characters.' : undefined}
       />
     </>
   );

@@ -1,12 +1,12 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from '@tanstack/react-router';
 import {
   ActivityIcon,
   LayersIcon,
   SettingsIcon,
   UsersIcon,
-} from "lucide-react";
-import { useAuth } from "@/auth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+} from 'lucide-react';
+import { useAuth } from '@/auth';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Sidebar,
   SidebarContent,
@@ -21,9 +21,9 @@ import {
   SidebarRail,
   SidebarTrigger,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { WorkspaceMenu } from "@/components/workspace-menu";
-import { useCurrentWorkspace } from "@/features/workspaces/use-current-workspace";
+} from '@/components/ui/sidebar';
+import { WorkspaceMenu } from '@/components/workspace-menu';
+import { useCurrentWorkspace } from '@/features/workspaces/use-current-workspace';
 
 export function AppSidebar({
   onError,
@@ -57,10 +57,10 @@ export function AppSidebar({
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/"}>
+                  <SidebarMenuButton asChild isActive={pathname === '/'}>
                     <Link
                       to="/"
-                      aria-current={pathname === "/" ? "page" : undefined}
+                      aria-current={pathname === '/' ? 'page' : undefined}
                       onClick={closeNavigation}
                     >
                       <LayersIcon />
@@ -88,7 +88,7 @@ export function AppSidebar({
                         params={{ workspaceSlug: workspace.slug }}
                         onClick={closeNavigation}
                         aria-current={
-                          workspaceOpen && !hash ? "page" : undefined
+                          workspaceOpen && !hash ? 'page' : undefined
                         }
                       >
                         <SettingsIcon />
@@ -99,7 +99,7 @@ export function AppSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={workspaceOpen && hash === "people"}
+                      isActive={workspaceOpen && hash === 'people'}
                     >
                       <Link
                         to="/$workspaceSlug"
@@ -107,8 +107,8 @@ export function AppSidebar({
                         hash="people"
                         onClick={closeNavigation}
                         aria-current={
-                          workspaceOpen && hash === "people"
-                            ? "page"
+                          workspaceOpen && hash === 'people'
+                            ? 'page'
                             : undefined
                         }
                       >
@@ -120,7 +120,7 @@ export function AppSidebar({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={workspaceOpen && hash === "teams"}
+                      isActive={workspaceOpen && hash === 'teams'}
                     >
                       <Link
                         to="/$workspaceSlug"
@@ -128,7 +128,7 @@ export function AppSidebar({
                         hash="teams"
                         onClick={closeNavigation}
                         aria-current={
-                          workspaceOpen && hash === "teams" ? "page" : undefined
+                          workspaceOpen && hash === 'teams' ? 'page' : undefined
                         }
                       >
                         <LayersIcon />
@@ -145,10 +145,10 @@ export function AppSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === "/system"}>
+            <SidebarMenuButton asChild isActive={pathname === '/system'}>
               <Link
                 to="/system"
-                aria-current={pathname === "/system" ? "page" : undefined}
+                aria-current={pathname === '/system' ? 'page' : undefined}
                 onClick={closeNavigation}
               >
                 <ActivityIcon />
@@ -158,12 +158,12 @@ export function AppSidebar({
           </SidebarMenuItem>
           {account && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === "/account"}>
+              <SidebarMenuButton asChild isActive={pathname === '/account'}>
                 <Link
                   to="/account"
                   onClick={closeNavigation}
                   aria-label="Your account"
-                  aria-current={pathname === "/account" ? "page" : undefined}
+                  aria-current={pathname === '/account' ? 'page' : undefined}
                 >
                   <Avatar size="sm">
                     <AvatarFallback>

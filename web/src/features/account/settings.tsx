@@ -1,26 +1,26 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowLeftIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/api/client";
-import type { components } from "@/api/schema";
-import { useAuth } from "@/auth";
-import { Field, Form, text } from "@/components/app-form";
-import { Notice } from "@/components/feedback";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { errorMessage, unwrap } from "@/lib/requests";
+import { Link } from '@tanstack/react-router';
+import { ArrowLeftIcon } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '@/api/client';
+import type { components } from '@/api/schema';
+import { useAuth } from '@/auth';
+import { Field, Form, text } from '@/components/app-form';
+import { Notice } from '@/components/feedback';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { errorMessage, unwrap } from '@/lib/requests';
 
-type Schema = components["schemas"];
+type Schema = components['schemas'];
 
 export function AccountSettings() {
   const { account, reload } = useAuth();
-  const [sessions, setSessions] = useState<Schema["SessionInfo"][]>([]);
-  const [accounts, setAccounts] = useState<Schema["AdminAccount"][]>([]);
-  const [error, setError] = useState("");
+  const [sessions, setSessions] = useState<Schema['SessionInfo'][]>([]);
+  const [accounts, setAccounts] = useState<Schema['AdminAccount'][]>([]);
+  const [error, setError] = useState('');
   const load = useCallback(async () => {
-    setSessions(unwrap(await api.GET("/api/v1/auth/sessions")));
+    setSessions(unwrap(await api.GET('/api/v1/auth/sessions')));
     if (account?.user.is_instance_admin)
-      setAccounts(unwrap(await api.GET("/api/v1/admin/accounts")));
+      setAccounts(unwrap(await api.GET('/api/v1/admin/accounts')));
   }, [account?.user.is_instance_admin]);
   useEffect(() => {
     load().catch((error) => setError(errorMessage(error)));
@@ -42,10 +42,10 @@ export function AccountSettings() {
           submit="Change password"
           action={async (form) => {
             const result = unwrap(
-              await api.POST("/api/v1/auth/password", {
+              await api.POST('/api/v1/auth/password', {
                 body: {
-                  current_password: text(form, "current_password"),
-                  new_password: text(form, "new_password"),
+                  current_password: text(form, 'current_password'),
+                  new_password: text(form, 'new_password'),
                 },
               }),
             );
@@ -77,7 +77,7 @@ export function AccountSettings() {
             <li key={session.id}>
               <div>
                 <strong>
-                  {session.current ? "This browser" : "Another session"}
+                  {session.current ? 'This browser' : 'Another session'}
                 </strong>
                 <span>
                   Signed in {new Date(session.created_at).toLocaleString()}
@@ -92,7 +92,7 @@ export function AccountSettings() {
                 submit="Sign out session"
                 action={async () => {
                   const result = unwrap(
-                    await api.POST("/api/v1/auth/sessions/revoke", {
+                    await api.POST('/api/v1/auth/sessions/revoke', {
                       body: { session_id: session.id },
                     }),
                   );
@@ -121,19 +121,19 @@ export function AccountSettings() {
                 <div>
                   <strong>{user.display_name}</strong>
                   <span>
-                    {user.email} · {user.disabled ? "Disabled" : "Active"}
+                    {user.email} · {user.disabled ? 'Disabled' : 'Active'}
                   </span>
                 </div>
                 {user.id !== account.user.id && (
                   <Form
                     inline
-                    variant={user.disabled ? "outline" : "destructive"}
+                    variant={user.disabled ? 'outline' : 'destructive'}
                     submit={
-                      user.disabled ? "Enable account" : "Disable account"
+                      user.disabled ? 'Enable account' : 'Disable account'
                     }
                     action={async () => {
                       const result = unwrap(
-                        await api.POST("/api/v1/admin/accounts/disable", {
+                        await api.POST('/api/v1/admin/accounts/disable', {
                           body: { user_id: user.id, disabled: !user.disabled },
                         }),
                       );

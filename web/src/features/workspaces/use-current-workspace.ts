@@ -1,8 +1,8 @@
-import { useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/auth";
+import { useLocation } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/auth';
 
-const STORAGE_KEY = "convex.current-workspace";
+const STORAGE_KEY = 'convex.current-workspace';
 
 export function useCurrentWorkspace() {
   const { account } = useAuth();

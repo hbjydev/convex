@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link } from '@tanstack/react-router';
 import {
   ArrowLeftIcon,
   ArrowLeftRightIcon,
@@ -10,11 +10,11 @@ import {
   PlusIcon,
   SettingsIcon,
   UsersIcon,
-} from "lucide-react";
-import { useState } from "react";
-import { api } from "@/api/client";
-import type { components } from "@/api/schema";
-import { useAuth } from "@/auth";
+} from 'lucide-react';
+import { useState } from 'react';
+import { api } from '@/api/client';
+import type { components } from '@/api/schema';
+import { useAuth } from '@/auth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,16 +26,16 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
-import { errorMessage, unwrap } from "@/lib/requests";
+} from '@/components/ui/dropdown-menu';
+import { SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
+import { errorMessage, unwrap } from '@/lib/requests';
 
 export function WorkspaceMenu({
   workspace,
   closeNavigation,
   onError,
 }: {
-  workspace: components["schemas"]["Workspace"] | undefined;
+  workspace: components['schemas']['Workspace'] | undefined;
   closeNavigation: () => void;
   onError: (message: string) => void;
 }) {
@@ -45,9 +45,9 @@ export function WorkspaceMenu({
   const [signingOut, setSigningOut] = useState(false);
   async function signOut() {
     setSigningOut(true);
-    onError("");
+    onError('');
     try {
-      unwrap(await api.POST("/api/v1/auth/logout"));
+      unwrap(await api.POST('/api/v1/auth/logout'));
       closeNavigation();
       await reload();
     } catch (error) {
@@ -68,7 +68,7 @@ export function WorkspaceMenu({
               to="/$workspaceSlug"
               params={{ workspaceSlug: space.slug }}
               onClick={closeNavigation}
-              aria-current={workspace?.id === space.id ? "page" : undefined}
+              aria-current={workspace?.id === space.id ? 'page' : undefined}
             >
               <span className="workspace-mark" aria-hidden="true">
                 {space.name.slice(0, 1).toUpperCase()}
@@ -111,12 +111,12 @@ export function WorkspaceMenu({
         <SidebarMenuButton
           className="w-auto max-w-full"
           disabled={signingOut}
-          aria-label={`${workspace?.name ?? "Convex"} workspace menu`}
+          aria-label={`${workspace?.name ?? 'Convex'} workspace menu`}
         >
           <span className="workspace-avatar" aria-hidden="true">
             {workspace?.name.slice(0, 2).toUpperCase() ?? <LayersIcon />}
           </span>
-          <span className="truncate">{workspace?.name ?? "Convex"}</span>
+          <span className="truncate">{workspace?.name ?? 'Convex'}</span>
           <ChevronDownIcon />
         </SidebarMenuButton>
       </DropdownMenuTrigger>
@@ -159,9 +159,9 @@ export function WorkspaceMenu({
                     onClick={closeNavigation}
                   >
                     <UsersIcon />
-                    {workspace.role === "member"
-                      ? "View members"
-                      : "Invite and manage members"}
+                    {workspace.role === 'member'
+                      ? 'View members'
+                      : 'Invite and manage members'}
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>

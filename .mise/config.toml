@@ -54,7 +54,7 @@ description = "Export OpenAPI without a database and generate TypeScript types"
 run = [
   "cargo run --locked --quiet -p convex --bin export-openapi > api/openapi.json",
   "pnpm --dir web generate",
-  "pnpm --dir web exec biome format --write ../api/openapi.json src/api/schema.d.ts",
+  "oxfmt --config web/.oxfmtrc.json --write api/openapi.json web/src/api/schema.d.ts",
 ]
 
 [tasks."generate:check"]
@@ -63,7 +63,7 @@ run = "node scripts/check-contract.mjs"
 
 [tasks.fmt]
 description = "Format Rust and frontend sources"
-run = ["cargo fmt --all", "pnpm --dir web exec biome check --write . ../api ../scripts"]
+run = ["cargo fmt --all", "pnpm --dir web lint:fix", "pnpm --dir web format"]
 
 [tasks."fmt:check"]
 description = "Check Rust and frontend formatting and lint rules"
@@ -75,7 +75,7 @@ run = "cargo fmt --all -- --check"
 
 [tasks."fmt:check:web"]
 description = "Check frontend formatting and lint rules"
-run = "pnpm --dir web exec biome check . ../api ../scripts"
+run = ["pnpm --dir web lint", "pnpm --dir web format:check"]
 
 [tasks."check:rust"]
 description = "Check Rust formatting and lint all targets without a live database"

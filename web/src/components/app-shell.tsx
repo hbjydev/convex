@@ -1,14 +1,14 @@
-import { Outlet } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
-import { AppSidebar } from "@/components/app-sidebar";
-import { Notice } from "@/components/feedback";
+import { Outlet } from '@tanstack/react-router';
+import { type ReactNode, useState } from 'react';
+import { AppSidebar } from '@/components/app-sidebar';
+import { Notice } from '@/components/feedback';
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { TooltipProvider } from "@/components/ui/tooltip";
+} from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 export function AppShell({ children }: { children?: ReactNode }) {
   return (
@@ -22,7 +22,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
 function ShellContent({ children }: { children?: ReactNode }) {
   const { openMobile } = useSidebar();
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   return (
     <>
       <a className="skip-link" href="#main-content">

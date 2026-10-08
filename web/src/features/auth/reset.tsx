@@ -1,11 +1,11 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { api } from "@/api/client";
-import { useAuth } from "@/auth";
-import { Field, Form, text } from "@/components/app-form";
-import { Notice } from "@/components/feedback";
-import { unwrap } from "@/lib/requests";
-import { AuthCard } from "@/components/auth-card";
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { api } from '@/api/client';
+import { useAuth } from '@/auth';
+import { Field, Form, text } from '@/components/app-form';
+import { Notice } from '@/components/feedback';
+import { unwrap } from '@/lib/requests';
+import { AuthCard } from '@/components/auth-card';
 
 export function Reset() {
   const navigate = useNavigate();
@@ -14,12 +14,15 @@ export function Reset() {
     return value;
   });
   useEffect(() => {
-    void navigate({ to: "/auth/reset", hash: "", replace: true });
+    void navigate({ to: '/auth/reset', hash: '', replace: true });
   }, [navigate]);
   const [done, setDone] = useState(false);
   const { reload } = useAuth();
   return (
-    <AuthCard title="Choose a new password" description="Enter a new password to reset your account.">
+    <AuthCard
+      title="Choose a new password"
+      description="Enter a new password to reset your account."
+    >
       {done ? (
         <>
           <Notice>
@@ -32,8 +35,8 @@ export function Reset() {
           submit="Reset password"
           action={async (form) => {
             const result = unwrap(
-              await api.POST("/api/v1/auth/reset", {
-                body: { token, password: text(form, "password") },
+              await api.POST('/api/v1/auth/reset', {
+                body: { token, password: text(form, 'password') },
               }),
             );
             await reload();

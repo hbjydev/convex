@@ -1,13 +1,13 @@
-import { useNavigate } from "@tanstack/react-router";
-import { api } from "@/api/client";
-import { useAuth } from "@/auth";
-import { Credentials, Field, Form, text } from "@/components/app-form";
-import { AuthCard } from "@/components/auth-card";
-import { Notice } from "@/components/feedback";
-import { FieldGroup } from "@/components/ui/field";
-import { Separator } from "@/components/ui/separator";
-import { WorkspaceFields } from "@/features/workspaces/workspace-fields";
-import { unwrap } from "@/lib/requests";
+import { useNavigate } from '@tanstack/react-router';
+import { api } from '@/api/client';
+import { useAuth } from '@/auth';
+import { Credentials, Field, Form, text } from '@/components/app-form';
+import { AuthCard } from '@/components/auth-card';
+import { Notice } from '@/components/feedback';
+import { FieldGroup } from '@/components/ui/field';
+import { Separator } from '@/components/ui/separator';
+import { WorkspaceFields } from '@/features/workspaces/workspace-fields';
+import { unwrap } from '@/lib/requests';
 
 export function Setup() {
   const { bootstrap, reload } = useAuth();
@@ -22,16 +22,16 @@ export function Setup() {
           submit="Create workspace"
           action={async (form) => {
             unwrap(
-              await api.POST("/api/v1/auth/setup", {
+              await api.POST('/api/v1/auth/setup', {
                 body: {
-                  setup_token: text(form, "setup_token"),
-                  email: text(form, "email"),
-                  password: text(form, "password"),
-                  display_name: text(form, "display_name"),
-                  workspace_name: text(form, "workspace_name"),
-                  workspace_slug: text(form, "workspace_slug"),
-                  team_name: text(form, "team_name"),
-                  team_key: text(form, "team_key"),
+                  setup_token: text(form, 'setup_token'),
+                  email: text(form, 'email'),
+                  password: text(form, 'password'),
+                  display_name: text(form, 'display_name'),
+                  workspace_name: text(form, 'workspace_name'),
+                  workspace_slug: text(form, 'workspace_slug'),
+                  team_name: text(form, 'team_name'),
+                  team_key: text(form, 'team_key'),
                 },
               }),
             );
@@ -39,10 +39,10 @@ export function Setup() {
             const workspace = account?.workspaces[0];
             if (workspace)
               await navigate({
-                to: "/$workspaceSlug",
+                to: '/$workspaceSlug',
                 params: { workspaceSlug: workspace.slug },
               });
-            else await navigate({ to: "/" });
+            else await navigate({ to: '/' });
             return undefined;
           }}
         >

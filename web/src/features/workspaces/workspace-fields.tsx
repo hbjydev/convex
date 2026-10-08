@@ -1,56 +1,56 @@
-import { useId, useState } from "react";
+import { useId, useState } from 'react';
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-} from "@/components/ui/input-group";
+} from '@/components/ui/input-group';
 
 const RESERVED_SLUGS = [
-  "account",
-  "api",
-  "assets",
-  "auth",
-  "invite",
-  "setup",
-  "system",
-  "workspaces",
+  'account',
+  'api',
+  'assets',
+  'auth',
+  'invite',
+  'setup',
+  'system',
+  'workspaces',
 ];
 
 function suggestSlug(name: string) {
   const slug = name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^a-z0-9]+/g, '-')
     .slice(0, 63)
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-+|-+$/g, '');
   return RESERVED_SLUGS.includes(slug) ? `${slug}-workspace` : slug;
 }
 
 export function WorkspaceFields({ setup = false }: { setup?: boolean }) {
   const id = useId();
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
   const [editedSlug, setEditedSlug] = useState(false);
   const prefix = `${window.location.host}/`;
   const slugError = RESERVED_SLUGS.includes(slug)
-    ? "This URL is reserved for the application. Choose another slug."
-    : "";
+    ? 'This URL is reserved for the application. Choose another slug.'
+    : '';
   return (
     <>
       <Field>
         <FieldLabel htmlFor={`${id}-name`}>Workspace name</FieldLabel>
         <Input
           id={`${id}-name`}
-          name={setup ? "workspace_name" : "name"}
+          name={setup ? 'workspace_name' : 'name'}
           value={name}
           required
           maxLength={100}
@@ -69,7 +69,7 @@ export function WorkspaceFields({ setup = false }: { setup?: boolean }) {
             ref={(input) => {
               input?.setCustomValidity(slugError);
             }}
-            name={setup ? "workspace_slug" : "slug"}
+            name={setup ? 'workspace_slug' : 'slug'}
             value={slug}
             required
             minLength={3}
@@ -79,7 +79,7 @@ export function WorkspaceFields({ setup = false }: { setup?: boolean }) {
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
-            aria-describedby={`${id}-prefix ${id}-hint${slugError ? ` ${id}-error` : ""}`}
+            aria-describedby={`${id}-prefix ${id}-hint${slugError ? ` ${id}-error` : ''}`}
             aria-invalid={!!slugError}
             onChange={(event) => {
               setEditedSlug(true);

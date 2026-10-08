@@ -3,10 +3,10 @@ import {
   CircleAlertIcon,
   CircleCheckIcon,
   RefreshCwIcon,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardAction,
@@ -15,51 +15,51 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Spinner } from "@/components/ui/spinner";
-import { api } from "./api/client";
-import type { components } from "./api/schema";
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+import { api } from './api/client';
+import type { components } from './api/schema';
 
 type Connection =
-  | { state: "loading" }
-  | { state: "ready"; health: components["schemas"]["HealthResponse"] }
-  | { state: "error"; message: string };
+  | { state: 'loading' }
+  | { state: 'ready'; health: components['schemas']['HealthResponse'] }
+  | { state: 'error'; message: string };
 
 export function SystemPage() {
   const [connection, setConnection] = useState<Connection>({
-    state: "loading",
+    state: 'loading',
   });
   const [attempt, setAttempt] = useState(0);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: The attempt counter explicitly triggers a fresh request on retry.
   useEffect(() => {
     const controller = new AbortController();
-    setConnection({ state: "loading" });
+    setConnection({ state: 'loading' });
     api
-      .GET("/api/v1/health", { signal: controller.signal })
+      .GET('/api/v1/health', { signal: controller.signal })
       .then(({ data, error }) => {
         if (controller.signal.aborted) return;
         setConnection(
           data
-            ? { state: "ready", health: data }
+            ? { state: 'ready', health: data }
             : {
-                state: "error",
+                state: 'error',
                 message:
                   error?.message ??
-                  "The server returned an unexpected response.",
+                  'The server returned an unexpected response.',
               },
         );
       })
       .catch(() => {
         if (!controller.signal.aborted)
           setConnection({
-            state: "error",
+            state: 'error',
             message:
-              "Could not reach the server. Check that the API is running, then try again.",
+              'Could not reach the server. Check that the API is running, then try again.',
           });
       });
     return () => controller.abort();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- The attempt counter explicitly triggers a fresh request on retry.
   }, [attempt]);
 
   return (
@@ -76,10 +76,10 @@ export function SystemPage() {
             <Button
               variant="outline"
               type="button"
-              disabled={connection.state === "loading"}
+              disabled={connection.state === 'loading'}
               onClick={() => setAttempt(attempt + 1)}
             >
-              {connection.state === "loading" ? (
+              {connection.state === 'loading' ? (
                 <Spinner
                   data-icon="inline-start"
                   role="presentation"
@@ -88,35 +88,35 @@ export function SystemPage() {
               ) : (
                 <RefreshCwIcon data-icon="inline-start" />
               )}
-              {connection.state === "loading" ? "Checking…" : "Check again"}
+              {connection.state === 'loading' ? 'Checking…' : 'Check again'}
             </Button>
           </CardAction>
         </CardHeader>
         <CardContent>
           <Alert
-            variant={connection.state === "error" ? "destructive" : "default"}
+            variant={connection.state === 'error' ? 'destructive' : 'default'}
             role="status"
             aria-live="polite"
           >
-            {connection.state === "ready" ? (
+            {connection.state === 'ready' ? (
               <CircleCheckIcon aria-hidden="true" />
-            ) : connection.state === "error" ? (
+            ) : connection.state === 'error' ? (
               <CircleAlertIcon aria-hidden="true" />
             ) : (
               <ActivityIcon aria-hidden="true" />
             )}
             <AlertTitle>
-              {connection.state === "loading"
-                ? "Connecting to Convex"
-                : connection.state === "ready"
-                  ? "Ready to build"
-                  : "Connection unavailable"}
+              {connection.state === 'loading'
+                ? 'Connecting to Convex'
+                : connection.state === 'ready'
+                  ? 'Ready to build'
+                  : 'Connection unavailable'}
             </AlertTitle>
             <AlertDescription>
-              {connection.state === "loading"
-                ? "Checking the API and PostgreSQL connection…"
-                : connection.state === "ready"
-                  ? "The API is responding and PostgreSQL is ready."
+              {connection.state === 'loading'
+                ? 'Checking the API and PostgreSQL connection…'
+                : connection.state === 'ready'
+                  ? 'The API is responding and PostgreSQL is ready.'
                   : connection.message}
             </AlertDescription>
           </Alert>
@@ -126,7 +126,7 @@ export function SystemPage() {
             <div className="flex justify-between gap-4">
               <dt>Application version</dt>
               <dd className="tabular-nums">
-                {connection.state === "ready" ? connection.health.version : "—"}
+                {connection.state === 'ready' ? connection.health.version : '—'}
               </dd>
             </div>
             <Separator />
