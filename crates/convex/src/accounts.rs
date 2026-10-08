@@ -373,7 +373,7 @@ pub async fn request_recovery(
                 if let Some(user) = sqlx::query_scalar::<_,Uuid>("SELECT u.id FROM convex.users u JOIN convex.local_credentials c ON u.id=c.user_id WHERE c.email=$1 AND u.disabled_at IS NULL FOR UPDATE OF u,c").bind(&email).fetch_optional(&mut *tx).await? {
                     let token = recovery_token(&mut tx,user).await?;
                     tx.commit().await?;
-                    state.security.send(&email,"Reset your Convex password",format!("Reset your password within 30 minutes:\n{}/reset#{}\nIf you did not request this, ignore this email.",state.security.origin,token)).await?;
+                    state.security.send(&email,"Reset your Convex password",format!("Reset your password within 30 minutes:\n{}/auth/reset#{}\nIf you did not request this, ignore this email.",state.security.origin,token)).await?;
                 }
                 Ok::<_,AppError>(())
             }.await;

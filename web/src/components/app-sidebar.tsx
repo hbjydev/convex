@@ -23,6 +23,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { WorkspaceMenu } from '@/components/workspace-menu';
+import { SettingsSidebar } from '@/components/settings-sidebar';
 import { useCurrentWorkspace } from '@/features/workspaces/use-current-workspace';
 
 export function AppSidebar({
@@ -36,6 +37,18 @@ export function AppSidebar({
   const workspace = useCurrentWorkspace();
   const closeNavigation = () => setOpenMobile(false);
   const workspaceOpen = pathname === `/${workspace?.slug}`;
+
+  if (workspace && workspaceOpen)
+    return (
+      <Sidebar variant="inset">
+        <SettingsSidebar
+          workspace={workspace}
+          closeNavigation={closeNavigation}
+          onError={onError}
+        />
+        <SidebarRail />
+      </Sidebar>
+    );
 
   return (
     <Sidebar variant="inset">
@@ -113,7 +126,7 @@ export function AppSidebar({
                         }
                       >
                         <UsersIcon />
-                        <span>People</span>
+                        <span>Members</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

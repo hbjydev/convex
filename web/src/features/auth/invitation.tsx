@@ -4,6 +4,7 @@ import { api } from '@/api/client';
 import type { components } from '@/api/schema';
 import { useAuth } from '@/auth';
 import { Credentials, Form, text } from '@/components/app-form';
+import { AuthCard } from '@/components/auth-card';
 import { LoadingState, Notice } from '@/components/feedback';
 import { errorMessage, unwrap } from '@/lib/requests';
 
@@ -46,10 +47,11 @@ export function InvitationAcceptance() {
     };
   }, [token]);
   return (
-    <>
-      <h1>
-        {preview ? `Join ${preview.workspace_name}` : 'Workspace invitation'}
-      </h1>
+    <AuthCard
+      title={
+        preview ? `Join ${preview.workspace_name}` : 'Workspace invitation'
+      }
+    >
       {error ? (
         <Notice error>{error}</Notice>
       ) : preview ? (
@@ -101,6 +103,6 @@ export function InvitationAcceptance() {
       ) : (
         <LoadingState>Checking your invitation…</LoadingState>
       )}
-    </>
+    </AuthCard>
   );
 }
