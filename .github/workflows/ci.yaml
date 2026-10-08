@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +16,9 @@ concurrency:
 
 jobs:
   check-rust:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Check Rust
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -24,6 +29,9 @@ jobs:
         run: mise run check:rust
 
   check-web:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Check Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -37,6 +45,9 @@ jobs:
         run: mise run check:web
 
   check-contract:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Check API contract
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -49,6 +60,9 @@ jobs:
         run: mise run generate:check
 
   build-rust:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Build Rust
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -67,6 +81,9 @@ jobs:
           if-no-files-found: error
 
   build-web:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Build Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -80,6 +97,9 @@ jobs:
         run: mise run build:web
 
   test-rust:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Rust Unit Tests
     needs: build-rust
     runs-on: ubuntu-latest
@@ -102,6 +122,9 @@ jobs:
           path: target/nextest/ci/junit.xml
 
   integration-test:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Rust Integration Tests
     needs: build-rust
     runs-on: ubuntu-latest
@@ -127,6 +150,9 @@ jobs:
         run: mise run db:down
 
   test-web:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Test Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -140,6 +166,9 @@ jobs:
         run: mise run test:web
 
   test-e2e:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Test browser-to-API integration
     runs-on: ubuntu-latest
     timeout-minutes: 20
