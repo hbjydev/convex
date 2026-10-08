@@ -1,0 +1,163 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-rust:
+    name: Check Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+      - name: Check Rust
+        run: mise run check:rust
+
+  check-web:
+    name: Check Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+        with:
+          rust: 'false'
+          pnpm: 'true'
+      - name: Check Web
+        run: mise run check:web
+
+  check-contract:
+    name: Check API contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+        with:
+          pnpm: 'true'
+      - name: Check generated contracts without PostgreSQL
+        run: mise run generate:check
+
+  build-rust:
+    name: Build Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+      - name: Build Rust application and archive tests
+        run: mise run test:rust:archive
+      - name: Upload workspace tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextest-workspace
+          path: target/nextest/workspace.tar.zst
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+        with:
+          rust: 'false'
+          pnpm: 'true'
+      - name: Build Web
+        run: mise run build:web
+
+  test-rust:
+    name: Rust Unit Tests
+    needs: build-rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+      - name: Download workspace tests
+        uses: actions/download-artifact@v4
+        with:
+          name: nextest-workspace
+          path: target/nextest
+      - name: Run unit tests from archive
+        run: mise run test:rust:unit:from-archive
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-unit-results
+          path: target/nextest/ci/junit.xml
+
+  integration-test:
+    name: Rust Integration Tests
+    needs: build-rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+      - name: Download workspace tests
+        uses: actions/download-artifact@v4
+        with:
+          name: nextest-workspace
+          path: target/nextest
+      - name: Run integration tests from archive
+        run: mise run test:rust:integration:from-archive
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-integration-results
+          path: target/nextest/ci/junit.xml
+      - name: Stop local services
+        if: always()
+        run: mise run db:down
+
+  test-web:
+    name: Test Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+        with:
+          rust: 'false'
+          pnpm: 'true'
+      - name: Unit tests
+        run: mise run test:web
+
+  test-e2e:
+    name: Test browser-to-API integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+        with:
+          pnpm: 'true'
+      - name: Install browser
+        run: mise run test:e2e:install
+      - name: Browser-to-API smoke tests
+        run: mise run test:e2e
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-diagnostics
+          path: web/test-results/
+      - name: Stop local services
+        if: always()
+        run: mise run db:down

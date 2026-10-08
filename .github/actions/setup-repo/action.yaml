@@ -1,0 +1,75 @@
+---
+name: Setup Repo
+description: Configures Mise and sets up language caches.
+
+inputs:
+  bootstrap:
+    description: Enable mise bootstrap
+    default: 'false'
+
+  cache:
+    description: Enable caching
+    default: 'true'
+
+  rust:
+    description: Enable Rust caching
+    default: 'true'
+
+  pnpm:
+    description: Enable pnpm store caching
+    default: 'false'
+
+  pnpm-directory:
+    description: Directory containing the pnpm project and lockfile
+    default: 'web'
+
+runs:
+  using: composite
+  steps:
+    - name: Set system brew path
+      if: ${{ inputs.bootstrap == 'true' }}
+      shell: bash
+      run: echo "MISE_SYSTEM_BREW_PREFIX=/tmp/brew" >> "${GITHUB_ENV}"
+
+    - name: Install Mise
+      uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+      with:
+        bootstrap: ${{ inputs.bootstrap }}
+        cache: ${{ inputs.cache }}
+        env: true
+        experimental: true
+        export_path: true
+
+    - name: Locate pnpm store
+      id: pnpm-store
+      if: ${{ inputs.cache == 'true' && inputs.pnpm == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.pnpm-directory }}
+      run: |
+        echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+        echo "pnpm-version=$(pnpm --version)" >> "$GITHUB_OUTPUT"
+        echo "node-version=$(node --version)" >> "$GITHUB_OUTPUT"
+
+    - name: pnpm cache
+      if: ${{ inputs.cache == 'true' && inputs.pnpm == 'true' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ steps.pnpm-store.outputs.pnpm-version }}-node-${{ steps.pnpm-store.outputs.node-version }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', inputs.pnpm-directory)) }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ steps.pnpm-store.outputs.pnpm-version }}-node-${{ steps.pnpm-store.outputs.node-version }}-
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      if: ${{ inputs.cache == 'true' && inputs.rust == 'true' }}
+
+    - name: Install missing Rust components
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: mise run rust-components
+
+    - name: Install PNPM packages
+      if: ${{ inputs.pnpm == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.pnpm-directory }}
+      run: pnpm install --frozen-lockfile

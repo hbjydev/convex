@@ -1,0 +1,34 @@
+name: convex
+
+x-postgres: &postgres
+  image: postgres:18.3-alpine
+  environment:
+    POSTGRES_USER: convex
+    POSTGRES_PASSWORD: convex
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U convex"]
+    interval: 2s
+    timeout: 5s
+    retries: 30
+
+services:
+  postgres:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: convex
+      POSTGRES_PASSWORD: convex
+      POSTGRES_DB: convex
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql"]
+  postgres-test:
+    <<: *postgres
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: convex
+      POSTGRES_PASSWORD: convex
+      POSTGRES_DB: convex_test
+    ports: ["127.0.0.1:5433:5432"]
+    tmpfs: ["/var/lib/postgresql"]
+
+volumes:
+  postgres-data:

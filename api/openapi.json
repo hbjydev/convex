@@ -1,0 +1,106 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Convex API",
+    "description": "Public Convex HTTP contract. Unknown routes return 404 and unsupported methods return 405 using ApiError.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/openapi.json": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Returns the same contract exported by the offline generation command.",
+        "operationId": "getOpenApi",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 specification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Reports whether the application can query the migrated PostgreSQL database.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Application and database are ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database or application schema is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "field_errors": {
+            "type": ["object", "null"],
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": ["service_unavailable", "not_found", "method_not_allowed"]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "version"],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "HealthStatus": {
+        "type": "string",
+        "enum": ["ready"]
+      }
+    }
+  }
+}

@@ -1,0 +1,157 @@
+[env]
+_.file = { path = "{{ config_root }}/../.env", optional = true }
+_.path = "{{ config_root }}/../web/node_modules/.bin"
+DATABASE_URL = "{{ env.DATABASE_URL | default(value='postgres://convex:convex@127.0.0.1:5432/convex') }}"
+TEST_DATABASE_URL = "{{ env.TEST_DATABASE_URL | default(value='postgres://convex:convex@127.0.0.1:5433/convex_test') }}"
+SQLX_OFFLINE = "true"
+
+[tools]
+# core toolchain
+rust = "1.99.0"
+node = "24.21.0"
+pnpm = "12.10.1"
+"aqua:nextest-rs/nextest/cargo-nextest" = "0.9.146"
+
+[tasks.rust-components]
+description = "Install Rust formatting and lint components"
+run = "rustup component add rustfmt clippy"
+
+[tasks.setup]
+description = "Install frontend dependencies and fetch locked Rust dependencies"
+run = ["pnpm --dir web install --frozen-lockfile", "cargo fetch --locked"]
+
+[tasks."db:up"]
+description = "Start local PostgreSQL and wait for readiness"
+run = "docker compose up -d --wait postgres"
+
+[tasks."db:down"]
+description = "Stop local services, preserving development data"
+run = "docker compose --profile test down"
+
+[tasks."db:migrate"]
+description = "Apply embedded migrations to DATABASE_URL"
+run = "cargo run --locked -p convex --bin migrate"
+
+[tasks."db:test:up"]
+description = "Start the separate, disposable PostgreSQL test server"
+run = "docker compose --profile test up -d --wait postgres-test"
+
+[tasks."dev:api"]
+description = "Run the API; startup applies migrations"
+run = "cargo run --locked -p convex --bin convex"
+
+[tasks."dev:web"]
+description = "Run Vite with same-origin API proxy"
+run = "pnpm --dir web dev"
+
+[tasks.dev]
+description = "Start PostgreSQL, API and frontend"
+depends = ["db:up"]
+run = "mise run dev:api ::: dev:web"
+
+[tasks.generate]
+description = "Export OpenAPI without a database and generate TypeScript types"
+run = [
+  "cargo run --locked --quiet -p convex --bin export-openapi > api/openapi.json",
+  "pnpm --dir web generate",
+  "pnpm --dir web exec biome format --write ../api/openapi.json src/api/schema.d.ts",
+]
+
+[tasks."generate:check"]
+description = "Regenerate and compare checked-in contract artifacts"
+run = "node scripts/check-contract.mjs"
+
+[tasks.fmt]
+description = "Format Rust and frontend sources"
+run = ["cargo fmt --all", "pnpm --dir web exec biome check --write . ../api ../scripts"]
+
+[tasks."fmt:check"]
+description = "Check Rust and frontend formatting and lint rules"
+run = ["mise run fmt:check:rust", "mise run fmt:check:web"]
+
+[tasks."fmt:check:rust"]
+description = "Check Rust formatting"
+run = "cargo fmt --all -- --check"
+
+[tasks."fmt:check:web"]
+description = "Check frontend formatting and lint rules"
+run = "pnpm --dir web exec biome check . ../api ../scripts"
+
+[tasks."check:rust"]
+description = "Check Rust formatting and lint all targets without a live database"
+run = ["mise run fmt:check:rust", "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings", "mise run test:rust:doc"]
+
+[tasks."check:web"]
+description = "Check frontend formatting, lint rules and types"
+run = ["mise run fmt:check:web", "pnpm --dir web typecheck"]
+
+[tasks.check]
+description = "Run formatting, linting, typechecks and contract consistency"
+run = ["mise run generate:check", "mise run check:rust", "mise run check:web"]
+
+[tasks."test:rust"]
+description = "Run Rust unit and router tests without PostgreSQL"
+run = "mise run test:rust:unit"
+
+[tasks."test:rust:unit"]
+description = "Run the hermetic Rust suite without PostgreSQL"
+run = "cargo nextest run --workspace --all-features --locked --no-fail-fast -E 'not binary(/^integration/)'"
+
+[tasks."test:rust:doc"]
+description = "Run Rust doctests (separate from Nextest archives)"
+run = "cargo test --locked --workspace --all-features --doc"
+
+[tasks."test:rust:archive"]
+description = "Build the Rust application and archive all test binaries for CI"
+run = [
+  "mise run build:rust",
+  "mkdir -p target/nextest",
+  "cargo nextest archive --workspace --all-features --locked --archive-file target/nextest/workspace.tar.zst",
+]
+
+[tasks."test:rust:unit:from-archive"]
+description = "Run hermetic Rust tests from the CI archive without recompiling"
+run = "cargo-nextest nextest run --profile ci --workspace-remap . --archive-file target/nextest/workspace.tar.zst -E 'not binary(/^integration/)'"
+
+[tasks."test:rust:integration"]
+description = "Run the PostgreSQL integration suite"
+depends = ["db:test:up"]
+run = "DATABASE_URL=\"$TEST_DATABASE_URL\" cargo nextest run --workspace --features integration --locked --run-ignored all --no-fail-fast -E 'binary(/^integration/)'"
+
+[tasks."test:rust:integration:from-archive"]
+description = "Run PostgreSQL integration tests from the CI archive without recompiling"
+depends = ["db:test:up"]
+run = "DATABASE_URL=\"$TEST_DATABASE_URL\" cargo-nextest nextest run --profile ci --workspace-remap . --archive-file target/nextest/workspace.tar.zst --run-ignored all -E 'binary(/^integration/)'"
+
+[tasks."test:web"]
+description = "Run frontend client tests"
+run = "pnpm --dir web test"
+
+[tasks."test:db"]
+description = "Alias for the Rust PostgreSQL integration suite"
+run = "mise run test:rust:integration"
+
+[tasks.test]
+description = "Run Rust, frontend and database tests"
+run = ["mise run test:rust:unit", "mise run test:web", "mise run test:rust:integration", "mise run test:rust:doc"]
+
+[tasks.build]
+description = "Build the Rust application and frontend"
+run = ["mise run build:rust", "mise run build:web"]
+
+[tasks."build:rust"]
+description = "Build the Rust application"
+run = "cargo build --locked --workspace --all-features"
+
+[tasks."build:web"]
+description = "Build the frontend"
+run = "pnpm --dir web build"
+
+[tasks."test:e2e:install"]
+description = "Install Playwright Chromium and system dependencies"
+run = "pnpm --dir web exec playwright install --with-deps chromium"
+
+[tasks."test:e2e"]
+description = "Verify the browser-to-API request against the isolated test database"
+depends = ["db:test:up"]
+run = "DATABASE_URL=\"$TEST_DATABASE_URL\" pnpm --dir web exec playwright test"
