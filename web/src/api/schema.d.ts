@@ -426,6 +426,7 @@ export interface components {
     };
     CreateWorkspace: {
       name: string;
+      slug: string;
       team_key: string;
       team_name: string;
     };
@@ -543,6 +544,7 @@ export interface components {
       team_key: string;
       team_name: string;
       workspace_name: string;
+      workspace_slug: string;
     };
     Team: {
       /** Format: uuid */
@@ -574,6 +576,7 @@ export interface components {
       id: string;
       name: string;
       role: string;
+      slug: string;
     };
     WorkspaceDetail: {
       members: components["schemas"]["Member"][];

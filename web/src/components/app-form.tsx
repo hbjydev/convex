@@ -63,14 +63,10 @@ export function Form({
     }
   }
 
-  const formClassName = cn(className, inline && "inline-form");
+  const formClassName = cn("app-form", className, inline && "inline-form");
 
   return (
-    <form
-      onSubmit={handle}
-      className={formClassName}
-      aria-busy={pending}
-    >
+    <form onSubmit={handle} className={formClassName} aria-busy={pending}>
       <FormPending.Provider value={pending}>
         <FieldSet disabled={pending} className="min-w-0">
           <FieldGroup

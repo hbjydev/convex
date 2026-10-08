@@ -1884,9 +1884,12 @@
       },
       "CreateWorkspace": {
         "type": "object",
-        "required": ["name", "team_name", "team_key"],
+        "required": ["name", "slug", "team_name", "team_key"],
         "properties": {
           "name": {
+            "type": "string"
+          },
+          "slug": {
             "type": "string"
           },
           "team_key": {
@@ -2190,6 +2193,7 @@
           "password",
           "display_name",
           "workspace_name",
+          "workspace_slug",
           "team_name",
           "team_key"
         ],
@@ -2213,6 +2217,9 @@
             "type": "string"
           },
           "workspace_name": {
+            "type": "string"
+          },
+          "workspace_slug": {
             "type": "string"
           }
         },
@@ -2291,7 +2298,7 @@
       },
       "Workspace": {
         "type": "object",
-        "required": ["id", "name", "role"],
+        "required": ["id", "name", "slug", "role"],
         "properties": {
           "id": {
             "type": "string",
@@ -2301,6 +2308,9 @@
             "type": "string"
           },
           "role": {
+            "type": "string"
+          },
+          "slug": {
             "type": "string"
           }
         }

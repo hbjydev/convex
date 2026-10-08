@@ -2,17 +2,21 @@ import { useNavigate } from "@tanstack/react-router";
 import { api } from "@/api/client";
 import { useAuth } from "@/auth";
 import { Credentials, Field, Form, text } from "@/components/app-form";
+import { AuthCard } from "@/components/auth-card";
 import { Notice } from "@/components/feedback";
 import { FieldGroup } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { WorkspaceFields } from "@/features/workspaces/workspace-fields";
 import { unwrap } from "@/lib/requests";
-import { AuthCard } from "@/components/auth-card";
 
 export function Setup() {
   const { bootstrap, reload } = useAuth();
   const navigate = useNavigate();
   return (
-    <AuthCard title="Set up Convex" description="Create your first workspace and team.">
+    <AuthCard
+      title="Set up Convex"
+      description="Create your first workspace and team."
+    >
       {bootstrap.setup_enabled ? (
         <Form
           submit="Create workspace"
@@ -25,13 +29,20 @@ export function Setup() {
                   password: text(form, "password"),
                   display_name: text(form, "display_name"),
                   workspace_name: text(form, "workspace_name"),
+                  workspace_slug: text(form, "workspace_slug"),
                   team_name: text(form, "team_name"),
                   team_key: text(form, "team_key"),
                 },
               }),
             );
-            await reload();
-            await navigate({ to: "/" });
+            const account = await reload();
+            const workspace = account?.workspaces[0];
+            if (workspace)
+              await navigate({
+                to: "/$workspaceSlug",
+                params: { workspaceSlug: workspace.slug },
+              });
+            else await navigate({ to: "/" });
             return undefined;
           }}
         >
@@ -44,7 +55,7 @@ export function Setup() {
           <Credentials creating />
           <FieldGroup>
             <Separator />
-            <Field name="workspace_name" label="Workspace name" />
+            <WorkspaceFields setup />
             <FieldGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field name="team_name" label="First team name" />
               <Field

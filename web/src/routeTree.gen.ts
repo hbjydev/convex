@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from "./routes/_app";
 import { Route as AuthRouteImport } from "./routes/_auth";
 import { Route as SystemRouteImport } from "./routes/system";
 import { Route as AppIndexRouteImport } from "./routes/_app/index";
+import { Route as AppWorkspaceSlugRouteImport } from "./routes/_app/$workspaceSlug";
 import { Route as AppAccountRouteImport } from "./routes/_app/account";
 import { Route as AuthInviteRouteImport } from "./routes/_auth/invite";
 import { Route as AuthSetupRouteImport } from "./routes/_auth/setup";
@@ -37,6 +38,11 @@ const SystemRoute = SystemRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: "/",
   path: "/",
+  getParentRoute: () => AppRoute,
+} as any);
+const AppWorkspaceSlugRoute = AppWorkspaceSlugRouteImport.update({
+  id: "/$workspaceSlug",
+  path: "/$workspaceSlug",
   getParentRoute: () => AppRoute,
 } as any);
 const AppAccountRoute = AppAccountRouteImport.update({
@@ -79,6 +85,7 @@ const AuthAuthResetRoute = AuthAuthResetRouteImport.update({
 export interface FileRoutesByFullPath {
   "/": typeof AppIndexRoute;
   "/system": typeof SystemRoute;
+  "/$workspaceSlug": typeof AppWorkspaceSlugRoute;
   "/account": typeof AppAccountRoute;
   "/invite": typeof AuthInviteRoute;
   "/setup": typeof AuthSetupRoute;
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   "/": typeof AppIndexRoute;
   "/system": typeof SystemRoute;
+  "/$workspaceSlug": typeof AppWorkspaceSlugRoute;
   "/account": typeof AppAccountRoute;
   "/invite": typeof AuthInviteRoute;
   "/setup": typeof AuthSetupRoute;
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   "/_app": typeof AppRouteWithChildren;
   "/_auth": typeof AuthRouteWithChildren;
   "/system": typeof SystemRoute;
+  "/_app/$workspaceSlug": typeof AppWorkspaceSlugRoute;
   "/_app/account": typeof AppAccountRoute;
   "/_auth/invite": typeof AuthInviteRoute;
   "/_auth/setup": typeof AuthSetupRoute;
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
   fullPaths:
     | "/"
     | "/system"
+    | "/$workspaceSlug"
     | "/account"
     | "/invite"
     | "/setup"
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
   to:
     | "/"
     | "/system"
+    | "/$workspaceSlug"
     | "/account"
     | "/invite"
     | "/setup"
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | "/_app"
     | "/_auth"
     | "/system"
+    | "/_app/$workspaceSlug"
     | "/_app/account"
     | "/_auth/invite"
     | "/_auth/setup"
@@ -184,6 +196,13 @@ declare module "@tanstack/react-router" {
       path: "/";
       fullPath: "/";
       preLoaderRoute: typeof AppIndexRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/$workspaceSlug": {
+      id: "/_app/$workspaceSlug";
+      path: "/$workspaceSlug";
+      fullPath: "/$workspaceSlug";
+      preLoaderRoute: typeof AppWorkspaceSlugRouteImport;
       parentRoute: typeof AppRoute;
     };
     "/_app/account": {
@@ -239,12 +258,14 @@ declare module "@tanstack/react-router" {
 }
 
 interface AppRouteChildren {
+  AppWorkspaceSlugRoute: typeof AppWorkspaceSlugRoute;
   AppAccountRoute: typeof AppAccountRoute;
   AppIndexRoute: typeof AppIndexRoute;
   AppWorkspacesWorkspaceIdRoute: typeof AppWorkspacesWorkspaceIdRoute;
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppWorkspaceSlugRoute: AppWorkspaceSlugRoute,
   AppAccountRoute: AppAccountRoute,
   AppIndexRoute: AppIndexRoute,
   AppWorkspacesWorkspaceIdRoute: AppWorkspacesWorkspaceIdRoute,

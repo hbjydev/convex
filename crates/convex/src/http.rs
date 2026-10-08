@@ -280,6 +280,12 @@ impl From<sqlx::Error> for AppError {
     fn from(error: sqlx::Error) -> Self {
         if error
             .as_database_error()
+            .is_some_and(|e| e.constraint() == Some("workspaces_slug_key"))
+        {
+            return Self::conflict("This workspace URL is already in use. Choose another slug.");
+        }
+        if error
+            .as_database_error()
             .is_some_and(|e| e.is_unique_violation())
         {
             Self::conflict(

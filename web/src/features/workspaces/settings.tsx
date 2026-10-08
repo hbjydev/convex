@@ -1,4 +1,4 @@
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useLocation, useRouteContext } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/api/client";
@@ -19,14 +19,19 @@ import { errorMessage, unwrap } from "@/lib/requests";
 
 type Schema = components["schemas"];
 export function WorkspaceSettings() {
-  const { workspaceId } = useParams({
-    from: "/_app/workspaces/$workspaceId",
+  const { hash } = useLocation();
+  const { workspaceId } = useRouteContext({
+    from: "/_app/$workspaceSlug",
   });
   const { account, reload, bootstrap } = useAuth();
   const [detail, setDetail] = useState<Schema["WorkspaceDetail"] | null>(null);
   const [invitations, setInvitations] = useState<Schema["Invitation"][]>([]);
   const [error, setError] = useState("");
   const load = useCallback(async () => {
+    if (!workspaceId)
+      throw new Error(
+        "This workspace is unavailable or you no longer have access.",
+      );
     const detail = unwrap(
       await api.GET("/api/v1/workspaces/{workspace_id}", {
         params: { path: { workspace_id: workspaceId } },
@@ -47,6 +52,13 @@ export function WorkspaceSettings() {
     setError("");
     load().catch((error) => setError(errorMessage(error)));
   }, [load]);
+  useEffect(() => {
+    if (!detail || (hash !== "people" && hash !== "teams")) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(hash)?.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [detail, hash]);
   const [link, setLink] = useState<Schema["InviteLink"] | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState("");
@@ -58,7 +70,7 @@ export function WorkspaceSettings() {
         <Link to="/">Return to workspaces</Link>
       </>
     );
-  if (!detail || !account)
+  if (!detail || !account || !workspaceId)
     return <LoadingState>Loading workspace…</LoadingState>;
   const owner = detail.workspace.role === "owner";
   const manage = owner || detail.workspace.role === "admin";
@@ -87,6 +99,9 @@ export function WorkspaceSettings() {
         Your role: {detail.workspace.role}. Members can access every team in
         this workspace.
       </p>
+      <p className="break-all text-sm text-muted-foreground">
+        Workspace URL: {window.location.host}/{detail.workspace.slug}
+      </p>
       {manage && (
         <section className="settings-section">
           <Separator />
@@ -114,7 +129,7 @@ export function WorkspaceSettings() {
           </Form>
         </section>
       )}
-      <section className="settings-section">
+      <section className="settings-section" id="people">
         <Separator />
         <h2>
           People <Badge variant="secondary">{detail.members.length}</Badge>
@@ -295,7 +310,7 @@ export function WorkspaceSettings() {
           )}
         </section>
       )}
-      <section className="settings-section">
+      <section className="settings-section" id="teams">
         <Separator />
         <h2>Teams</h2>
         {detail.teams.map((team) => (

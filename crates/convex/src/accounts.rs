@@ -35,6 +35,7 @@ pub struct SetupRequest {
     pub password: String,
     pub display_name: String,
     pub workspace_name: String,
+    pub workspace_slug: String,
     pub team_name: String,
     pub team_key: String,
 }
@@ -197,6 +198,7 @@ pub async fn setup(
     let email = sec::email(&req.email)?;
     let display_name = sec::name(&req.display_name)?;
     let workspace_name = sec::name(&req.workspace_name)?;
+    let workspace_slug = sec::workspace_slug(&req.workspace_slug)?;
     let team_name = sec::name(&req.team_name)?;
     let team_key = sec::team_key(&req.team_key)?;
     let hash = sec::hash_password(req.password).await?;
@@ -209,7 +211,15 @@ pub async fn setup(
         return Err(AppError::conflict("This instance has already been set up."));
     }
     let user = create_local(&mut tx, email, hash, display_name, true).await?;
-    workspaces::create_workspace(&mut tx, user.id, workspace_name, team_name, team_key).await?;
+    workspaces::create_workspace(
+        &mut tx,
+        user.id,
+        workspace_name,
+        workspace_slug,
+        team_name,
+        team_key,
+    )
+    .await?;
     sqlx::query("UPDATE convex.installation SET initialized_at=now()")
         .execute(&mut *tx)
         .await?;

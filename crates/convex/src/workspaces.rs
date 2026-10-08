@@ -19,6 +19,7 @@ use uuid::Uuid;
 pub struct Workspace {
     pub id: Uuid,
     pub name: String,
+    pub slug: String,
     pub role: String,
 }
 #[derive(Serialize, sqlx::FromRow, ToSchema)]
@@ -53,6 +54,7 @@ pub struct WorkspaceDetail {
 #[serde(deny_unknown_fields)]
 pub struct CreateWorkspace {
     pub name: String,
+    pub slug: String,
     pub team_name: String,
     pub team_key: String,
 }
@@ -124,26 +126,29 @@ struct ValidInvite {
     workspace_id: Uuid,
     role: String,
     workspace_name: String,
+    workspace_slug: String,
 }
 
 pub async fn list_for_user(
     tx: &mut Transaction<'_, Postgres>,
     user: Uuid,
 ) -> AppResult<Vec<Workspace>> {
-    Ok(sqlx::query_as("SELECT w.id,w.name,m.role FROM convex.workspaces w JOIN convex.workspace_memberships m ON m.workspace_id=w.id WHERE m.user_id=$1 AND m.removed_at IS NULL ORDER BY w.created_at,w.id").bind(user).fetch_all(&mut **tx).await?)
+    Ok(sqlx::query_as("SELECT w.id,w.name,w.slug,m.role FROM convex.workspaces w JOIN convex.workspace_memberships m ON m.workspace_id=w.id WHERE m.user_id=$1 AND m.removed_at IS NULL ORDER BY w.created_at,w.id").bind(user).fetch_all(&mut **tx).await?)
 }
 
 pub async fn create_workspace(
     tx: &mut Transaction<'_, Postgres>,
     user: Uuid,
     name: String,
+    slug: String,
     team_name: String,
     team_key: String,
 ) -> AppResult<Uuid> {
     let id = Uuid::new_v4();
-    sqlx::query("INSERT INTO convex.workspaces (id,name) VALUES ($1,$2)")
+    sqlx::query("INSERT INTO convex.workspaces (id,name,slug) VALUES ($1,$2,$3)")
         .bind(id)
         .bind(name)
+        .bind(slug)
         .execute(&mut **tx)
         .await?;
     sqlx::query("INSERT INTO convex.workspace_memberships (id,workspace_id,user_id,role) VALUES ($1,$2,$3,'owner')").bind(Uuid::new_v4()).bind(id).bind(user).execute(&mut **tx).await?;
@@ -230,6 +235,7 @@ pub async fn create(
     ApiJson(req): ApiJson<CreateWorkspace>,
 ) -> AppResult<Json<Workspace>> {
     let name = sec::name(&req.name)?;
+    let slug = sec::workspace_slug(&req.slug)?;
     let team_name = sec::name(&req.team_name)?;
     let team_key = sec::team_key(&req.team_key)?;
     let mut tx = accounts::transaction(&state.pool).await?;
@@ -237,11 +243,20 @@ pub async fn create(
     if !actor.is_instance_admin {
         return Err(AppError::forbidden());
     }
-    let id = create_workspace(&mut tx, actor.id, name.clone(), team_name, team_key).await?;
+    let id = create_workspace(
+        &mut tx,
+        actor.id,
+        name.clone(),
+        slug.clone(),
+        team_name,
+        team_key,
+    )
+    .await?;
     tx.commit().await?;
     Ok(Json(Workspace {
         id,
         name,
+        slug,
         role: "owner".into(),
     }))
 }
@@ -256,10 +271,11 @@ pub async fn detail(
     let mut tx = accounts::transaction(&state.pool).await?;
     let user = accounts::authenticate(&mut tx, &headers).await?;
     let (_, role) = membership(&mut tx, space, user.id).await?;
-    let name = sqlx::query_scalar("SELECT name FROM convex.workspaces WHERE id=$1")
-        .bind(space)
-        .fetch_one(&mut *tx)
-        .await?;
+    let (name, slug): (String, String) =
+        sqlx::query_as("SELECT name,slug FROM convex.workspaces WHERE id=$1")
+            .bind(space)
+            .fetch_one(&mut *tx)
+            .await?;
     let members=sqlx::query_as("SELECT m.id,m.user_id,u.display_name,m.role,u.disabled_at IS NOT NULL AS disabled FROM convex.workspace_memberships m JOIN convex.users u ON m.user_id=u.id WHERE m.workspace_id=$1 AND m.removed_at IS NULL ORDER BY m.joined_at,m.id").bind(space).fetch_all(&mut *tx).await?;
     let rows: Vec<(Uuid, String, String)> = sqlx::query_as(
         "SELECT id,name,key FROM convex.teams WHERE workspace_id=$1 ORDER BY created_at,id",
@@ -282,6 +298,7 @@ pub async fn detail(
         workspace: Workspace {
             id: space,
             name,
+            slug,
             role,
         },
         members,
@@ -497,7 +514,7 @@ pub async fn revoke_invitation(
 
 async fn valid_invite(tx: &mut Transaction<'_, Postgres>, token: &str) -> AppResult<ValidInvite> {
     // Recheck inviter authority at use time, including account disablement.
-    sqlx::query_as("SELECT i.id,i.workspace_id,i.role,w.name AS workspace_name FROM convex.invitations i JOIN convex.workspaces w ON w.id=i.workspace_id JOIN convex.workspace_memberships m ON m.id=i.inviter_membership_id JOIN convex.users u ON u.id=m.user_id WHERE i.token_hash=$1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now() AND m.removed_at IS NULL AND u.disabled_at IS NULL AND (m.role='owner' OR (m.role='admin' AND i.role='member')) FOR UPDATE OF i,w,m,u").bind(sec::digest(token)).fetch_optional(&mut **tx).await?.ok_or_else(||AppError::validation("This invitation is invalid, expired, or already used. Ask a workspace admin for a new link."))
+    sqlx::query_as("SELECT i.id,i.workspace_id,i.role,w.name AS workspace_name,w.slug AS workspace_slug FROM convex.invitations i JOIN convex.workspaces w ON w.id=i.workspace_id JOIN convex.workspace_memberships m ON m.id=i.inviter_membership_id JOIN convex.users u ON u.id=m.user_id WHERE i.token_hash=$1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now() AND m.removed_at IS NULL AND u.disabled_at IS NULL AND (m.role='owner' OR (m.role='admin' AND i.role='member')) FOR UPDATE OF i,w,m,u").bind(sec::digest(token)).fetch_optional(&mut **tx).await?.ok_or_else(||AppError::validation("This invitation is invalid, expired, or already used. Ask a workspace admin for a new link."))
 }
 
 #[utoipa::path(post,path="/api/v1/invitations/preview",operation_id="previewInvitation",tag="Accounts",request_body=InviteToken,responses((status=200,body=InvitePreview),(status=400,body=crate::http::ApiError),(status=403,body=crate::http::ApiError),(status=429,body=crate::http::ApiError),(status=503,body=crate::http::ApiError)))]
@@ -579,6 +596,7 @@ pub async fn accept(
         Workspace {
             id: invitation.workspace_id,
             name: invitation.workspace_name,
+            slug: invitation.workspace_slug,
             role: invitation.role,
         },
     ))

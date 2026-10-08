@@ -168,6 +168,38 @@ pub fn name(value: &str) -> AppResult<String> {
     }
     Ok(value.into())
 }
+pub fn workspace_slug(value: &str) -> AppResult<String> {
+    let value = value.trim().to_ascii_lowercase();
+    if [
+        "account",
+        "api",
+        "assets",
+        "auth",
+        "invite",
+        "setup",
+        "system",
+        "workspaces",
+    ]
+    .contains(&value.as_str())
+    {
+        return Err(AppError::validation(
+            "This workspace URL is reserved for the application. Choose another slug.",
+        ));
+    }
+    if !(3..=63).contains(&value.len())
+        || value.split('-').any(|part| {
+            part.is_empty()
+                || !part
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        })
+    {
+        return Err(AppError::validation(
+            "Workspace URLs need 3–63 lowercase letters or numbers, separated by single hyphens.",
+        ));
+    }
+    Ok(value)
+}
 pub fn team_key(value: &str) -> AppResult<String> {
     let value = value.trim().to_ascii_uppercase();
     if !(2..=10).contains(&value.len())
@@ -256,5 +288,36 @@ mod tests {
         assert!(team_key("1ENG").is_err());
         assert_eq!(team_key("eng").unwrap(), "ENG");
         assert_eq!(token().len(), 64);
+    }
+
+    #[test]
+    fn workspace_slugs_are_url_safe() {
+        assert_eq!(workspace_slug(" Acme-2026 ").unwrap(), "acme-2026");
+        assert!(workspace_slug(&"a".repeat(63)).is_ok());
+        for invalid in [
+            "",
+            "ab",
+            "-acme",
+            "acme-",
+            "acme--team",
+            "acme/team",
+            "a b",
+            "café",
+        ] {
+            assert!(workspace_slug(invalid).is_err(), "accepted {invalid:?}");
+        }
+        assert!(workspace_slug(&"a".repeat(64)).is_err());
+        for reserved in [
+            "account",
+            "api",
+            "assets",
+            "auth",
+            "invite",
+            "setup",
+            "system",
+            "workspaces",
+        ] {
+            assert!(workspace_slug(reserved).is_err());
+        }
     }
 }

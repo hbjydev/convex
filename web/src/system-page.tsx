@@ -64,10 +64,6 @@ export function SystemPage() {
 
   return (
     <>
-      <h1>A place for your team's work.</h1>
-      <p className="intro">
-        Check the connection between Convex, its API, and PostgreSQL.
-      </p>
       <Card className="mt-8 max-w-2xl" aria-labelledby="connection-heading">
         <CardHeader>
           <CardTitle>

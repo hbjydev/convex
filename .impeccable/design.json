@@ -1,0 +1,826 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T22:30:13+00:00",
+  "title": "Design System: Convex",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Background",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(26% 0.0000 0.00)",
+          "oklch(38% 0.0000 0.00)",
+          "oklch(49% 0.0000 0.00)",
+          "oklch(61% 0.0000 0.00)",
+          "oklch(72% 0.0000 0.00)",
+          "oklch(84% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0130 285.47)",
+          "oklch(26% 0.0130 285.47)",
+          "oklch(38% 0.0130 285.47)",
+          "oklch(49% 0.0130 285.47)",
+          "oklch(61% 0.0130 285.47)",
+          "oklch(72% 0.0130 285.47)",
+          "oklch(84% 0.0130 285.47)",
+          "oklch(95% 0.0130 285.47)"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(26% 0.0000 0.00)",
+          "oklch(38% 0.0000 0.00)",
+          "oklch(49% 0.0000 0.00)",
+          "oklch(61% 0.0000 0.00)",
+          "oklch(72% 0.0000 0.00)",
+          "oklch(84% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "card-foreground": {
+        "role": "neutral",
+        "displayName": "Card Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0130 285.47)",
+          "oklch(26% 0.0130 285.47)",
+          "oklch(38% 0.0130 285.47)",
+          "oklch(49% 0.0130 285.47)",
+          "oklch(61% 0.0130 285.47)",
+          "oklch(72% 0.0130 285.47)",
+          "oklch(84% 0.0130 285.47)",
+          "oklch(95% 0.0130 285.47)"
+        ]
+      },
+      "popover": {
+        "role": "neutral",
+        "displayName": "Popover",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(26% 0.0000 0.00)",
+          "oklch(38% 0.0000 0.00)",
+          "oklch(49% 0.0000 0.00)",
+          "oklch(61% 0.0000 0.00)",
+          "oklch(72% 0.0000 0.00)",
+          "oklch(84% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "popover-foreground": {
+        "role": "neutral",
+        "displayName": "Popover Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0130 285.47)",
+          "oklch(26% 0.0130 285.47)",
+          "oklch(38% 0.0130 285.47)",
+          "oklch(49% 0.0130 285.47)",
+          "oklch(61% 0.0130 285.47)",
+          "oklch(72% 0.0130 285.47)",
+          "oklch(84% 0.0130 285.47)",
+          "oklch(95% 0.0130 285.47)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Primary",
+        "tonalRamp": [
+          "oklch(15% 0.1770 278.22)",
+          "oklch(26% 0.1770 278.22)",
+          "oklch(38% 0.1770 278.22)",
+          "oklch(49% 0.1770 278.22)",
+          "oklch(61% 0.1770 278.22)",
+          "oklch(72% 0.1770 278.22)",
+          "oklch(84% 0.1770 278.22)",
+          "oklch(95% 0.1770 278.22)"
+        ]
+      },
+      "primary-foreground": {
+        "role": "neutral",
+        "displayName": "Primary Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(26% 0.0000 0.00)",
+          "oklch(38% 0.0000 0.00)",
+          "oklch(49% 0.0000 0.00)",
+          "oklch(61% 0.0000 0.00)",
+          "oklch(72% 0.0000 0.00)",
+          "oklch(84% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0053 286.30)",
+          "oklch(26% 0.0053 286.30)",
+          "oklch(38% 0.0053 286.30)",
+          "oklch(49% 0.0053 286.30)",
+          "oklch(61% 0.0053 286.30)",
+          "oklch(72% 0.0053 286.30)",
+          "oklch(84% 0.0053 286.30)",
+          "oklch(95% 0.0053 286.30)"
+        ]
+      },
+      "secondary-foreground": {
+        "role": "neutral",
+        "displayName": "Secondary Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0130 285.47)",
+          "oklch(26% 0.0130 285.47)",
+          "oklch(38% 0.0130 285.47)",
+          "oklch(49% 0.0130 285.47)",
+          "oklch(61% 0.0130 285.47)",
+          "oklch(72% 0.0130 285.47)",
+          "oklch(84% 0.0130 285.47)",
+          "oklch(95% 0.0130 285.47)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0027 286.35)",
+          "oklch(26% 0.0027 286.35)",
+          "oklch(38% 0.0027 286.35)",
+          "oklch(49% 0.0027 286.35)",
+          "oklch(61% 0.0027 286.35)",
+          "oklch(72% 0.0027 286.35)",
+          "oklch(84% 0.0027 286.35)",
+          "oklch(95% 0.0027 286.35)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Muted Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0187 285.73)",
+          "oklch(26% 0.0187 285.73)",
+          "oklch(38% 0.0187 285.73)",
+          "oklch(49% 0.0187 285.73)",
+          "oklch(61% 0.0187 285.73)",
+          "oklch(72% 0.0187 285.73)",
+          "oklch(84% 0.0187 285.73)",
+          "oklch(95% 0.0187 285.73)"
+        ]
+      },
+      "accent": {
+        "role": "neutral",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15% 0.0053 286.30)",
+          "oklch(26% 0.0053 286.30)",
+          "oklch(38% 0.0053 286.30)",
+          "oklch(49% 0.0053 286.30)",
+          "oklch(61% 0.0053 286.30)",
+          "oklch(72% 0.0053 286.30)",
+          "oklch(84% 0.0053 286.30)",
+          "oklch(95% 0.0053 286.30)"
+        ]
+      },
+      "accent-foreground": {
+        "role": "neutral",
+        "displayName": "Accent Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0130 285.47)",
+          "oklch(26% 0.0130 285.47)",
+          "oklch(38% 0.0130 285.47)",
+          "oklch(49% 0.0130 285.47)",
+          "oklch(61% 0.0130 285.47)",
+          "oklch(72% 0.0130 285.47)",
+          "oklch(84% 0.0130 285.47)",
+          "oklch(95% 0.0130 285.47)"
+        ]
+      },
+      "destructive": {
+        "role": "feedback",
+        "displayName": "Destructive",
+        "tonalRamp": [
+          "oklch(15% 0.1772 22.21)",
+          "oklch(26% 0.1772 22.21)",
+          "oklch(38% 0.1772 22.21)",
+          "oklch(49% 0.1772 22.21)",
+          "oklch(61% 0.1772 22.21)",
+          "oklch(72% 0.1772 22.21)",
+          "oklch(84% 0.1772 22.21)",
+          "oklch(95% 0.1772 22.21)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "tonalRamp": [
+          "oklch(15% 0.0054 286.29)",
+          "oklch(26% 0.0054 286.29)",
+          "oklch(38% 0.0054 286.29)",
+          "oklch(49% 0.0054 286.29)",
+          "oklch(61% 0.0054 286.29)",
+          "oklch(72% 0.0054 286.29)",
+          "oklch(84% 0.0054 286.29)",
+          "oklch(95% 0.0054 286.29)"
+        ]
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Input",
+        "tonalRamp": [
+          "oklch(15% 0.0095 286.20)",
+          "oklch(26% 0.0095 286.20)",
+          "oklch(38% 0.0095 286.20)",
+          "oklch(49% 0.0095 286.20)",
+          "oklch(61% 0.0095 286.20)",
+          "oklch(72% 0.0095 286.20)",
+          "oklch(84% 0.0095 286.20)",
+          "oklch(95% 0.0095 286.20)"
+        ]
+      },
+      "ring": {
+        "role": "primary",
+        "displayName": "Ring",
+        "tonalRamp": [
+          "oklch(15% 0.1770 278.22)",
+          "oklch(26% 0.1770 278.22)",
+          "oklch(38% 0.1770 278.22)",
+          "oklch(49% 0.1770 278.22)",
+          "oklch(61% 0.1770 278.22)",
+          "oklch(72% 0.1770 278.22)",
+          "oklch(84% 0.1770 278.22)",
+          "oklch(95% 0.1770 278.22)"
+        ]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar",
+        "tonalRamp": [
+          "oklch(15% 0.0013 286.38)",
+          "oklch(26% 0.0013 286.38)",
+          "oklch(38% 0.0013 286.38)",
+          "oklch(49% 0.0013 286.38)",
+          "oklch(61% 0.0013 286.38)",
+          "oklch(72% 0.0013 286.38)",
+          "oklch(84% 0.0013 286.38)",
+          "oklch(95% 0.0013 286.38)"
+        ]
+      },
+      "sidebar-foreground": {
+        "role": "neutral",
+        "displayName": "Sidebar Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0167 285.61)",
+          "oklch(26% 0.0167 285.61)",
+          "oklch(38% 0.0167 285.61)",
+          "oklch(49% 0.0167 285.61)",
+          "oklch(61% 0.0167 285.61)",
+          "oklch(72% 0.0167 285.61)",
+          "oklch(84% 0.0167 285.61)",
+          "oklch(95% 0.0167 285.61)"
+        ]
+      },
+      "sidebar-accent": {
+        "role": "neutral",
+        "displayName": "Sidebar Accent",
+        "tonalRamp": [
+          "oklch(15% 0.0027 286.35)",
+          "oklch(26% 0.0027 286.35)",
+          "oklch(38% 0.0027 286.35)",
+          "oklch(49% 0.0027 286.35)",
+          "oklch(61% 0.0027 286.35)",
+          "oklch(72% 0.0027 286.35)",
+          "oklch(84% 0.0027 286.35)",
+          "oklch(95% 0.0027 286.35)"
+        ]
+      },
+      "sidebar-accent-foreground": {
+        "role": "neutral",
+        "displayName": "Sidebar Accent Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0130 285.47)",
+          "oklch(26% 0.0130 285.47)",
+          "oklch(38% 0.0130 285.47)",
+          "oklch(49% 0.0130 285.47)",
+          "oklch(61% 0.0130 285.47)",
+          "oklch(72% 0.0130 285.47)",
+          "oklch(84% 0.0130 285.47)",
+          "oklch(95% 0.0130 285.47)"
+        ]
+      },
+      "background-dark": {
+        "role": "neutral",
+        "displayName": "Background Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0040 286.02)",
+          "oklch(26% 0.0040 286.02)",
+          "oklch(38% 0.0040 286.02)",
+          "oklch(49% 0.0040 286.02)",
+          "oklch(61% 0.0040 286.02)",
+          "oklch(72% 0.0040 286.02)",
+          "oklch(84% 0.0040 286.02)",
+          "oklch(95% 0.0040 286.02)"
+        ]
+      },
+      "foreground-dark": {
+        "role": "neutral",
+        "displayName": "Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0067 286.27)",
+          "oklch(26% 0.0067 286.27)",
+          "oklch(38% 0.0067 286.27)",
+          "oklch(49% 0.0067 286.27)",
+          "oklch(61% 0.0067 286.27)",
+          "oklch(72% 0.0067 286.27)",
+          "oklch(84% 0.0067 286.27)",
+          "oklch(95% 0.0067 286.27)"
+        ]
+      },
+      "card-dark": {
+        "role": "neutral",
+        "displayName": "Card Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0077 285.76)",
+          "oklch(26% 0.0077 285.76)",
+          "oklch(38% 0.0077 285.76)",
+          "oklch(49% 0.0077 285.76)",
+          "oklch(61% 0.0077 285.76)",
+          "oklch(72% 0.0077 285.76)",
+          "oklch(84% 0.0077 285.76)",
+          "oklch(95% 0.0077 285.76)"
+        ]
+      },
+      "card-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Card Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0067 286.27)",
+          "oklch(26% 0.0067 286.27)",
+          "oklch(38% 0.0067 286.27)",
+          "oklch(49% 0.0067 286.27)",
+          "oklch(61% 0.0067 286.27)",
+          "oklch(72% 0.0067 286.27)",
+          "oklch(84% 0.0067 286.27)",
+          "oklch(95% 0.0067 286.27)"
+        ]
+      },
+      "popover-dark": {
+        "role": "neutral",
+        "displayName": "Popover Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0093 285.73)",
+          "oklch(26% 0.0093 285.73)",
+          "oklch(38% 0.0093 285.73)",
+          "oklch(49% 0.0093 285.73)",
+          "oklch(61% 0.0093 285.73)",
+          "oklch(72% 0.0093 285.73)",
+          "oklch(84% 0.0093 285.73)",
+          "oklch(95% 0.0093 285.73)"
+        ]
+      },
+      "popover-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Popover Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0067 286.27)",
+          "oklch(26% 0.0067 286.27)",
+          "oklch(38% 0.0067 286.27)",
+          "oklch(49% 0.0067 286.27)",
+          "oklch(61% 0.0067 286.27)",
+          "oklch(72% 0.0067 286.27)",
+          "oklch(84% 0.0067 286.27)",
+          "oklch(95% 0.0067 286.27)"
+        ]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Primary Dark",
+        "tonalRamp": [
+          "oklch(15% 0.1281 282.91)",
+          "oklch(26% 0.1281 282.91)",
+          "oklch(38% 0.1281 282.91)",
+          "oklch(49% 0.1281 282.91)",
+          "oklch(61% 0.1281 282.91)",
+          "oklch(72% 0.1281 282.91)",
+          "oklch(84% 0.1281 282.91)",
+          "oklch(95% 0.1281 282.91)"
+        ]
+      },
+      "primary-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Primary Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0258 283.86)",
+          "oklch(26% 0.0258 283.86)",
+          "oklch(38% 0.0258 283.86)",
+          "oklch(49% 0.0258 283.86)",
+          "oklch(61% 0.0258 283.86)",
+          "oklch(72% 0.0258 283.86)",
+          "oklch(84% 0.0258 283.86)",
+          "oklch(95% 0.0258 283.86)"
+        ]
+      },
+      "secondary-dark": {
+        "role": "neutral",
+        "displayName": "Secondary Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0126 285.59)",
+          "oklch(26% 0.0126 285.59)",
+          "oklch(38% 0.0126 285.59)",
+          "oklch(49% 0.0126 285.59)",
+          "oklch(61% 0.0126 285.59)",
+          "oklch(72% 0.0126 285.59)",
+          "oklch(84% 0.0126 285.59)",
+          "oklch(95% 0.0126 285.59)"
+        ]
+      },
+      "secondary-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Secondary Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0067 286.27)",
+          "oklch(26% 0.0067 286.27)",
+          "oklch(38% 0.0067 286.27)",
+          "oklch(49% 0.0067 286.27)",
+          "oklch(61% 0.0067 286.27)",
+          "oklch(72% 0.0067 286.27)",
+          "oklch(84% 0.0067 286.27)",
+          "oklch(95% 0.0067 286.27)"
+        ]
+      },
+      "muted-dark": {
+        "role": "neutral",
+        "displayName": "Muted Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0093 285.73)",
+          "oklch(26% 0.0093 285.73)",
+          "oklch(38% 0.0093 285.73)",
+          "oklch(49% 0.0093 285.73)",
+          "oklch(61% 0.0093 285.73)",
+          "oklch(72% 0.0093 285.73)",
+          "oklch(84% 0.0093 285.73)",
+          "oklch(95% 0.0093 285.73)"
+        ]
+      },
+      "muted-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Muted Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0187 285.91)",
+          "oklch(26% 0.0187 285.91)",
+          "oklch(38% 0.0187 285.91)",
+          "oklch(49% 0.0187 285.91)",
+          "oklch(61% 0.0187 285.91)",
+          "oklch(72% 0.0187 285.91)",
+          "oklch(84% 0.0187 285.91)",
+          "oklch(95% 0.0187 285.91)"
+        ]
+      },
+      "accent-dark": {
+        "role": "neutral",
+        "displayName": "Accent Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0126 285.59)",
+          "oklch(26% 0.0126 285.59)",
+          "oklch(38% 0.0126 285.59)",
+          "oklch(49% 0.0126 285.59)",
+          "oklch(61% 0.0126 285.59)",
+          "oklch(72% 0.0126 285.59)",
+          "oklch(84% 0.0126 285.59)",
+          "oklch(95% 0.0126 285.59)"
+        ]
+      },
+      "accent-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Accent Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0067 286.27)",
+          "oklch(26% 0.0067 286.27)",
+          "oklch(38% 0.0067 286.27)",
+          "oklch(49% 0.0067 286.27)",
+          "oklch(61% 0.0067 286.27)",
+          "oklch(72% 0.0067 286.27)",
+          "oklch(84% 0.0067 286.27)",
+          "oklch(95% 0.0067 286.27)"
+        ]
+      },
+      "destructive-dark": {
+        "role": "feedback",
+        "displayName": "Destructive Dark",
+        "tonalRamp": [
+          "oklch(15% 0.1482 17.67)",
+          "oklch(26% 0.1482 17.67)",
+          "oklch(38% 0.1482 17.67)",
+          "oklch(49% 0.1482 17.67)",
+          "oklch(61% 0.1482 17.67)",
+          "oklch(72% 0.1482 17.67)",
+          "oklch(84% 0.1482 17.67)",
+          "oklch(95% 0.1482 17.67)"
+        ]
+      },
+      "border-dark": {
+        "role": "neutral",
+        "displayName": "Border Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0106 285.77)",
+          "oklch(26% 0.0106 285.77)",
+          "oklch(38% 0.0106 285.77)",
+          "oklch(49% 0.0106 285.77)",
+          "oklch(61% 0.0106 285.77)",
+          "oklch(72% 0.0106 285.77)",
+          "oklch(84% 0.0106 285.77)",
+          "oklch(95% 0.0106 285.77)"
+        ]
+      },
+      "input-dark": {
+        "role": "neutral",
+        "displayName": "Input Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0152 285.64)",
+          "oklch(26% 0.0152 285.64)",
+          "oklch(38% 0.0152 285.64)",
+          "oklch(49% 0.0152 285.64)",
+          "oklch(61% 0.0152 285.64)",
+          "oklch(72% 0.0152 285.64)",
+          "oklch(84% 0.0152 285.64)",
+          "oklch(95% 0.0152 285.64)"
+        ]
+      },
+      "ring-dark": {
+        "role": "primary",
+        "displayName": "Ring Dark",
+        "tonalRamp": [
+          "oklch(15% 0.1281 282.91)",
+          "oklch(26% 0.1281 282.91)",
+          "oklch(38% 0.1281 282.91)",
+          "oklch(49% 0.1281 282.91)",
+          "oklch(61% 0.1281 282.91)",
+          "oklch(72% 0.1281 282.91)",
+          "oklch(84% 0.1281 282.91)",
+          "oklch(95% 0.1281 282.91)"
+        ]
+      },
+      "sidebar-dark": {
+        "role": "neutral",
+        "displayName": "Sidebar Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0077 285.76)",
+          "oklch(26% 0.0077 285.76)",
+          "oklch(38% 0.0077 285.76)",
+          "oklch(49% 0.0077 285.76)",
+          "oklch(61% 0.0077 285.76)",
+          "oklch(72% 0.0077 285.76)",
+          "oklch(84% 0.0077 285.76)",
+          "oklch(95% 0.0077 285.76)"
+        ]
+      },
+      "sidebar-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Sidebar Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0110 286.16)",
+          "oklch(26% 0.0110 286.16)",
+          "oklch(38% 0.0110 286.16)",
+          "oklch(49% 0.0110 286.16)",
+          "oklch(61% 0.0110 286.16)",
+          "oklch(72% 0.0110 286.16)",
+          "oklch(84% 0.0110 286.16)",
+          "oklch(95% 0.0110 286.16)"
+        ]
+      },
+      "sidebar-accent-dark": {
+        "role": "neutral",
+        "displayName": "Sidebar Accent Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0126 285.59)",
+          "oklch(26% 0.0126 285.59)",
+          "oklch(38% 0.0126 285.59)",
+          "oklch(49% 0.0126 285.59)",
+          "oklch(61% 0.0126 285.59)",
+          "oklch(72% 0.0126 285.59)",
+          "oklch(84% 0.0126 285.59)",
+          "oklch(95% 0.0126 285.59)"
+        ]
+      },
+      "sidebar-accent-foreground-dark": {
+        "role": "neutral",
+        "displayName": "Sidebar Accent Foreground Dark",
+        "tonalRamp": [
+          "oklch(15% 0.0067 286.27)",
+          "oklch(26% 0.0067 286.27)",
+          "oklch(38% 0.0067 286.27)",
+          "oklch(49% 0.0067 286.27)",
+          "oklch(61% 0.0067 286.27)",
+          "oklch(72% 0.0067 286.27)",
+          "oklch(84% 0.0067 286.27)",
+          "oklch(95% 0.0067 286.27)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Root text baseline."
+      },
+      "paragraph": {
+        "displayName": "Paragraph",
+        "purpose": "Task introductions and descriptions."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Buttons and navigation."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Menu labels and badges."
+      }
+    },
+    "shadows": [
+      {
+        "name": "menu-medium",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Root dropdown menus."
+      },
+      {
+        "name": "menu-large",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "Nested workspace menu."
+      },
+      {
+        "name": "surface-ring",
+        "value": "0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent)",
+        "purpose": "Card and menu boundaries."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Existing button, input, and badge state transitions."
+      },
+      {
+        "name": "row-hover",
+        "value": "150ms ease-out",
+        "purpose": "Workspace row background."
+      },
+      {
+        "name": "sidebar-collapse",
+        "value": "200ms linear",
+        "purpose": "Sidebar gap and container."
+      },
+      {
+        "name": "menu-presence",
+        "value": "100ms",
+        "purpose": "Existing dropdown fade, zoom, and slide."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none; transition: none",
+        "purpose": "Shell sidebar, menus, Sheet, buttons, workspace rows, spinner, and skeleton when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-forms",
+        "value": "600px"
+      },
+      {
+        "name": "desktop-navigation",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Existing shadcn primary variant at default size.",
+      "html": "<button class=\"ds-button ds-button-primary\">Continue</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; height:32px; gap:6px; padding:0 10px; border:1px solid transparent; border-radius:var(--radius, 6px); font-family:\"Geist Variable\", sans-serif; font-size:14px; line-height:20px; font-weight:500; white-space:nowrap; cursor:pointer; transition:all 150ms cubic-bezier(0.4,0,0.2,1); } .ds-button:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); } .ds-button:active { transform:translateY(1px); } .ds-button:disabled { opacity:.5; pointer-events:none; } @media(max-width:600px) { .ds-button { min-height:44px; } } @media(prefers-reduced-motion:reduce) { .ds-button { transition:none; } } .ds-button-primary { background:var(--primary, #5555ca); color:var(--primary-foreground, #ffffff); } .ds-button-primary:hover { background:color-mix(in oklab,var(--primary, #5555ca) 80%,transparent); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Existing shadcn outline variant at default size.",
+      "html": "<button class=\"ds-button ds-button-outline\">Continue</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; height:32px; gap:6px; padding:0 10px; border:1px solid transparent; border-radius:var(--radius, 6px); font-family:\"Geist Variable\", sans-serif; font-size:14px; line-height:20px; font-weight:500; white-space:nowrap; cursor:pointer; transition:all 150ms cubic-bezier(0.4,0,0.2,1); } .ds-button:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); } .ds-button:active { transform:translateY(1px); } .ds-button:disabled { opacity:.5; pointer-events:none; } @media(max-width:600px) { .ds-button { min-height:44px; } } @media(prefers-reduced-motion:reduce) { .ds-button { transition:none; } } .ds-button-outline { background:var(--background, #ffffff); color:var(--foreground, #24242b); border-color:var(--border, #e5e5e9); } .ds-button-outline:hover { background:var(--muted, #f4f4f6); } :host-context(.dark) .ds-button-outline { border-color:var(--input, #d5d5dc); background:color-mix(in oklab,var(--input, #d5d5dc) 30%,transparent); } :host-context(.dark) .ds-button-outline:hover { background:color-mix(in oklab,var(--input, #d5d5dc) 50%,transparent); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Existing shadcn secondary variant at default size.",
+      "html": "<button class=\"ds-button ds-button-secondary\">Continue</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; height:32px; gap:6px; padding:0 10px; border:1px solid transparent; border-radius:var(--radius, 6px); font-family:\"Geist Variable\", sans-serif; font-size:14px; line-height:20px; font-weight:500; white-space:nowrap; cursor:pointer; transition:all 150ms cubic-bezier(0.4,0,0.2,1); } .ds-button:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); } .ds-button:active { transform:translateY(1px); } .ds-button:disabled { opacity:.5; pointer-events:none; } @media(max-width:600px) { .ds-button { min-height:44px; } } @media(prefers-reduced-motion:reduce) { .ds-button { transition:none; } } .ds-button-secondary { background:var(--secondary, #ededf1); color:var(--secondary-foreground, #24242b); } .ds-button-secondary:hover { background:color-mix(in oklch,var(--secondary, #ededf1),var(--foreground, #24242b) 5%); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Existing shadcn ghost variant at default size.",
+      "html": "<button class=\"ds-button ds-button-ghost\">Continue</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; height:32px; gap:6px; padding:0 10px; border:1px solid transparent; border-radius:var(--radius, 6px); font-family:\"Geist Variable\", sans-serif; font-size:14px; line-height:20px; font-weight:500; white-space:nowrap; cursor:pointer; transition:all 150ms cubic-bezier(0.4,0,0.2,1); } .ds-button:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); } .ds-button:active { transform:translateY(1px); } .ds-button:disabled { opacity:.5; pointer-events:none; } @media(max-width:600px) { .ds-button { min-height:44px; } } @media(prefers-reduced-motion:reduce) { .ds-button { transition:none; } } .ds-button-ghost { background:transparent; color:var(--foreground, #24242b); } .ds-button-ghost:hover { background:var(--muted, #f4f4f6); } :host-context(.dark) .ds-button-ghost:hover { background:color-mix(in oklab,var(--muted, #f4f4f6) 50%,transparent); }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Existing shadcn destructive variant at default size.",
+      "html": "<button class=\"ds-button ds-button-destructive\">Continue</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; height:32px; gap:6px; padding:0 10px; border:1px solid transparent; border-radius:var(--radius, 6px); font-family:\"Geist Variable\", sans-serif; font-size:14px; line-height:20px; font-weight:500; white-space:nowrap; cursor:pointer; transition:all 150ms cubic-bezier(0.4,0,0.2,1); } .ds-button:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); } .ds-button:active { transform:translateY(1px); } .ds-button:disabled { opacity:.5; pointer-events:none; } @media(max-width:600px) { .ds-button { min-height:44px; } } @media(prefers-reduced-motion:reduce) { .ds-button { transition:none; } } .ds-button-destructive { background:color-mix(in oklab,var(--destructive, #c0333c) 10%,transparent); color:var(--destructive, #c0333c); } .ds-button-destructive:hover { background:color-mix(in oklab,var(--destructive, #c0333c) 20%,transparent); } .ds-button-destructive:focus-visible { border-color:color-mix(in oklab,var(--destructive, #c0333c) 40%,transparent); box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive, #c0333c) 20%,transparent); } :host-context(.dark) .ds-button-destructive { background:color-mix(in oklab,var(--destructive, #c0333c) 20%,transparent); } :host-context(.dark) .ds-button-destructive:hover { background:color-mix(in oklab,var(--destructive, #c0333c) 30%,transparent); } :host-context(.dark) .ds-button-destructive:focus-visible { box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive, #c0333c) 40%,transparent); }"
+    },
+    {
+      "name": "Link Button",
+      "kind": "button",
+      "refersTo": "button-link",
+      "description": "Existing shadcn link variant at default size.",
+      "html": "<button class=\"ds-button ds-button-link\">Continue</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; height:32px; gap:6px; padding:0 10px; border:1px solid transparent; border-radius:var(--radius, 6px); font-family:\"Geist Variable\", sans-serif; font-size:14px; line-height:20px; font-weight:500; white-space:nowrap; cursor:pointer; transition:all 150ms cubic-bezier(0.4,0,0.2,1); } .ds-button:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); } .ds-button:active { transform:translateY(1px); } .ds-button:disabled { opacity:.5; pointer-events:none; } @media(max-width:600px) { .ds-button { min-height:44px; } } @media(prefers-reduced-motion:reduce) { .ds-button { transition:none; } } .ds-button-link { background:transparent; color:var(--primary, #5555ca); text-underline-offset:4px; } .ds-button-link:hover { text-decoration:underline; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Native text field with responsive type, focus, invalid, and disabled states. Workspace URL uses these field states in one input group with a fixed current-host prefix and an editable slug; suggestions stop after manual edits, and validation retains entered values.",
+      "html": "<input class=\"ds-input\" aria-label=\"Workspace name\" placeholder=\"Workspace name\">",
+      "css": ".ds-input { height:32px; width:100%; min-width:0; padding:4px 10px; border:1px solid var(--input, #d5d5dc); border-radius:var(--radius,6px); background:transparent; color:var(--foreground, #24242b); font-family:\"Geist Variable\", sans-serif; font-size:16px; line-height:24px; caret-color:var(--primary, #5555ca); transition:border-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-input::placeholder { color:var(--muted-foreground, #676773); } .ds-input:hover { border-color:var(--input, #d5d5dc); } .ds-input:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); } .ds-input[aria-invalid=\"true\"] { border-color:var(--destructive, #c0333c); box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive, #c0333c) 20%,transparent); } .ds-input:disabled { opacity:.5; pointer-events:none; background:color-mix(in oklab,var(--input, #d5d5dc) 50%,transparent); } :host-context(.dark) .ds-input { background:color-mix(in oklab,var(--input, #d5d5dc) 30%,transparent); } :host-context(.dark) .ds-input:disabled { background:color-mix(in oklab,var(--input, #d5d5dc) 80%,transparent); } :host-context(.dark) .ds-input[aria-invalid=\"true\"] { border-color:color-mix(in oklab,var(--destructive, #c0333c) 50%,transparent); box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive, #c0333c) 40%,transparent); } @media(min-width:768px) { .ds-input { font-size:14px; line-height:20px; } } @media(max-width:600px) { .ds-input { min-height:44px; } }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Default and active rows in the shadcn inset Sidebar with semantic accent and keyboard focus. The application shell has no header; a content-level mobile trigger opens its drawer. Workspace destinations use /<slug>.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Workspace navigation\"><a class=\"ds-nav-row\" href=\"#workspaces\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m12 3 10 5-10 5L2 8Z\"/><path d=\"m2 12 10 5 10-5M2 16l10 5 10-5\"/></svg><span>All workspaces</span></a><a class=\"ds-nav-row\" href=\"#teams\" aria-current=\"page\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m12 3 10 5-10 5L2 8Z\"/><path d=\"m2 12 10 5 10-5M2 16l10 5 10-5\"/></svg><span>Teams</span></a></nav>",
+      "css": ".ds-nav { width:216px; padding:8px; background:var(--sidebar, #f7f7f8); color:var(--sidebar-foreground, #45454f); font-family:\"Geist Variable\", sans-serif; } .ds-nav-row { display:flex; align-items:center; height:32px; padding:8px; gap:8px; border-radius:calc(var(--radius,6px)*.8); color:inherit; text-decoration:none; font-size:14px; line-height:20px; font-weight:400; transition:width 150ms,height 150ms,padding 150ms; } .ds-nav-row:hover,.ds-nav-row:active,.ds-nav-row[aria-current=\"page\"] { background:var(--sidebar-accent, #eaeaec); color:var(--sidebar-accent-foreground, #24242b); } .ds-nav-row[aria-current=\"page\"] { font-weight:500; } .ds-nav-row:focus-visible { outline:none; box-shadow:0 0 0 2px var(--ring, #5555ca); } @media(max-width:767px) { .ds-nav-row { min-height:44px; } } @media(prefers-reduced-motion:reduce) { .ds-nav-row { transition:none; } }"
+    },
+    {
+      "name": "Outline Badge",
+      "kind": "chip",
+      "refersTo": "chip-outline",
+      "description": "Role or team-key badge; the link sample exposes the existing interactive states.",
+      "html": "<a class=\"ds-chip\" href=\"#workspace\">Member</a>",
+      "css": ".ds-chip { display:inline-flex; width:fit-content; height:20px; align-items:center; justify-content:center; gap:4px; padding:2px 8px; border:1px solid var(--border, #e5e5e9); border-radius:calc(var(--radius,6px)*2.6); color:var(--foreground, #24242b); background:transparent; font-family:\"Geist Variable\", sans-serif; font-size:12px; line-height:16px; font-weight:500; white-space:nowrap; text-decoration:none; transition:all 150ms cubic-bezier(0.4,0,0.2,1); } .ds-chip:hover { background:var(--muted, #f4f4f6); color:var(--muted-foreground, #676773); } .ds-chip:focus-visible { outline:none; border-color:var(--ring, #5555ca); box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, #5555ca) 50%,transparent); }"
+    },
+    {
+      "name": "Authentication Card",
+      "kind": "card",
+      "refersTo": "auth-card",
+      "description": "Centered account-flow card with the implemented 16px spacing.",
+      "html": "<section class=\"ds-card\"><header class=\"ds-card-header\"><h1 class=\"ds-card-title\">Sign in</h1><p class=\"ds-card-description\">Continue to your account.</p></header><div class=\"ds-card-content\">Account form</div></section>",
+      "css": ".ds-card { display:flex; flex-direction:column; gap:16px; width:100%; max-width:448px; overflow:hidden; padding:16px 0; border-radius:calc(var(--radius,6px)*1.4); background:var(--card, #ffffff); color:var(--card-foreground, #24242b); box-shadow:0 0 0 1px color-mix(in oklab,var(--foreground, #24242b) 10%,transparent); font-family:\"Geist Variable\", sans-serif; font-size:14px; line-height:20px; } .ds-card-header { display:grid; gap:4px; padding:0 16px; } .ds-card-title { margin:0; font-size:22px; line-height:1.375; font-weight:600; letter-spacing:-.035em; } .ds-card-description { margin:0; color:var(--muted-foreground, #676773); } .ds-card-content { padding:0 16px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The compact workspace",
+    "overview": "Convex uses the Linear-inspired workspace convention chosen by the user: quiet white or charcoal surfaces, restrained indigo actions, fine dividers, Geist, and compact shadcn Nova controls. The workspace name leads navigation; the current task has a clear heading and a predictable reading order.\n\nThe interface is code-led. It uses SVG icons and initials rather than shipping decorative raster imagery. System light and dark themes retain the same spacing and hierarchy.",
+    "keyCharacteristics": [
+      "Compact navigation with generous task spacing.",
+      "Neutral surfaces; indigo actions and focus.",
+      "Small corners, fine borders, and restrained menu elevation.",
+      "System themes, keyboard access, and responsive touch targets."
+    ],
+    "rules": [
+      {
+        "name": "Semantic Surface",
+        "body": "Use the existing semantic CSS variables so backgrounds, text, borders, and interactive states change together with system preference.",
+        "section": "colors"
+      },
+      {
+        "name": "Shared Type",
+        "body": "Use Geist for headings, prose, and controls; establish hierarchy with size, weight, and spacing.",
+        "section": "typography"
+      },
+      {
+        "name": "Flat Task Surface",
+        "body": "Keep task content and sidebar flat; reserve elevation for menus and the mobile drawer.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use semantic CSS variables for both system themes.",
+      "Do keep the current workspace at the top of the sidebar and show the current choice in the switcher.",
+      "Do preserve keyboard focus, form validation, pending states, and disabled controls.",
+      "Do expand mobile navigation and menu rows to the implemented touch targets.",
+      "Do honor reduced motion for sidebar, menu, drawer, and loading transitions."
+    ],
+    "donts": [
+      "Don't replace the shadcn Sidebar and menu behavior with custom static imitations.",
+      "Don't add decorative raster assets to this code-led shell.",
+      "Don't invent issue features or navigation destinations beyond implemented functionality."
+    ]
+  }
+}

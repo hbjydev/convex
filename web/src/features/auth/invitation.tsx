@@ -80,8 +80,8 @@ export function InvitationAcceptance() {
               sessionStorage.removeItem("convex-invitation");
               await reload();
               await navigate({
-                to: "/workspaces/$workspaceId",
-                params: { workspaceId: space.id },
+                to: "/$workspaceSlug",
+                params: { workspaceSlug: space.slug },
               });
               return undefined;
             }}

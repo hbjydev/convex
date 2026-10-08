@@ -26,7 +26,7 @@ async fn empty_database_migrates_and_responds_with_documented_health(
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(applied, 2);
+    assert_eq!(applied, 3);
 
     let response = http::router(pool)
         .oneshot(
@@ -77,7 +77,7 @@ fn app(pool: &PgPool) -> axum::Router {
     http::router_with_config(pool.clone(), config)
 }
 fn setup_request() -> Value {
-    json!({"setup_token":SETUP_TOKEN,"email":"Owner@Example.com","password":PASSWORD,"display_name":"Owner","workspace_name":"Acme","team_name":"Engineering","team_key":"eng"})
+    json!({"setup_token":SETUP_TOKEN,"email":"Owner@Example.com","password":PASSWORD,"display_name":"Owner","workspace_name":"Acme","workspace_slug":"acme","team_name":"Engineering","team_key":"eng"})
 }
 
 async fn call(
@@ -136,11 +136,118 @@ async fn initialized(app: &axum::Router) -> (String, String, String) {
     let (status, user, cookie) = call(app, "POST", "/api/v1/auth/setup", "", setup_request()).await;
     assert_eq!(status, 200, "{user}");
     let (_, account, _) = call(app, "GET", "/api/v1/auth/me", &cookie, Value::Null).await;
+    assert_eq!(account["workspaces"][0]["slug"], "acme");
     (
         cookie,
         account["workspaces"][0]["id"].as_str().unwrap().into(),
         user["id"].as_str().unwrap().into(),
     )
+}
+
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn workspace_slugs_are_validated_unique_and_stable(pool: PgPool) {
+    let app = app(&pool);
+    let mut invalid_setup = setup_request();
+    invalid_setup["workspace_slug"] = json!("invalid/slug");
+    assert_eq!(
+        call(&app, "POST", "/api/v1/auth/setup", "", invalid_setup)
+            .await
+            .0,
+        400
+    );
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM convex.users")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+    let (owner, space, _) = initialized(&app).await;
+    let request = json!({"name":"Other","slug":" ACME ","team_name":"Other","team_key":"OPS"});
+    let (status, error, _) = call(&app, "POST", "/api/v1/workspaces", &owner, request).await;
+    assert_eq!(status, 409);
+    assert!(error["message"].as_str().unwrap().contains("workspace URL"));
+    let request = json!({"name":"Other","slug":"other-team","team_name":"Other","team_key":"OPS"});
+    let (a, b) = tokio::join!(
+        call(&app, "POST", "/api/v1/workspaces", &owner, request.clone()),
+        call(&app, "POST", "/api/v1/workspaces", &owner, request),
+    );
+    let mut statuses = [a.0, b.0];
+    statuses.sort();
+    assert_eq!(statuses, [200, 409]);
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &format!("/api/v1/workspaces/{space}/rename"),
+            &owner,
+            json!({"name":"Renamed"})
+        )
+        .await
+        .0,
+        200
+    );
+    let (_, detail, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(detail["workspace"]["name"], "Renamed");
+    assert_eq!(detail["workspace"]["slug"], "acme");
+    let token = invitation(&app, &owner, &space, "member").await;
+    let (status, workspace, _) = join(&app, &token, "slug-member@example.com").await;
+    assert_eq!(status, 200);
+    assert_eq!(workspace["slug"], "acme");
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM convex.workspaces")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 2);
+}
+
+#[sqlx::test(migrations = false)]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn workspace_slug_migration_preserves_existing_workspaces(pool: PgPool) {
+    sqlx::raw_sql(include_str!(
+        "../../../migrations/202610080001_application_schema.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::raw_sql(include_str!(
+        "../../../migrations/202610080002_accounts_workspaces.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+    for name in ["Acme", "Acme", "你好", &"A".repeat(100)] {
+        sqlx::query("INSERT INTO convex.workspaces (id,name) VALUES ($1,$2)")
+            .bind(uuid::Uuid::new_v4())
+            .bind(name)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    sqlx::raw_sql(include_str!(
+        "../../../migrations/202610080003_workspace_slugs.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+    let rows: Vec<(uuid::Uuid, String, String)> =
+        sqlx::query_as("SELECT id,name,slug FROM convex.workspaces")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert_eq!(rows.len(), 4);
+    for (id, _, slug) in &rows {
+        assert_eq!(convex::security::workspace_slug(slug).unwrap(), *slug);
+        assert!(slug.ends_with(&id.to_string()));
+    }
+    let unique: std::collections::HashSet<_> = rows.iter().map(|row| &row.2).collect();
+    assert_eq!(unique.len(), 4);
 }
 async fn invitation(app: &axum::Router, cookie: &str, space: &str, role: &str) -> String {
     let (status, body, _) = call(
@@ -397,7 +504,7 @@ async fn workspace_isolation_admin_limits_and_inviter_authority(pool: PgPool) {
         "POST",
         "/api/v1/workspaces",
         &owner,
-        json!({"name":"Private","team_name":"Other","team_key":"OPS"}),
+        json!({"name":"Private","slug":"private","team_name":"Other","team_key":"OPS"}),
     )
     .await;
     let other = other["id"].as_str().unwrap();
@@ -443,7 +550,7 @@ async fn workspace_isolation_admin_limits_and_inviter_authority(pool: PgPool) {
             "POST",
             "/api/v1/workspaces",
             &admin,
-            json!({"name":"Guess","team_name":"Guess","team_key":"NO"})
+            json!({"name":"Guess","slug":"guess","team_name":"Guess","team_key":"NO"})
         )
         .await
         .0,

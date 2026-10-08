@@ -15,7 +15,7 @@ test("two people onboard, sign in, manage sessions, and lose removed access", as
   const bootstrap = await page.request.get("/api/v1/auth/bootstrap");
   if ((await bootstrap.json()).setup_required) {
     await expect(
-      page.getByRole("heading", { name: "Make room for your team." }),
+      page.getByRole("heading", { name: "Set up Convex" }),
     ).toBeVisible();
     await page.screenshot({
       path: `test-results/setup-${test.info().project.name}.png`,
@@ -44,6 +44,8 @@ test("two people onboard, sign in, manage sessions, and lose removed access", as
     await page.getByLabel("First team name").fill("Engineering");
     await page.getByLabel("Team key", { exact: true }).fill("ENG");
     await page.getByRole("button", { name: "Create workspace" }).click();
+    await expect(page).toHaveURL(/\/initial-workspace$/);
+    await page.goto("/");
   } else {
     await page
       .getByLabel("Email", { exact: true })
@@ -228,6 +230,7 @@ test("valid unbroken names fit and network errors preserve login drafts", async 
           password,
           display_name: "Installation owner",
           workspace_name: "Initial workspace",
+          workspace_slug: "initial-workspace",
           team_name: "Engineering",
           team_key: "ENG",
         },

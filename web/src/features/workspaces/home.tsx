@@ -3,6 +3,7 @@ import { ArrowRightIcon } from "lucide-react";
 import { api } from "@/api/client";
 import { useAuth } from "@/auth";
 import { Field, Form, text } from "@/components/app-form";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   Empty,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/empty";
 import { FieldGroup } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { WorkspaceFields } from "@/features/workspaces/workspace-fields";
 import { unwrap } from "@/lib/requests";
 
 export function Home() {
@@ -20,19 +22,30 @@ export function Home() {
   if (!account) return null;
   return (
     <>
-      <h1>Your workspaces</h1>
+      <div className="page-heading">
+        <h1>Your workspaces</h1>
+        <Badge variant="secondary">{account.workspaces.length}</Badge>
+      </div>
       <p className="intro">
         People, teams, and a shared place to organize work.
       </p>
+      {account.workspaces.length > 0 && (
+        <div className="workspace-list-header" aria-hidden="true">
+          <span>Workspace</span>
+          <span>Your role</span>
+        </div>
+      )}
       <ul className="workspace-list">
         {account.workspaces.map((space) => (
           <li key={space.id}>
-            <Link
-              to="/workspaces/$workspaceId"
-              params={{ workspaceId: space.id }}
-            >
+            <Link to="/$workspaceSlug" params={{ workspaceSlug: space.slug }}>
+              <Avatar>
+                <AvatarFallback>
+                  {space.name.slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <strong>{space.name}</strong>
-              <Badge variant="secondary">{space.role}</Badge>
+              <Badge variant="outline">{space.role}</Badge>
               <ArrowRightIcon
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden="true"
@@ -53,7 +66,7 @@ export function Home() {
         </Empty>
       )}
       {account.user.is_instance_admin && (
-        <section className="settings-section">
+        <section className="settings-section" id="create-workspace">
           <Separator />
           <h2>Create another workspace</h2>
           <Form
@@ -63,6 +76,7 @@ export function Home() {
                 await api.POST("/api/v1/workspaces", {
                   body: {
                     name: text(form, "name"),
+                    slug: text(form, "slug"),
                     team_name: text(form, "team_name"),
                     team_key: text(form, "team_key"),
                   },
@@ -70,13 +84,13 @@ export function Home() {
               );
               await reload();
               await navigate({
-                to: "/workspaces/$workspaceId",
-                params: { workspaceId: space.id },
+                to: "/$workspaceSlug",
+                params: { workspaceSlug: space.slug },
               });
               return undefined;
             }}
           >
-            <Field name="name" label="Workspace name" />
+            <WorkspaceFields />
             <FieldGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field name="team_name" label="First team name" />
               <Field name="team_key" label="Team key" />
