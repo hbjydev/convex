@@ -33,6 +33,7 @@ export function Form({
   action,
   onSuccess,
   inline = false,
+  hideSubmit = false,
   variant = 'default',
 }: {
   children: ReactNode;
@@ -41,6 +42,7 @@ export function Form({
   action: (form: FormData) => Promise<string | undefined>;
   onSuccess?: () => void;
   inline?: boolean;
+  hideSubmit?: boolean;
   variant?: 'default' | 'outline' | 'destructive';
 }) {
   const [pending, setPending] = useState(false);
@@ -76,21 +78,23 @@ export function Form({
             )}
           >
             {children}
-            <Button
-              variant={variant}
-              className="w-fit"
-              type="submit"
-              disabled={pending}
-            >
-              {pending && (
-                <Spinner
-                  data-icon="inline-start"
-                  role="presentation"
-                  aria-hidden="true"
-                />
-              )}
-              {pending ? 'Working…' : submit}
-            </Button>
+            {!hideSubmit && (
+              <Button
+                variant={variant}
+                className="w-fit"
+                type="submit"
+                disabled={pending}
+              >
+                {pending && (
+                  <Spinner
+                    data-icon="inline-start"
+                    role="presentation"
+                    aria-hidden="true"
+                  />
+                )}
+                {pending ? 'Working…' : submit}
+              </Button>
+            )}
           </FieldGroup>
         </FieldSet>
       </FormPending.Provider>

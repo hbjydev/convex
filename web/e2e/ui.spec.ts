@@ -157,7 +157,7 @@ test('sidebar toggles with the keyboard and mobile navigation closes after selec
     await trigger.click();
     const drawer = page.getByRole('dialog', { name: 'Sidebar' });
     await expect(drawer).toBeVisible();
-    await drawer.getByRole('link', { name: 'People', exact: true }).click();
+    await drawer.getByRole('link', { name: 'Members', exact: true }).click();
     await expect(page).toHaveURL(/\/product#people$/);
     await expect(drawer).not.toBeVisible();
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -251,7 +251,7 @@ test('nested workspace switcher remembers selection across account pages and rel
   await expect(
     page
       .getByRole('main')
-      .getByRole('heading', { name: 'Engineering', exact: true }),
+      .getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
   if (mobile) {
     await expect(
@@ -311,18 +311,13 @@ test('compact role controls stay usable and submit the selected role', async ({
     await pendingRequest;
     await route.fulfill({ json: { message: 'Role saved.' } });
   });
-  await page.goto('/product');
-  const row = page.getByRole('listitem').filter({ hasText: 'Teammate' });
+  await page.goto('/product#people');
+  await page.getByRole('button', { name: 'Manage Teammate' }).click();
+  const row = page.getByRole('dialog', { name: 'Manage Teammate' });
   const role = row.getByRole('combobox', { name: 'Role for Teammate' });
   await expect(role).toHaveValue('member');
   const selectBox = await role.boundingBox();
-  const removeBox = await row
-    .getByRole('button', { name: 'Remove', exact: true })
-    .boundingBox();
   expect(selectBox?.width).toBeGreaterThanOrEqual(100);
-  if (!selectBox || !removeBox)
-    throw new Error('Member controls are not visible');
-  expect(removeBox.x).toBeGreaterThanOrEqual(selectBox.x + selectBox.width);
   await expectInside(role, row);
   await expectInside(row.getByRole('button', { name: 'Save role' }), row);
   await role.selectOption('admin');
@@ -338,6 +333,15 @@ test('compact role controls stay usable and submit the selected role', async ({
   finishRequest();
   await expect(row.getByRole('status')).toContainText('Role saved');
   await expect(role).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('button', { name: 'Manage Teammate' }),
+  ).toBeFocused();
+  await page.getByRole('button', { name: 'Manage Teammate' }).click();
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Manage Teammate' }),
+  ).toBeFocused();
   await page.screenshot({
     path: `test-results/controls-${test.info().project.name}.png`,
     fullPage: true,
@@ -420,7 +424,7 @@ test('workspace creation suggests a slug, preserves edits after conflicts, and n
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page).toHaveURL(/\/my-company$/);
   await expect(
-    page.getByRole('heading', { name: 'Renamed company', exact: true }),
+    page.getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
 });
 
@@ -487,7 +491,7 @@ test('initial setup submits the selected slug', async ({ page }) => {
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page).toHaveURL(/\/our-product$/);
   await expect(
-    page.getByRole('heading', { name: 'Product', exact: true }),
+    page.getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
 });
 
@@ -506,7 +510,7 @@ test('old UUID workspace links redirect to slug URLs and preserve sections', asy
   await page.goto('/workspaces/workspace#teams');
   await expect(page).toHaveURL(/\/product#teams$/);
   await expect(
-    page.getByRole('heading', { name: 'Product', exact: true }),
+    page.getByRole('heading', { name: 'Teams', exact: true }),
   ).toBeVisible();
 });
 
@@ -534,4 +538,343 @@ test('session actions fit within the account page', async ({ page }) => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+async function mockSettings(page: Page, role = 'owner', mail = false) {
+  const account = await mockAccount(page);
+  const workspace = account.workspaces[0]!;
+  workspace.role = role;
+  const detail: Schema['WorkspaceDetail'] = {
+    workspace,
+    members: [
+      {
+        id: 'owner-membership',
+        user_id: 'owner',
+        display_name: 'Installation owner',
+        role: 'owner',
+        disabled: false,
+      },
+      {
+        id: 'teammate',
+        user_id: 'teammate',
+        display_name: 'Alex Morgan',
+        role: 'member',
+        disabled: false,
+      },
+      {
+        id: 'disabled',
+        user_id: 'disabled',
+        display_name: 'Sam Rivera',
+        role: 'member',
+        disabled: true,
+      },
+    ],
+    teams: [
+      {
+        id: 'engineering',
+        name: 'Engineering',
+        key: 'ENG',
+        statuses: [
+          { id: 'backlog', name: 'Backlog', category: 'backlog', position: 0 },
+          { id: 'todo', name: 'Todo', category: 'unstarted', position: 1 },
+          {
+            id: 'progress',
+            name: 'In Progress',
+            category: 'started',
+            position: 2,
+          },
+          { id: 'done', name: 'Done', category: 'completed', position: 3 },
+          {
+            id: 'canceled',
+            name: 'Canceled',
+            category: 'canceled',
+            position: 4,
+          },
+        ],
+      },
+    ],
+  };
+  await page.route('**/api/v1/auth/bootstrap', (route) =>
+    route.fulfill({
+      json: {
+        setup_required: false,
+        setup_enabled: false,
+        mail_available: mail,
+      },
+    }),
+  );
+  await page.route('**/api/v1/workspaces/workspace', (route) =>
+    route.fulfill({ json: detail }),
+  );
+  await page.route('**/api/v1/workspaces/workspace/invitations', (route) =>
+    route.fulfill({ json: [] }),
+  );
+  return detail;
+}
+
+test('settings screens use one sidebar and fit desktop and mobile in both themes', async ({
+  page,
+}) => {
+  await mockSettings(page, 'owner', true);
+  const mobile = test.info().project.name === 'mobile';
+  await page.setViewportSize(
+    mobile ? { width: 390, height: 844 } : { width: 1613, height: 985 },
+  );
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    for (const [screen, hash, heading] of [
+      ['workspace', '', 'Workspace'],
+      ['teams', '#teams', 'Teams'],
+      ['members', '#people', 'Members'],
+      ['create-team', '#create-team', 'Create a new team'],
+    ]) {
+      await page.goto(`/product${hash}`);
+      await expect(
+        page.getByRole('heading', { name: heading, exact: true }),
+      ).toBeVisible();
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        window.scrollTo(0, 0);
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: `../.impeccable/review/settings-${screen}-${test.info().project.name}-${colorScheme}.png`,
+        fullPage: true,
+        animations: 'disabled',
+      });
+    }
+    await page.goto('/product#people');
+    await page.getByRole('button', { name: 'Invite', exact: true }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Invite to your workspace' }),
+    ).toBeVisible();
+    await expect(page.getByLabel('Email', { exact: true })).toBeFocused();
+    await page.screenshot({
+      path: `../.impeccable/review/settings-invite-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
+    await page.keyboard.press('Escape');
+    await expect(
+      page.getByRole('button', { name: 'Invite', exact: true }),
+    ).toBeFocused();
+  }
+  if (mobile)
+    await page.getByRole('button', { name: 'Toggle navigation' }).click();
+  const navigation = page.getByRole('navigation', {
+    name: 'Settings navigation',
+  });
+  await expect(navigation).toBeVisible();
+  await expect(
+    page.getByRole('navigation', { name: 'Main navigation' }),
+  ).toHaveCount(0);
+  await expect(
+    navigation.getByRole('link', { name: 'Members' }),
+  ).toHaveAttribute('aria-current', 'page');
+  await page.getByLabel('Search settings…').fill('teams');
+  await expect(
+    navigation.getByRole('link', { name: 'Workspace', exact: true }),
+  ).toHaveCount(0);
+  await navigation.getByRole('link', { name: 'Teams', exact: true }).click();
+  if (mobile) {
+    await expect(
+      page.getByRole('dialog', { name: 'Sidebar' }),
+    ).not.toBeVisible();
+    await page.getByRole('button', { name: 'Toggle navigation' }).click();
+  }
+  await page.getByRole('link', { name: 'Back to app' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Your workspaces' }),
+  ).toBeVisible();
+  await expectNavigation(page);
+});
+
+test('team creation preserves drafts on conflict and supports rename, search and CSV export', async ({
+  page,
+}) => {
+  const detail = await mockSettings(page);
+  let conflict = true;
+  await page.route('**/api/v1/workspaces/workspace/teams', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      name: 'Design',
+      key: 'UX',
+    });
+    if (conflict) {
+      conflict = false;
+      return route.fulfill({
+        status: 409,
+        json: { message: 'Team identifier already exists.' },
+      });
+    }
+    detail.teams.push({
+      id: 'design',
+      name: 'Design',
+      key: 'UX',
+      statuses: detail.teams[0]!.statuses,
+    });
+    return route.fulfill({ json: { message: 'Team created.' } });
+  });
+  await page.route(
+    '**/api/v1/workspaces/workspace/teams/design/rename',
+    (route) => {
+      detail.teams[1]!.name = route.request().postDataJSON().name;
+      return route.fulfill({ json: { message: 'Team renamed.' } });
+    },
+  );
+  await page.goto('/product#create-team');
+  await page.getByLabel('Team name', { exact: true }).fill('Design');
+  await expect(page.getByLabel('Team key', { exact: true })).toHaveValue('DES');
+  await page.getByLabel('Team key', { exact: true }).fill('UX');
+  await page.getByRole('button', { name: 'Create team', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('already exists');
+  await expect(page.getByLabel('Team name', { exact: true })).toHaveValue(
+    'Design',
+  );
+  await expect(page.getByLabel('Team key', { exact: true })).toHaveValue('UX');
+  await page.getByRole('button', { name: 'Create team', exact: true }).click();
+  await expect(page).toHaveURL(/#teams$/);
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await expect(
+    page.getByRole('list', { name: 'Design workflow' }),
+  ).toContainText('Todo');
+  await page.getByLabel('Name for UX').fill('Product Design');
+  await page.getByRole('button', { name: 'Save team name' }).click();
+  await expect(page.getByRole('status')).toContainText('Team renamed');
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('button', { name: 'Product Design', exact: true }),
+  ).toBeFocused();
+  await page.getByLabel('Filter by name or identifier…').fill('UX');
+  await expect(
+    page.getByRole('button', { name: 'Engineering', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Product Design', exact: true }),
+  ).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+  expect((await download).suggestedFilename()).toBe('product-teams.csv');
+});
+
+test('batch invitations retain successful links and only retry remaining recipients', async ({
+  page,
+}) => {
+  await mockSettings(page, 'owner', true);
+  const recipients: string[] = [];
+  let fail = true;
+  await page.route('**/api/v1/workspaces/workspace/invitations', (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: [] });
+    const body = route.request().postDataJSON();
+    expect(body.role).toBe('admin');
+    recipients.push(body.deliver_to);
+    if (body.deliver_to === 'second@example.test' && fail) {
+      fail = false;
+      return route.fulfill({
+        status: 503,
+        json: { message: 'Try again later.' },
+      });
+    }
+    return route.fulfill({
+      json: {
+        id: body.deliver_to,
+        email_delivered: false,
+        expires_at: '2026-10-16T12:00:00Z',
+        url: `http://127.0.0.1:5175/invite#${body.deliver_to}`,
+      },
+    });
+  });
+  await page.goto('/product#people');
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
+  await page.getByLabel('Email', { exact: true }).fill('not-an-email');
+  await page.getByRole('button', { name: 'Send invites' }).click();
+  await expect(page.getByRole('alert')).toContainText('Check the email');
+  expect(recipients).toHaveLength(0);
+  await page.getByLabel('Invitation role').selectOption('admin');
+  await page
+    .getByLabel('Email', { exact: true })
+    .fill('first@example.test, first@example.test\nsecond@example.test');
+  await page.getByRole('button', { name: 'Send invites' }).click();
+  await expect(page.getByRole('alert')).toContainText('Try again later');
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue(
+    'second@example.test',
+  );
+  await expect(
+    page.getByLabel('Invitation link for first@example.test'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Send invites' }).click();
+  await expect(
+    page.getByLabel('Invitation link for second@example.test'),
+  ).toBeVisible();
+  expect(recipients).toEqual([
+    'first@example.test',
+    'second@example.test',
+    'second@example.test',
+  ]);
+});
+
+test('members can search and filter but cannot create teams or change workspace access', async ({
+  page,
+}) => {
+  await mockSettings(page, 'member');
+  await page.goto('/product');
+  await expect(
+    page.getByLabel('Workspace name', { exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Save changes' })).toHaveCount(
+    0,
+  );
+  await page.goto('/product#teams');
+  await expect(page.getByRole('link', { name: 'Create team' })).toHaveCount(0);
+  await page.goto('/product#create-team');
+  await expect(
+    page.getByRole('heading', { name: 'Workspace', exact: true }),
+  ).toBeVisible();
+  await page.goto('/product#people');
+  await expect(
+    page.getByRole('button', { name: 'Invite', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
+  await page.getByLabel('Search by name…').fill('no such person');
+  await expect(page.getByText('No members match your filters.')).toBeVisible();
+  await page.getByLabel('Search by name…').fill('');
+  await page.getByLabel('Filter members').selectOption('disabled');
+  await expect(page.getByText('Sam Rivera', { exact: true })).toBeVisible();
+  await expect(page.getByText('Alex Morgan', { exact: true })).toHaveCount(0);
+});
+
+test('member removal restores focus to the directory when its row disappears', async ({
+  page,
+}) => {
+  const detail = await mockSettings(page);
+  await page.route('**/api/v1/workspaces/workspace/members', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      membership_id: 'teammate',
+      role: null,
+      remove: true,
+    });
+    detail.members = detail.members.filter(
+      (member) => member.id !== 'teammate',
+    );
+    return route.fulfill({ json: { message: 'Membership removed.' } });
+  });
+  await page.goto('/product#people');
+  await page.getByRole('button', { name: 'Manage Alex Morgan' }).click();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByText('Alex Morgan', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Confirm removal', exact: true })
+    .click();
+  await expect(
+    page.getByRole('dialog', { name: 'Manage Alex Morgan' }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Name', exact: true }),
+  ).toBeFocused();
+  await expect(page.getByText('Alex Morgan', { exact: true })).toHaveCount(0);
 });

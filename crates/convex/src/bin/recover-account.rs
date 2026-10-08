@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
     let token = accounts::recovery_token(&mut tx, user).await?;
     tx.commit().await?;
     println!(
-        "Single-use recovery link (expires in 30 minutes):\n{}/reset#{}",
+        "Single-use recovery link (expires in 30 minutes):\n{}/auth/reset#{}",
         security.origin, token
     );
     pool.close().await;

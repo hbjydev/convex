@@ -63,10 +63,12 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   await page.getByLabel('Team key', { exact: true }).fill('PROD');
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(
-    page.getByRole('heading', { name: `Workspace ${suffix}`, exact: true }),
+    page.getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
   const workspaceUrl = page.url();
   const workspacePath = new URL(workspaceUrl).pathname;
+  await page.goto(`${workspaceUrl}#people`);
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
   await page.getByRole('button', { name: 'Create invitation' }).click();
   const link = page.getByLabel('Single-use invitation link');
   await expect(link).toBeVisible();
@@ -90,7 +92,7 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   await member.getByLabel('Password', { exact: true }).fill(password);
   await member.getByRole('button', { name: 'Join workspace' }).click();
   await expect(
-    member.getByRole('heading', { name: `Workspace ${suffix}`, exact: true }),
+    member.getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
   await expect(
     member.getByRole('button', { name: 'Create invitation' }),
@@ -112,9 +114,9 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   await third.goto(inviteUrl);
   await expect(third.getByRole('alert')).toContainText('already used');
   await replay.close();
-  await member
-    .getByRole('link', { name: 'Second person', exact: true })
-    .click();
+  if ((page.viewportSize()?.width ?? 0) < 768)
+    await member.getByRole('button', { name: 'Toggle navigation' }).click();
+  await member.getByRole('link', { name: 'Your account', exact: true }).click();
   await member.screenshot({
     path: `test-results/account-${test.info().project.name}.png`,
     fullPage: true,
@@ -123,8 +125,13 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   await member.getByLabel('New password', { exact: true }).fill(newPassword);
   await member.getByRole('button', { name: 'Change password' }).click();
   await expect(member.getByRole('status')).toContainText('Password changed');
-  await member.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await member.goto('/login');
+  if ((page.viewportSize()?.width ?? 0) < 768)
+    await member.getByRole('button', { name: 'Toggle navigation' }).click();
+  await member
+    .getByRole('button', { name: `Workspace ${suffix} workspace menu` })
+    .click();
+  await member.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
+  await member.goto('/auth/login');
   await member
     .getByLabel('Email', { exact: true })
     .fill(`${suffix}@example.com`);
@@ -133,15 +140,23 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   await expect(
     member.getByRole('heading', { name: 'Your workspaces', exact: true }),
   ).toBeVisible();
-  const workspaceResponse = await page.request.get(`/api/v1${workspacePath}`);
+  const account = await (await page.request.get('/api/v1/auth/me')).json();
+  const workspaceId = account.workspaces.find(
+    (workspace: { slug: string }) => `/${workspace.slug}` === workspacePath,
+  ).id;
+  const workspaceResponse = await page.request.get(
+    `/api/v1/workspaces/${workspaceId}`,
+  );
   const memberId = (await workspaceResponse.json()).members.find(
     (m: { display_name: string }) => m.display_name === 'Second person',
   ).user_id;
   const row = page
-    .getByRole('listitem')
+    .getByRole('row')
     .filter({ has: page.getByText('Second person', { exact: true }) });
-  await row.getByRole('button', { name: 'Remove', exact: true }).click();
-  await row
+  await row.getByRole('button', { name: 'Manage Second person' }).click();
+  const editor = page.getByRole('dialog', { name: 'Manage Second person' });
+  await editor.getByRole('button', { name: 'Remove', exact: true }).click();
+  await editor
     .getByRole('button', { name: 'Confirm removal', exact: true })
     .click();
   await expect(page.getByText('Second person', { exact: true })).toHaveCount(0);
@@ -185,7 +200,7 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   );
   const resetUrl = stdout
     .split('\n')
-    .find((line) => line.startsWith('http://127.0.0.1:5174/reset#'));
+    .find((line) => line.startsWith('http://127.0.0.1:5174/auth/reset#'));
   expect(resetUrl).toBeTruthy();
   await member.goto(resetUrl ?? '');
   await member.getByLabel('New password', { exact: true }).fill(password);
@@ -238,7 +253,7 @@ test('valid unbroken names fit and network errors preserve login drafts', async 
     );
     expect(setup.ok()).toBe(true);
   }
-  await page.goto('/login');
+  await page.goto('/auth/login');
   await page
     .getByLabel('Email', { exact: true })
     .fill('browser-owner@example.com');
@@ -265,12 +280,22 @@ test('valid unbroken names fit and network errors preserve login drafts', async 
   ).toBeVisible();
   const name = 'W'.repeat(100);
   await page.getByLabel('Workspace name', { exact: true }).fill(name);
+  await page
+    .getByLabel('Workspace URL', { exact: true })
+    .fill(`long-${test.info().project.name}-${Date.now()}`);
   await page.getByLabel('First team name').fill('T'.repeat(100));
   await page.getByLabel('Team key', { exact: true }).fill('LONG');
   await page
     .getByRole('button', { name: 'Create workspace', exact: true })
     .click();
-  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Workspace', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Workspace name', { exact: true })).toHaveValue(
+    name,
+  );
+  await page.goto(`${page.url()}#people`);
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
   await page
     .getByRole('button', { name: 'Create invitation', exact: true })
     .click();
@@ -290,7 +315,7 @@ test('valid unbroken names fit and network errors preserve login drafts', async 
     .getByRole('button', { name: 'Join workspace', exact: true })
     .click();
   await expect(
-    member.getByRole('heading', { name, exact: true }),
+    member.getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
   for (const target of [page, member])
     expect(
