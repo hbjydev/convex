@@ -30,6 +30,7 @@ export function Form({
   children,
   className,
   submit,
+  submitClassName,
   action,
   onSuccess,
   inline = false,
@@ -39,6 +40,7 @@ export function Form({
   children: ReactNode;
   className?: string;
   submit: string;
+  submitClassName?: string;
   action: (form: FormData) => Promise<string | undefined>;
   onSuccess?: () => void;
   inline?: boolean;
@@ -81,7 +83,7 @@ export function Form({
             {!hideSubmit && (
               <Button
                 variant={variant}
-                className="w-fit"
+                className={cn('w-fit', submitClassName)}
                 type="submit"
                 disabled={pending}
               >

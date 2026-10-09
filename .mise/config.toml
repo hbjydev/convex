@@ -172,7 +172,7 @@ run = "pnpm --dir web exec playwright install --with-deps chromium"
 [tasks."test:e2e"]
 description = "Verify the browser-to-API request against the isolated test database"
 depends = ["db:test:up"]
-run = "DATABASE_URL=\"$TEST_DATABASE_URL\" pnpm --dir web exec playwright test"
+run = "CONVEX_E2E_OIDC=0 DATABASE_URL=\"$TEST_DATABASE_URL\" pnpm --dir web exec playwright test"
 
 [tasks."account:recover"]
 description = "Issue an operator-authorized reset link for an existing local account (EMAIL [--enable])"
@@ -192,9 +192,26 @@ fi
 description = "Run a browser-test API with a fresh disposable database"
 run = [
   "cargo build --locked -p convex --bin recover-account",
-  'DATABASE_URL="$TEST_DATABASE_URL" CONVEX_BIND_ADDRESS="127.0.0.1:3001" CONVEX_PUBLIC_URL="http://127.0.0.1:5174" CONVEX_SETUP_TOKEN="browser-test-installer-credential-12345" CONVEX_SMTP_HOST="" cargo run --locked -p convex --features integration --bin e2e-server',
+  'env -u CONVEX_OIDC_ISSUER_URL -u CONVEX_OIDC_CLIENT_ID -u CONVEX_OIDC_CLIENT_SECRET -u CONVEX_OIDC_DISPLAY_NAME -u CONVEX_OIDC_ENABLED -u CONVEX_OIDC_REQUIRED DATABASE_URL="$TEST_DATABASE_URL" CONVEX_BIND_ADDRESS="127.0.0.1:${CONVEX_E2E_API_PORT:-3001}" CONVEX_PUBLIC_URL="http://127.0.0.1:${CONVEX_E2E_WEB_PORT:-5174}" CONVEX_SETUP_TOKEN="browser-test-installer-credential-12345" CONVEX_SMTP_HOST="" CONVEX_SESSION_TTL_SECONDS="604800" cargo run --locked -p convex --features integration --bin e2e-server',
 ]
 
 [tasks."mail:up"]
 description = "Start optional development SMTP and the Mailpit inbox"
 run = "docker compose --profile mail up -d mailpit"
+
+[tasks."oidc:up"]
+description = "Start the pinned, disposable development OIDC provider"
+run = "docker compose --profile oidc up -d oidc-cp03"
+
+[tasks."oidc:reset"]
+description = "Recreate the development realm after fixture edits"
+run = "docker compose --profile oidc up -d --force-recreate oidc-cp03"
+
+[tasks."test:e2e:oidc"]
+description = "Run OIDC browser onboarding against the pinned provider"
+depends = ["db:test:up", "oidc:up"]
+run = 'CONVEX_E2E_OIDC=1 CONVEX_E2E_API_PORT=3103 CONVEX_E2E_WEB_PORT=5274 DATABASE_URL="$TEST_DATABASE_URL" pnpm --dir web exec playwright test oidc.spec.ts'
+
+[tasks."dev:e2e:oidc:api"]
+description = "Run an isolated OIDC browser-test API"
+run = 'env CONVEX_OIDC_ISSUER_URL="http://127.0.0.1:8083/realms/convex" CONVEX_OIDC_CLIENT_ID="convex" CONVEX_OIDC_CLIENT_SECRET="convex-development-client-secret" CONVEX_OIDC_DISPLAY_NAME="Development SSO" CONVEX_OIDC_ENABLED=true CONVEX_OIDC_REQUIRED=true DATABASE_URL="$TEST_DATABASE_URL" CONVEX_BIND_ADDRESS="127.0.0.1:${CONVEX_E2E_API_PORT:-3103}" CONVEX_PUBLIC_URL="http://127.0.0.1:${CONVEX_E2E_WEB_PORT:-5274}" CONVEX_SETUP_TOKEN="browser-test-installer-credential-12345" CONVEX_SMTP_HOST="" CONVEX_SESSION_TTL_SECONDS="604800" cargo run --locked -p convex --features integration --bin e2e-server'

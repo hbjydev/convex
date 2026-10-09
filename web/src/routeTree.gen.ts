@@ -19,6 +19,7 @@ import { Route as AuthInviteRouteImport } from "./routes/_auth/invite";
 import { Route as AuthSetupRouteImport } from "./routes/_auth/setup";
 import { Route as AppWorkspacesWorkspaceIdRouteImport } from "./routes/_app/workspaces/$workspaceId";
 import { Route as AuthAuthLoginRouteImport } from "./routes/_auth/auth/login";
+import { Route as AuthAuthOidcRouteImport } from "./routes/_auth/auth/oidc";
 import { Route as AuthAuthRecoveryRouteImport } from "./routes/_auth/auth/recovery";
 import { Route as AuthAuthResetRouteImport } from "./routes/_auth/auth/reset";
 import { Route as AppWorkspaceSlugIssueIssueKeyRouteImport } from "./routes/_app/$workspaceSlug/issue/$issueKey";
@@ -76,6 +77,11 @@ const AppWorkspacesWorkspaceIdRoute =
 const AuthAuthLoginRoute = AuthAuthLoginRouteImport.update({
   id: "/auth/login",
   path: "/auth/login",
+  getParentRoute: () => AuthRoute,
+} as any);
+const AuthAuthOidcRoute = AuthAuthOidcRouteImport.update({
+  id: "/auth/oidc",
+  path: "/auth/oidc",
   getParentRoute: () => AuthRoute,
 } as any);
 const AuthAuthRecoveryRoute = AuthAuthRecoveryRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   "/setup": typeof AuthSetupRoute;
   "/workspaces/$workspaceId": typeof AppWorkspacesWorkspaceIdRoute;
   "/auth/login": typeof AuthAuthLoginRoute;
+  "/auth/oidc": typeof AuthAuthOidcRoute;
   "/auth/recovery": typeof AuthAuthRecoveryRoute;
   "/auth/reset": typeof AuthAuthResetRoute;
   "/$workspaceSlug/issue/$issueKey": typeof AppWorkspaceSlugIssueIssueKeyRouteWithChildren;
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   "/setup": typeof AuthSetupRoute;
   "/workspaces/$workspaceId": typeof AppWorkspacesWorkspaceIdRoute;
   "/auth/login": typeof AuthAuthLoginRoute;
+  "/auth/oidc": typeof AuthAuthOidcRoute;
   "/auth/recovery": typeof AuthAuthRecoveryRoute;
   "/auth/reset": typeof AuthAuthResetRoute;
   "/$workspaceSlug/issue/$issueKey/$issueTitle": typeof AppWorkspaceSlugIssueIssueKeyIssueTitleRoute;
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   "/_app/": typeof AppIndexRoute;
   "/_app/workspaces/$workspaceId": typeof AppWorkspacesWorkspaceIdRoute;
   "/_auth/auth/login": typeof AuthAuthLoginRoute;
+  "/_auth/auth/oidc": typeof AuthAuthOidcRoute;
   "/_auth/auth/recovery": typeof AuthAuthRecoveryRoute;
   "/_auth/auth/reset": typeof AuthAuthResetRoute;
   "/_app/$workspaceSlug/issue/$issueKey": typeof AppWorkspaceSlugIssueIssueKeyRouteWithChildren;
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | "/setup"
     | "/workspaces/$workspaceId"
     | "/auth/login"
+    | "/auth/oidc"
     | "/auth/recovery"
     | "/auth/reset"
     | "/$workspaceSlug/issue/$issueKey"
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | "/setup"
     | "/workspaces/$workspaceId"
     | "/auth/login"
+    | "/auth/oidc"
     | "/auth/recovery"
     | "/auth/reset"
     | "/$workspaceSlug/issue/$issueKey/$issueTitle"
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | "/_app/"
     | "/_app/workspaces/$workspaceId"
     | "/_auth/auth/login"
+    | "/_auth/auth/oidc"
     | "/_auth/auth/recovery"
     | "/_auth/auth/reset"
     | "/_app/$workspaceSlug/issue/$issueKey"
@@ -327,6 +339,13 @@ declare module "@tanstack/react-router" {
       path: "/auth/login";
       fullPath: "/auth/login";
       preLoaderRoute: typeof AuthAuthLoginRouteImport;
+      parentRoute: typeof AuthRoute;
+    };
+    "/_auth/auth/oidc": {
+      id: "/_auth/auth/oidc";
+      path: "/auth/oidc";
+      fullPath: "/auth/oidc";
+      preLoaderRoute: typeof AuthAuthOidcRouteImport;
       parentRoute: typeof AuthRoute;
     };
     "/_auth/auth/recovery": {
@@ -455,6 +474,7 @@ interface AuthRouteChildren {
   AuthInviteRoute: typeof AuthInviteRoute;
   AuthSetupRoute: typeof AuthSetupRoute;
   AuthAuthLoginRoute: typeof AuthAuthLoginRoute;
+  AuthAuthOidcRoute: typeof AuthAuthOidcRoute;
   AuthAuthRecoveryRoute: typeof AuthAuthRecoveryRoute;
   AuthAuthResetRoute: typeof AuthAuthResetRoute;
 }
@@ -463,6 +483,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthInviteRoute: AuthInviteRoute,
   AuthSetupRoute: AuthSetupRoute,
   AuthAuthLoginRoute: AuthAuthLoginRoute,
+  AuthAuthOidcRoute: AuthAuthOidcRoute,
   AuthAuthRecoveryRoute: AuthAuthRecoveryRoute,
   AuthAuthResetRoute: AuthAuthResetRoute,
 };

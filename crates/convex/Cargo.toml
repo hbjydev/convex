@@ -17,6 +17,8 @@ path = "tests/database.rs"
 required-features = ["integration"]
 
 [dependencies]
+openidconnect.workspace = true
+reqwest.workspace = true
 argon2.workspace = true
 sha2.workspace = true
 uuid.workspace = true

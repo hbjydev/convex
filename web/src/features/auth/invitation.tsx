@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
+import { OidcContinue } from './oidc';
 import type { components } from '@/api/schema';
 import { useAuth } from '@/auth';
 import { Credentials, Form, text } from '@/components/app-form';
@@ -10,7 +11,7 @@ import { errorMessage, unwrap } from '@/lib/requests';
 
 type Schema = components['schemas'];
 export function InvitationAcceptance() {
-  const { account, reload } = useAuth();
+  const { account, reload, bootstrap } = useAuth();
   const navigate = useNavigate();
   const [token] = useState(() => {
     const token =
@@ -62,34 +63,37 @@ export function InvitationAcceptance() {
               ? `Continue as ${account.user.display_name}.`
               : 'Create your account to join, or sign in with your existing account.'}
           </p>
-          <Form
-            submit="Join workspace"
-            action={async (form) => {
-              const space = unwrap(
-                await api.POST('/api/v1/invitations/accept', {
-                  body: {
-                    token,
-                    ...(account
-                      ? {}
-                      : {
-                          email: text(form, 'email'),
-                          password: text(form, 'password'),
-                          display_name: text(form, 'display_name'),
-                        }),
-                  },
-                }),
-              );
-              sessionStorage.removeItem('convex-invitation');
-              await reload();
-              await navigate({
-                to: '/$workspaceSlug',
-                params: { workspaceSlug: space.slug },
-              });
-              return undefined;
-            }}
-          >
-            {!account && <Credentials creating />}
-          </Form>
+          {!account && <OidcContinue invitationToken={token} />}
+          {(account || !bootstrap.oidc_required) && (
+            <Form
+              submit="Join workspace"
+              action={async (form) => {
+                const space = unwrap(
+                  await api.POST('/api/v1/invitations/accept', {
+                    body: {
+                      token,
+                      ...(account
+                        ? {}
+                        : {
+                            email: text(form, 'email'),
+                            password: text(form, 'password'),
+                            display_name: text(form, 'display_name'),
+                          }),
+                    },
+                  }),
+                );
+                sessionStorage.removeItem('convex-invitation');
+                await reload();
+                await navigate({
+                  to: '/$workspaceSlug',
+                  params: { workspaceSlug: space.slug },
+                });
+                return undefined;
+              }}
+            >
+              {!account && <Credentials creating />}
+            </Form>
+          )}
           {!account && (
             <Link
               className="after-form"

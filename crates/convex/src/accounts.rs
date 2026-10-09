@@ -26,6 +26,8 @@ pub struct BootstrapInfo {
     pub setup_required: bool,
     pub setup_enabled: bool,
     pub mail_available: bool,
+    pub oidc_display_name: Option<String>,
+    pub oidc_required: bool,
 }
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -107,7 +109,7 @@ pub async fn authenticate(
     headers: &HeaderMap,
 ) -> AppResult<User> {
     let hash = sec::digest(&sec::session_token(headers)?);
-    let user = sqlx::query_as::<_, User>("SELECT u.id, u.display_name, u.is_instance_admin FROM convex.users u JOIN convex.sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.disabled_at IS NULL FOR UPDATE OF u, s").bind(&hash).fetch_optional(&mut **tx).await?.ok_or_else(AppError::unauthorized)?;
+    let user = sqlx::query_as::<_, User>("SELECT u.id,u.display_name,u.is_instance_admin FROM convex.users u JOIN convex.sessions s ON s.user_id=u.id CROSS JOIN convex.authentication_policy p LEFT JOIN convex.oidc_identities i ON i.id=s.oidc_identity_id AND i.user_id=u.id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now() AND u.disabled_at IS NULL AND ((s.login_method='local' AND (NOT p.oidc_required OR u.is_instance_admin) AND EXISTS(SELECT 1 FROM convex.local_credentials c WHERE c.user_id=u.id)) OR (s.login_method='oidc' AND p.oidc_enabled AND s.provider_revision=p.provider_revision AND i.unlinked_at IS NULL AND i.issuer=p.oidc_issuer)) FOR UPDATE OF u,s").bind(&hash).fetch_optional(&mut **tx).await?.ok_or_else(AppError::unauthorized)?;
     sqlx::query("UPDATE convex.sessions SET last_activity_at=now() WHERE token_hash=$1")
         .bind(hash)
         .execute(&mut **tx)
@@ -122,6 +124,8 @@ pub async fn revoke_all(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> AppRe
     .bind(user)
     .execute(&mut **tx)
     .await?;
+    sqlx::query("DELETE FROM convex.oidc_flows WHERE user_id=$1 OR session_id IN (SELECT id FROM convex.sessions WHERE user_id=$1)")
+        .bind(user).execute(&mut **tx).await?;
     Ok(())
 }
 
@@ -143,6 +147,7 @@ pub async fn create_local(
         .bind(admin)
         .execute(&mut **tx)
         .await?;
+    crate::auth_policy::ensure_local_allowed(tx, user.id).await?;
     sqlx::query(
         "INSERT INTO convex.local_credentials (user_id,email,password_hash) VALUES ($1,$2,$3)",
     )
@@ -172,6 +177,14 @@ pub async fn bootstrap(State(state): State<AppState>) -> AppResult<Json<Bootstra
         setup_required: !initialized,
         setup_enabled: !initialized && state.security.setup_token.is_some(),
         mail_available: state.security.mail.is_some(),
+        oidc_display_name: state
+            .security
+            .authentication
+            .provider
+            .as_ref()
+            .filter(|p| p.enabled)
+            .map(|p| p.display_name.clone()),
+        oidc_required: state.security.authentication.oidc_required,
     }))
 }
 
@@ -223,7 +236,7 @@ pub async fn setup(
     sqlx::query("UPDATE convex.installation SET initialized_at=now()")
         .execute(&mut *tx)
         .await?;
-    let token = sec::new_session(&mut tx, user.id).await?;
+    let token = sec::new_session(&mut tx, user.id, sec::LoginMethod::Local).await?;
     tx.commit().await?;
     Ok(signed_in(&state, &token, user))
 }
@@ -255,7 +268,7 @@ pub async fn login(
             .execute(&mut *tx)
             .await?;
     }
-    let token = sec::new_session(&mut tx, id).await?;
+    let token = sec::new_session(&mut tx, id, sec::LoginMethod::Local).await?;
     let user = sqlx::query_as::<_, User>(
         "SELECT id,display_name,is_instance_admin FROM convex.users WHERE id=$1",
     )
@@ -281,10 +294,14 @@ pub async fn me(
 #[utoipa::path(post, path="/api/v1/auth/logout", operation_id="logout", tag="Accounts", responses((status=200,body=MessageResponse),(status=403,body=crate::http::ApiError),(status=503,body=crate::http::ApiError)))]
 pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Response> {
     if let Ok(token) = sec::session_token(&headers) {
+        let mut tx = transaction(&state.pool).await?;
+        sqlx::query("DELETE FROM convex.oidc_flows WHERE session_id IN (SELECT id FROM convex.sessions WHERE token_hash=$1)")
+            .bind(sec::digest(&token)).execute(&mut *tx).await?;
         sqlx::query("UPDATE convex.sessions SET revoked_at=now() WHERE token_hash=$1")
             .bind(sec::digest(&token))
-            .execute(&state.pool)
+            .execute(&mut *tx)
             .await?;
+        tx.commit().await?;
     }
     Ok(signed_in(
         &state,
@@ -309,6 +326,7 @@ pub async fn change_password(
     let new_hash = sec::hash_password(req.new_password).await?;
     let mut tx = transaction(&state.pool).await?;
     let user = authenticate(&mut tx, &headers).await?;
+    crate::auth_policy::ensure_local_allowed(&mut tx, user.id).await?;
     let hash: String = sqlx::query_scalar(
         "SELECT password_hash FROM convex.local_credentials WHERE user_id=$1 FOR UPDATE",
     )
@@ -318,7 +336,7 @@ pub async fn change_password(
     .ok_or_else(AppError::unauthorized)?;
     sec::verify_password(req.current_password, hash).await?;
     replace_password(&mut tx, user.id, new_hash).await?;
-    let token = sec::new_session(&mut tx, user.id).await?;
+    let token = sec::new_session(&mut tx, user.id, sec::LoginMethod::Local).await?;
     tx.commit().await?;
     Ok(signed_in(
         &state,
@@ -346,6 +364,7 @@ async fn replace_password(
 }
 
 pub async fn recovery_token(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> AppResult<String> {
+    crate::auth_policy::ensure_local_allowed(tx, user).await?;
     let token = sec::token();
     sqlx::query("UPDATE convex.recovery_tokens SET consumed_at=now() WHERE user_id=$1 AND consumed_at IS NULL").bind(user).execute(&mut **tx).await?;
     sqlx::query("INSERT INTO convex.recovery_tokens (id,user_id,token_hash) VALUES ($1,$2,$3)")
@@ -370,7 +389,7 @@ pub async fn request_recovery(
         tokio::spawn(async move {
             let delivery = async {
                 let mut tx = transaction(&state.pool).await?;
-                if let Some(user) = sqlx::query_scalar::<_,Uuid>("SELECT u.id FROM convex.users u JOIN convex.local_credentials c ON u.id=c.user_id WHERE c.email=$1 AND u.disabled_at IS NULL FOR UPDATE OF u,c").bind(&email).fetch_optional(&mut *tx).await? {
+                if let Some(user) = sqlx::query_scalar::<_,Uuid>("SELECT u.id FROM convex.users u JOIN convex.local_credentials c ON u.id=c.user_id CROSS JOIN convex.authentication_policy p WHERE c.email=$1 AND u.disabled_at IS NULL AND (NOT p.oidc_required OR u.is_instance_admin) FOR UPDATE OF u,c").bind(&email).fetch_optional(&mut *tx).await? {
                     let token = recovery_token(&mut tx,user).await?;
                     tx.commit().await?;
                     state.security.send(&email,"Reset your Convex password",format!("Reset your password within 30 minutes:\n{}/auth/reset#{}\nIf you did not request this, ignore this email.",state.security.origin,token)).await?;
@@ -395,6 +414,7 @@ pub async fn reset_password(
     let mut tx = transaction(&state.pool).await?;
     // Lock the user before its recovery rows: password changes and token issuance use the same order.
     let user = sqlx::query_scalar::<_,Uuid>("SELECT u.id FROM convex.users u JOIN convex.recovery_tokens r ON r.user_id=u.id WHERE r.token_hash=$1 AND u.disabled_at IS NULL FOR UPDATE OF u").bind(sec::digest(&req.token)).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::validation("This reset link is invalid or expired."))?;
+    crate::auth_policy::ensure_local_allowed(&mut tx, user).await?;
     let valid: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM convex.recovery_tokens WHERE token_hash=$1 AND consumed_at IS NULL AND expires_at > now())").bind(sec::digest(&req.token)).fetch_one(&mut *tx).await?;
     if !valid {
         return Err(AppError::validation(
@@ -441,6 +461,10 @@ pub async fn revoke_session(
     if result.rows_affected() == 0 {
         return Err(AppError::not_found());
     }
+    sqlx::query("DELETE FROM convex.oidc_flows WHERE session_id=$1")
+        .bind(req.session_id)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await?;
     Ok(Json(MessageResponse {
         message: "Session signed out.".into(),
@@ -483,6 +507,13 @@ pub async fn disable(
             if admins == 0 {
                 return Err(AppError::conflict("Keep an active instance administrator."));
             }
+            let recovery_admins: bool = sqlx::query_scalar("SELECT NOT EXISTS(SELECT 1 FROM convex.local_credentials WHERE user_id=$1) OR EXISTS(SELECT 1 FROM convex.users u JOIN convex.local_credentials c ON c.user_id=u.id WHERE u.id<>$1 AND u.is_instance_admin AND u.disabled_at IS NULL)")
+                .bind(target.id).fetch_one(&mut *tx).await?;
+            if !recovery_admins {
+                return Err(AppError::conflict(
+                    "Keep an enabled instance administrator with local credentials for recovery.",
+                ));
+            }
         }
         for space in spaces {
             workspaces::protect_last_owner(&mut tx, space, target.id).await?;
@@ -505,7 +536,7 @@ pub async fn disable(
 pub struct AdminAccount {
     pub id: Uuid,
     pub display_name: String,
-    pub email: String,
+    pub email: Option<String>,
     pub disabled: bool,
     pub is_instance_admin: bool,
 }
@@ -519,7 +550,7 @@ pub async fn admin_accounts(
     if !actor.is_instance_admin {
         return Err(AppError::forbidden());
     }
-    let accounts=sqlx::query_as("SELECT u.id,u.display_name,c.email,u.disabled_at IS NOT NULL AS disabled,u.is_instance_admin FROM convex.users u JOIN convex.local_credentials c ON c.user_id=u.id ORDER BY u.created_at,u.id").fetch_all(&mut *tx).await?;
+    let accounts=sqlx::query_as("SELECT u.id,u.display_name,c.email,u.disabled_at IS NOT NULL AS disabled,u.is_instance_admin FROM convex.users u LEFT JOIN convex.local_credentials c ON c.user_id=u.id ORDER BY u.created_at,u.id").fetch_all(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(accounts))
 }

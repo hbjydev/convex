@@ -28,19 +28,17 @@ async fn main() -> Result<()> {
             .connect_with(options.database(&database))
             .await?;
         MIGRATOR.run(&pool).await?;
+        let app = http::prepare_app(pool.clone(), SecurityConfig::from_env()?).await?;
         let listener = tokio::net::TcpListener::bind(
             std::env::var("CONVEX_BIND_ADDRESS").unwrap_or_else(|_| "127.0.0.1:3001".into()),
         )
         .await?;
-        axum::serve(
-            listener,
-            http::router_with_config(pool.clone(), SecurityConfig::from_env()?),
-        )
-        .with_graceful_shutdown(async {
-            tokio::signal::ctrl_c().await.expect("Ctrl-C handler");
-        })
-        .await
-        .context("browser test API failed")?;
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async {
+                tokio::signal::ctrl_c().await.expect("Ctrl-C handler");
+            })
+            .await
+            .context("browser test API failed")?;
         pool.close().await;
         Ok::<_, anyhow::Error>(())
     }

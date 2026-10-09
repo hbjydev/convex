@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Convex API",
-    "description": "Convex HTTP contract. Mutations require Origin matching CONVEX_PUBLIC_URL and X-Convex-CSRF: 1, including public authentication endpoints. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and expire after seven days. Tokens in invitation/reset links use URL fragments and are submitted in JSON bodies. Errors use ApiError. Protected operations recheck active accounts and workspace membership.",
+    "description": "Convex HTTP contract. Mutations require Origin matching CONVEX_PUBLIC_URL and X-Convex-CSRF: 1, including public authentication endpoints. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and use CONVEX_SESSION_TTL_SECONDS (default seven days), with no sliding renewal. Shortening the lifetime caps existing sessions; increasing it does not extend them. Tokens in invitation/reset links use URL fragments and are submitted in JSON bodies. Errors use ApiError. Protected operations recheck active accounts, workspace membership, and authentication policy without contacting an identity provider. Logout revokes only the Convex session.",
     "version": "0.1.0"
   },
   "paths": {
@@ -359,6 +359,124 @@
             "cookieSession": []
           }
         ]
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": ["Accounts"],
+        "operationId": "completeOidcLogin",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "description": "Provider-returned opaque state; requires matching browser-binding cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code; exactly one of code or error",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "Provider cancellation or denial; details are discarded",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Single-use browser-bound callback. Redirects to fixed frontend outcome; Convex session cookie on success. Cache-Control: no-store; Referrer-Policy: no-referrer. Provider errors are sanitized."
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/start": {
+      "post": {
+        "tags": ["Accounts"],
+        "operationId": "startOidcLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL and HttpOnly browser-binding cookie; requires same-origin CSRF headers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth/password": {
@@ -804,7 +922,7 @@
             }
           },
           "503": {
-            "description": "Database or application schema is unavailable",
+            "description": "Database, application schema, or authentication policy lease is unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -2184,13 +2302,7 @@
       },
       "AdminAccount": {
         "type": "object",
-        "required": [
-          "id",
-          "display_name",
-          "email",
-          "disabled",
-          "is_instance_admin"
-        ],
+        "required": ["id", "display_name", "disabled", "is_instance_admin"],
         "properties": {
           "disabled": {
             "type": "boolean"
@@ -2199,7 +2311,7 @@
             "type": "string"
           },
           "email": {
-            "type": "string"
+            "type": ["string", "null"]
           },
           "id": {
             "type": "string",
@@ -2236,9 +2348,20 @@
       },
       "BootstrapInfo": {
         "type": "object",
-        "required": ["setup_required", "setup_enabled", "mail_available"],
+        "required": [
+          "setup_required",
+          "setup_enabled",
+          "mail_available",
+          "oidc_required"
+        ],
         "properties": {
           "mail_available": {
+            "type": "boolean"
+          },
+          "oidc_display_name": {
+            "type": ["string", "null"]
+          },
+          "oidc_required": {
             "type": "boolean"
           },
           "setup_enabled": {
@@ -2750,6 +2873,24 @@
           }
         },
         "additionalProperties": false
+      },
+      "StartRequest": {
+        "type": "object",
+        "properties": {
+          "invitation_token": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "StartResponse": {
+        "type": "object",
+        "required": ["authorization_url"],
+        "properties": {
+          "authorization_url": {
+            "type": "string"
+          }
+        }
       },
       "Team": {
         "type": "object",

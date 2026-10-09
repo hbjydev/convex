@@ -117,6 +117,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/auth/oidc/callback': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['completeOidcLogin'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/oidc/start': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['startOidcLogin'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/password': {
     parameters: {
       query?: never;
@@ -439,7 +471,7 @@ export interface components {
     AdminAccount: {
       disabled: boolean;
       display_name: string;
-      email: string;
+      email?: string | null;
       /** Format: uuid */
       id: string;
       is_instance_admin: boolean;
@@ -453,6 +485,8 @@ export interface components {
     };
     BootstrapInfo: {
       mail_available: boolean;
+      oidc_display_name?: string | null;
+      oidc_required: boolean;
       setup_enabled: boolean;
       setup_required: boolean;
     };
@@ -638,6 +672,12 @@ export interface components {
       team_name: string;
       workspace_name: string;
       workspace_slug: string;
+    };
+    StartRequest: {
+      invitation_token?: string | null;
+    };
+    StartResponse: {
+      authorization_url: string;
     };
     Team: {
       /** Format: uuid */
@@ -962,6 +1002,95 @@ export interface operations {
         };
       };
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  completeOidcLogin: {
+    parameters: {
+      query: {
+        /** @description Provider-returned opaque state; requires matching browser-binding cookie */
+        state: string;
+        /** @description Authorization code; exactly one of code or error */
+        code?: string;
+        /** @description Provider cancellation or denial; details are discarded */
+        error?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Single-use browser-bound callback. Redirects to fixed frontend outcome; Convex session cookie on success. Cache-Control: no-store; Referrer-Policy: no-referrer. Provider errors are sanitized. */
+      303: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  startOidcLogin: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StartRequest'];
+      };
+    };
+    responses: {
+      /** @description Authorization URL and HttpOnly browser-binding cookie; requires same-origin CSRF headers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StartResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      429: {
         headers: {
           [name: string]: unknown;
         };
@@ -1331,7 +1460,7 @@ export interface operations {
           'application/json': components['schemas']['HealthResponse'];
         };
       };
-      /** @description Database or application schema is unavailable */
+      /** @description Database, application schema, or authentication policy lease is unavailable */
       503: {
         headers: {
           [name: string]: unknown;

@@ -20,6 +20,8 @@ async function mockAccount(page: Page) {
         setup_required: false,
         setup_enabled: false,
         mail_available: false,
+        oidc_required: false,
+        oidc_display_name: null,
       } satisfies Schema['BootstrapInfo'],
     }),
   );
@@ -131,6 +133,8 @@ test('homepage still redirects a new installation to setup', async ({
         setup_required: true,
         setup_enabled: false,
         mail_available: false,
+        oidc_required: false,
+        oidc_display_name: null,
       } satisfies Schema['BootstrapInfo'],
     }),
   );
@@ -465,6 +469,8 @@ test('initial setup submits the selected slug', async ({ page }) => {
         setup_required: !initialized,
         setup_enabled: true,
         mail_available: false,
+        oidc_required: false,
+        oidc_display_name: null,
       },
     }),
   );

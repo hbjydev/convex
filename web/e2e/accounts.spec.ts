@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
+import { webOrigin } from './environment';
 
 const password = 'a secure browser test password';
 const newPassword = 'a replacement browser password';
@@ -178,29 +179,34 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   });
   // Exercise the documented operator command with mail unavailable, including explicit enablement.
   const disabled = await page.request.post('/api/v1/admin/accounts/disable', {
-    headers: { Origin: 'http://127.0.0.1:5174', 'X-Convex-CSRF': '1' },
+    headers: { Origin: webOrigin, 'X-Convex-CSRF': '1' },
     data: { user_id: memberId, disabled: true },
   });
   expect(disabled.ok()).toBe(true);
   const database = (await readFile('../target/e2e-database', 'utf8')).trim();
   const databaseUrl = new URL(process.env.DATABASE_URL ?? '');
   databaseUrl.pathname = database;
+  const recoveryEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    DATABASE_URL: databaseUrl.toString(),
+    CONVEX_PUBLIC_URL: webOrigin,
+    CONVEX_SMTP_HOST: '',
+    CONVEX_SESSION_TTL_SECONDS: '604800',
+  };
+  for (const key of Object.keys(recoveryEnv)) {
+    if (key.startsWith('CONVEX_OIDC_')) delete recoveryEnv[key];
+  }
   const { stdout } = await promisify(execFile)(
     'target/debug/recover-account',
     [`${suffix}@example.com`, '--enable'],
     {
       cwd: '..',
-      env: {
-        ...process.env,
-        DATABASE_URL: databaseUrl.toString(),
-        CONVEX_PUBLIC_URL: 'http://127.0.0.1:5174',
-        CONVEX_SMTP_HOST: '',
-      },
+      env: recoveryEnv,
     },
   );
   const resetUrl = stdout
     .split('\n')
-    .find((line) => line.startsWith('http://127.0.0.1:5174/auth/reset#'));
+    .find((line) => line.startsWith(`${webOrigin}/auth/reset#`));
   expect(resetUrl).toBeTruthy();
   await member.goto(resetUrl ?? '');
   await member.getByLabel('New password', { exact: true }).fill(password);
@@ -229,28 +235,21 @@ test('valid unbroken names fit and network errors preserve login drafts', async 
 }) => {
   test.setTimeout(60_000);
   if (
-    (
-      await (
-        await request.get('http://127.0.0.1:5174/api/v1/auth/bootstrap')
-      ).json()
-    ).setup_required
+    (await (await request.get('/api/v1/auth/bootstrap')).json()).setup_required
   ) {
-    const setup = await request.post(
-      'http://127.0.0.1:5174/api/v1/auth/setup',
-      {
-        headers: { Origin: 'http://127.0.0.1:5174', 'X-Convex-CSRF': '1' },
-        data: {
-          setup_token: 'browser-test-installer-credential-12345',
-          email: 'browser-owner@example.com',
-          password,
-          display_name: 'Installation owner',
-          workspace_name: 'Initial workspace',
-          workspace_slug: 'initial-workspace',
-          team_name: 'Engineering',
-          team_key: 'ENG',
-        },
+    const setup = await request.post('/api/v1/auth/setup', {
+      headers: { Origin: webOrigin, 'X-Convex-CSRF': '1' },
+      data: {
+        setup_token: 'browser-test-installer-credential-12345',
+        email: 'browser-owner@example.com',
+        password,
+        display_name: 'Installation owner',
+        workspace_name: 'Initial workspace',
+        workspace_slug: 'initial-workspace',
+        team_name: 'Engineering',
+        team_key: 'ENG',
       },
-    );
+    });
     expect(setup.ok()).toBe(true);
   }
   await page.goto('/auth/login');
