@@ -161,6 +161,19 @@ pub fn router(pool: PgPool) -> Router {
     router_with_config(pool, SecurityConfig::development())
 }
 
+/// Serves the API and, when enabled, the compiled frontend on the same origin.
+pub fn app_with_config(pool: PgPool, security: SecurityConfig) -> Router {
+    let api = router_with_config(pool, security);
+    #[cfg(feature = "embed-web")]
+    {
+        crate::frontend::with_api(api)
+    }
+    #[cfg(not(feature = "embed-web"))]
+    {
+        api
+    }
+}
+
 pub fn router_with_config(pool: PgPool, security: SecurityConfig) -> Router {
     use argon2::{
         Argon2, PasswordHasher,

@@ -24,10 +24,14 @@ Local defaults work without an `.env` file. Copy `.env.example` to `.env` to cus
 | `mise run db:migrate` | Apply migrations to the configured development database |
 | `mise run generate` | Export OpenAPI and regenerate TypeScript types without a database |
 | `mise run check` | Check formatting, linting, types, and contract consistency |
+| `mise run check:rust` | Check Rust formatting, linting, and doctests without frontend assets |
+| `mise run check:bundle` | Build, lint, and test the application with its frontend embedded |
 | `mise run test` | Run Rust, frontend, and isolated database tests |
 | `mise run test:rust:unit` | Run hermetic Rust tests without PostgreSQL |
 | `mise run test:rust:integration` | Run the PostgreSQL integration suite |
-| `mise run build` | Build the application and frontend |
+| `mise run build` | Build the application with the frontend embedded |
+| `mise run build:rust` | Build the API without frontend assets |
+| `mise run build:release` | Build the standalone release binary with the frontend embedded |
 | `mise run test:e2e:install` | Install Chromium and its system dependencies (once) |
 | `mise run test:e2e` | Run desktop/mobile browser tests against the test database |
 | `mise run fmt` | Format and apply safe lint fixes |
@@ -47,6 +51,22 @@ The frontend uses shadcn/ui's Nova style with Radix primitives, Tailwind CSS v4,
 CI uses the repository's `setup-repo` action and the same Mise tasks. Rust and Web checks, builds, and tests run in separate jobs; API contract verification and browser-to-API tests have dedicated jobs. Rust Build creates a Nextest archive once, and the Rust Unit Tests and Rust Integration Tests jobs download it and run their suites without recompiling. Both test jobs retain JUnit results; Rust checks run doctests separately because Nextest does not archive them. The aggregate `check`, `build`, and `test` tasks remain available locally. `test:rust` remains an alias for the hermetic suite and `test:db` for the integration suite. `mise run check` compiles and regenerates contracts before starting PostgreSQL. Current SQL queries use SQLx's runtime query API, so no query-macro metadata is needed. See [the implementation decisions](docs/backend-and-api.md#cp01-implementation-decisions) for conventions and tooling exceptions.
 
 Keep hermetic Rust tests in source modules or database-free test targets. Register tests that require services explicitly in the crate's `Cargo.toml`, with a name beginning `integration_` and `required-features = ["integration"]`, and mark each such test ignored with its required service in the reason. The database suite is registered as `integration_database` in `crates/convex/tests/database.rs`. Nextest selects ordinary and integration binaries with complementary filters; integration tasks enable the feature, run ignored tests, and start the Compose test database. This keeps ordinary `cargo test` safe to run without services and includes all registered integration targets in CI.
+
+## Bundled deployment
+
+Run `mise run build:release` to build `target/release/convex` with the compiled frontend and database migrations embedded. Deploy that binary; frontend files and Node are only needed during the build. `mise run build` produces the same bundled application in the debug profile. Direct Cargo builds opt in with `--features embed-web` and require `mise run build:web` first; builds without that feature serve only the API. Vite and its proxy remain the normal development workflow.
+
+Set `DATABASE_URL`, `CONVEX_PUBLIC_URL`, and, for first-admin setup, `CONVEX_SETUP_TOKEN` in the runtime environment. `CONVEX_PUBLIC_URL` is the exact browser origin, such as `https://convex.example.com`, even when a reverse proxy terminates HTTPS and forwards to an internal HTTP listener. Set `CONVEX_BIND_ADDRESS` to the desired listening address; the binary defaults to `127.0.0.1:3000`. For a local bundled installation with the other variables already set:
+
+```sh
+CONVEX_PUBLIC_URL=http://127.0.0.1:3000 ./target/release/convex
+```
+
+The frontend calls relative `/api` URLs, so no public URL is baked into the build. Axum validates mutation origins using the runtime setting. API responses use `no-store`, HTML is revalidated with `no-cache`, and Vite's hashed assets use a one-year immutable cache. Frontend routes receive `index.html`; missing assets return 404, and unknown API routes retain JSON errors.
+
+The Dockerfile builds the frontend in a Node/pnpm stage and embeds its output in the Rust release binary. Supply `RUST_VERSION`, `NODE_VERSION`, and `PNPM_VERSION` build arguments using the versions pinned in `.mise/config.toml`; the release workflow already supplies them. The image uses the existing `rockylinux/rockylinux:10-ubi-micro` runtime. Set `CONVEX_BIND_ADDRESS` at runtime to a container-accessible address such as `0.0.0.0:8080` and publish that port in the deployment configuration. Pass the other deployment settings as runtime environment variables, including `CONVEX_PUBLIC_URL`; PostgreSQL must be reachable from the container. Configure health monitoring in the deployment environment; the image defines no health check.
+
+Rust checks, unit tests, doctests, builds, and test archives enable the `integration` feature without `embed-web`, so they need neither frontend dependencies nor `web/dist`. `mise run check:bundle` builds the actual frontend, lints all Cargo features, and runs the embedded-frontend routing tests. CI keeps Rust check/build jobs independent and verifies the bundle in a separate job that installs frontend dependencies. `mise run build` and `mise run build:release` continue to produce bundled applications.
 
 ## Roadmap
 

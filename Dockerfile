@@ -1,6 +1,17 @@
 # syntax=docker/dockerfile:1.27
 
 ARG RUST_VERSION
+ARG NODE_VERSION
+
+FROM node:${NODE_VERSION?}-trixie-slim AS frontend
+ARG PNPM_VERSION
+WORKDIR /src/web
+RUN npm install --global pnpm@${PNPM_VERSION:?}
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile --store-dir /pnpm/store
+COPY web ./
+RUN pnpm build
 
 FROM rust:${RUST_VERSION?}-slim-trixie AS builder
 
@@ -11,11 +22,12 @@ WORKDIR /src
 COPY Cargo.lock Cargo.toml ./
 COPY crates crates
 COPY migrations migrations
+COPY --from=frontend /src/web/dist web/dist
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-${TARGETARCH}},sharing=locked \
-    --mount=type=cache,target=/src/target,id=cargo-target-${TARGETARCH}},sharing=locked \
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/src/target,id=cargo-target-${TARGETARCH},sharing=locked \
     RUSTFLAGS="-C target-feature=+crt-static" \
-    cargo build --release --locked --bin=convex --target="$(case ${TARGETARCH} in \
+    cargo build --release --locked --features embed-web --bin=convex --target="$(case ${TARGETARCH} in \
       "amd64") echo "x86_64";; \
       "arm64") echo "aarch64";; \
       *) echo "${TARGETARCH}";; \
@@ -43,8 +55,4 @@ RUN echo "#!/usr/bin/env bash" > /usr/local/bin/entrypoint && \
   chmod +x /usr/local/bin/entrypoint
 
 USER 10001:10001
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD ["curl", "--max-time", "2", "--fail", "--silent", "http://127.0.0.1:8080/healthz"]
-
 ENTRYPOINT ["/usr/local/bin/entrypoint"]

@@ -16,7 +16,7 @@ async fn main() -> Result<()> {
     tracing::info!(address = %listener.local_addr()?, "Convex listening");
     axum::serve(
         listener,
-        http::router_with_config(pool.clone(), convex::security::SecurityConfig::from_env()?),
+        http::app_with_config(pool.clone(), convex::security::SecurityConfig::from_env()?),
     )
     .with_graceful_shutdown(shutdown())
     .await?;

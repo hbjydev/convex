@@ -9,6 +9,7 @@ version = "0.1.0"
 
 [features]
 integration = []
+embed-web = ["dep:rust-embed", "dep:mime_guess"]
 
 [[test]]
 name = "integration_database"
@@ -23,6 +24,8 @@ chrono.workspace = true
 lettre.workspace = true
 anyhow.workspace = true
 axum.workspace = true
+rust-embed = { workspace = true, optional = true }
+mime_guess = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 sqlx.workspace = true

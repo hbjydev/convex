@@ -79,7 +79,15 @@ run = ["pnpm --dir web lint", "pnpm --dir web format:check"]
 
 [tasks."check:rust"]
 description = "Check Rust formatting and lint all targets without a live database"
-run = ["mise run fmt:check:rust", "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings", "mise run test:rust:doc"]
+run = ["mise run fmt:check:rust", "cargo clippy --locked --workspace --all-targets --features integration -- -D warnings", "mise run test:rust:doc"]
+
+[tasks."check:bundle"]
+description = "Build, lint and test the application with its real frontend embedded"
+depends = ["build:bundle"]
+run = [
+  "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+  "cargo nextest run --workspace --all-features --locked --no-fail-fast -E 'test(/^frontend::tests::/)'",
+]
 
 [tasks."check:web"]
 description = "Check frontend formatting, lint rules and types"
@@ -95,18 +103,18 @@ run = "mise run test:rust:unit"
 
 [tasks."test:rust:unit"]
 description = "Run the hermetic Rust suite without PostgreSQL"
-run = "cargo nextest run --workspace --all-features --locked --no-fail-fast -E 'not binary(/^integration/)'"
+run = "cargo nextest run --workspace --features integration --locked --no-fail-fast -E 'not binary(/^integration/)'"
 
 [tasks."test:rust:doc"]
 description = "Run Rust doctests (separate from Nextest archives)"
-run = "cargo test --locked --workspace --all-features --doc"
+run = "cargo test --locked --workspace --features integration --doc"
 
 [tasks."test:rust:archive"]
 description = "Build the Rust application and archive all test binaries for CI"
 run = [
   "mise run build:rust",
   "mkdir -p target/nextest",
-  "cargo nextest archive --workspace --all-features --locked --archive-file target/nextest/workspace.tar.zst",
+  "cargo nextest archive --workspace --features integration --locked --archive-file target/nextest/workspace.tar.zst",
 ]
 
 [tasks."test:rust:unit:from-archive"]
@@ -136,12 +144,22 @@ description = "Run Rust, frontend and database tests"
 run = ["mise run test:rust:unit", "mise run test:web", "mise run test:rust:integration", "mise run test:rust:doc"]
 
 [tasks.build]
-description = "Build the Rust application and frontend"
-run = ["mise run build:rust", "mise run build:web"]
+description = "Build the application with its frontend embedded"
+run = "mise run build:bundle"
 
 [tasks."build:rust"]
-description = "Build the Rust application"
+description = "Build the Rust application without frontend assets"
+run = "cargo build --locked --workspace --features integration"
+
+[tasks."build:bundle"]
+description = "Build the Rust application with its frontend embedded"
+depends = ["build:web"]
 run = "cargo build --locked --workspace --all-features"
+
+[tasks."build:release"]
+description = "Build the standalone release binary with its frontend embedded"
+depends = ["build:web"]
+run = "cargo build --release --locked -p convex --features embed-web --bin convex"
 
 [tasks."build:web"]
 description = "Build the frontend"

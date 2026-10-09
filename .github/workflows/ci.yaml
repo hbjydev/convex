@@ -80,21 +80,20 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
-  build-web:
+  build-bundle:
     if: >-
       ${{ !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
-    name: Build Web
+    name: Build and check bundle
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-repo
         with:
-          rust: 'false'
           pnpm: 'true'
-      - name: Build Web
-        run: mise run build:web
+      - name: Build and verify the embedded frontend
+        run: mise run check:bundle
 
   test-rust:
     if: >-
