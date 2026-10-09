@@ -399,7 +399,7 @@ pub async fn change_member(
     }
     let mut tx = accounts::transaction(&state.pool).await?;
     let actor = accounts::authenticate(&mut tx, &headers).await?;
-    let (_, actor_role) = membership(&mut tx, space, actor.id).await?;
+    let (actor_membership, actor_role) = membership(&mut tx, space, actor.id).await?;
     manage(&actor_role)?;
     let (user,target_role):(Uuid,String)=sqlx::query_as("SELECT user_id,role FROM convex.workspace_memberships WHERE id=$1 AND workspace_id=$2 AND removed_at IS NULL").bind(req.membership_id).bind(space).fetch_optional(&mut *tx).await?.ok_or_else(AppError::not_found)?;
     // Admins manage ordinary members; only owners grant or change administration.
@@ -412,6 +412,8 @@ pub async fn change_member(
         protect_last_owner(&mut tx, space, user).await?;
     }
     if req.remove {
+        crate::issues::clear_assignments(&mut tx, space, req.membership_id, actor_membership)
+            .await?;
         sqlx::query("UPDATE convex.workspace_memberships SET removed_at=now() WHERE id=$1")
             .bind(req.membership_id)
             .execute(&mut *tx)

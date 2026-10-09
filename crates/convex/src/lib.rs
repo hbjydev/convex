@@ -3,6 +3,7 @@ pub mod config;
 #[cfg(feature = "embed-web")]
 mod frontend;
 pub mod http;
+pub mod issues;
 pub mod security;
 pub mod workspaces;
 

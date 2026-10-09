@@ -15,7 +15,9 @@ export function useCurrentWorkspace() {
     }
   });
   const routeWorkspace = account?.workspaces.find(
-    (workspace) => pathname === `/${workspace.slug}`,
+    (workspace) =>
+      pathname === `/${workspace.slug}` ||
+      pathname.startsWith(`/${workspace.slug}/`),
   );
   const routeWorkspaceId = routeWorkspace?.id;
   useEffect(() => {

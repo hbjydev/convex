@@ -255,6 +255,12 @@ Authentication cards use the card surface, restrained foreground ring, and the r
 
 ### Navigation
 
+The main sidebar contains team navigation. Workspace switching, All workspaces, and settings access live in the top workspace dropdown. The dedicated settings sidebar provides section navigation while settings are open.
+
+Under **Your teams**, each team has a collapsible group with indented **Home** and **Issues** links. Use real team names and immutable keys. Team Home shows its workflow; Issues shows only that team's work, with the team name in the breadcrumb. Preserve the selected team through active/archived navigation, direct issue links, and creation defaults. These groups follow the user's sidebar reference, using flat submenus without connecting borders.
+
+Team destinations use `/<workspace-slug>/team/<lowercase-team-key>`: Home at the root, active issues at `/all`, archived issues at `/archive`, and creation at `/new`. Issue details use `/<workspace-slug>/issue/<issue-key>/<issue-title-slug>`; key-only and stale-title URLs redirect to the current title. The identifier drives identity and sidebar selection; the title is a readable URL suffix. Title edits update the URL without resetting the editor or its drafts. Back to issues returns to the owning team's list.
+
 Use the shadcn Sidebar inset variant: (32px) default rows, tight corners, (8px) padding and icon gaps, and (16px) SVG icons. Hover and active rows use sidebar accent; active labels gain medium weight. Keyboard focus uses a (2px) sidebar ring. The content-level mobile trigger and Cmd/Ctrl+B toggle the sidebar; mobile navigation closes after selecting a destination and has a close trigger in its header. Workspace destinations use the slug path (`/<slug>`). Preserve the skip-to-content link and current-page semantics.
 
 ### Workspace Menu
@@ -278,3 +284,9 @@ Sidebar transitions use (200ms); menus use (100ms); workspace row hover uses (15
 - **Don't** replace the shadcn Sidebar and menu behavior with custom static imitations.
 - **Don't** add decorative raster assets to this code-led shell.
 - **Don't** invent issue features or navigation destinations beyond implemented functionality.
+
+## Issues (CP04)
+
+The user's issue-list and create-dialog reference extends the compact workspace system. Issue lists use a full-width surface, a small workspace/Issues breadcrumb, All issues and Archived views, and collapsible status groups. Rows prioritize the human identifier and title, with quiet priority/status icons, assignee initials, and creation dates. Mobile rows wrap titles and omit dates. Only implemented properties appear.
+
+Creation is a focused shadcn Dialog, approximately 750px wide on desktop and inset 16px on mobile. The team and New issue heading sit above a borderless title and Markdown source editor. Status, priority, and assignee use compact rounded dropdown controls. The footer supports Create more and the primary create action. Opening focuses the title; outside clicks preserve a nonempty draft, and failed requests keep all inputs. Existing semantic colors supply system light/dark themes. The detailed issue editor retains explicit save and conflict-review controls.
