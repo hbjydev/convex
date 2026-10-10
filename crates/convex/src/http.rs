@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{accounts, security::SecurityConfig, workspaces};
+use crate::{accounts, issues, security::SecurityConfig, workspaces};
 use axum::{
     Json, Router,
     extract::{FromRequest, Request, State},
@@ -121,6 +121,8 @@ fn documented_router() -> OpenApiRouter<AppState> {
         .routes(routes!(accounts::revoke_session))
         .routes(routes!(accounts::disable))
         .routes(routes!(accounts::admin_accounts))
+        .routes(routes!(issues::create, issues::list))
+        .routes(routes!(issues::detail, issues::update))
         .routes(routes!(workspaces::create))
         .routes(routes!(workspaces::detail))
         .routes(routes!(workspaces::rename))

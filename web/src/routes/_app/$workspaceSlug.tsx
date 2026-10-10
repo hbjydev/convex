@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
 import { WorkspaceSettings } from '@/features/workspaces/settings';
 
 export const Route = createFileRoute('/_app/$workspaceSlug')({
@@ -9,5 +9,15 @@ export const Route = createFileRoute('/_app/$workspaceSlug')({
     );
     return { workspaceId: workspace?.id };
   },
-  component: WorkspaceSettings,
+  component: WorkspaceRoute,
 });
+
+function WorkspaceRoute() {
+  const { pathname } = useLocation();
+  const { workspaceSlug } = Route.useParams();
+  return pathname.replace(/\/$/, '') === `/${workspaceSlug}` ? (
+    <WorkspaceSettings />
+  ) : (
+    <Outlet />
+  );
+}

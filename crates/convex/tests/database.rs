@@ -26,7 +26,7 @@ async fn empty_database_migrates_and_responds_with_documented_health(
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(applied, 3);
+    assert_eq!(applied, 4);
 
     let response = http::router(pool)
         .oneshot(
@@ -114,7 +114,7 @@ async fn call(
         .iter()
         .find(|(pattern, _)| {
             let a: Vec<_> = pattern.split('/').collect();
-            let b: Vec<_> = path.split('/').collect();
+            let b: Vec<_> = path.split('?').next().unwrap().split('/').collect();
             a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.starts_with('{') || *a == b)
         })
         .unwrap()
@@ -965,4 +965,581 @@ async fn throttling_expiration_and_hash_only_tokens(pool: PgPool) {
             .0,
         401
     );
+}
+
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn issue_workflow_concurrency_isolation_and_history(pool: PgPool) {
+    let app = app(&pool);
+    let (owner, space, _) = initialized(&app).await;
+    let (_, workspace, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    let team = &workspace["teams"][0];
+    let collection = format!("/api/v1/workspaces/{space}/issues");
+    let req = json!({"team_id":team["id"],"title":" First issue ","description":"## Markdown\nWork to do"});
+    let (a, b) = tokio::join!(
+        call(&app, "POST", &collection, &owner, req.clone()),
+        call(&app, "POST", &collection, &owner, req)
+    );
+    assert_eq!((a.0, b.0), (201, 201));
+    assert_ne!(a.1["number"], b.1["number"]);
+    assert_eq!(a.1["title"], "First issue");
+    assert_eq!(a.1["status_id"], team["statuses"][1]["id"]);
+    let issue = a.1;
+    // A team collection excludes other teams, rejects foreign scope, and validates UUIDs.
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &format!("/api/v1/workspaces/{space}/teams"),
+            &owner,
+            json!({"name":"Design","key":"DES"})
+        )
+        .await
+        .0,
+        200
+    );
+    let (_, expanded, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    let design = &expanded["teams"][1];
+    let (_, design_issue, _) = call(
+        &app,
+        "POST",
+        &collection,
+        &owner,
+        json!({"team_id":design["id"],"title":"Design only"}),
+    )
+    .await;
+    let team_collection = format!("{collection}?team_id={}", team["id"].as_str().unwrap());
+    let (code, team_issues, _) = call(&app, "GET", &team_collection, &owner, Value::Null).await;
+    assert_eq!(code, 200);
+    assert_eq!(team_issues.as_array().unwrap().len(), 2);
+    assert!(
+        team_issues
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|issue| issue["team_id"] == team["id"])
+    );
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            &format!("{collection}?team_id={}", design["id"].as_str().unwrap()),
+            &owner,
+            Value::Null
+        )
+        .await
+        .1,
+        json!([design_issue])
+    );
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            &format!("{collection}?team_id=invalid"),
+            &owner,
+            Value::Null
+        )
+        .await
+        .0,
+        400
+    );
+    let path = format!("{collection}/{}", issue["id"].as_str().unwrap());
+    let identifier_path = format!("{collection}/{}", issue["identifier"].as_str().unwrap());
+    assert_eq!(
+        call(&app, "GET", &identifier_path, &owner, Value::Null)
+            .await
+            .1,
+        issue
+    );
+    let (a, b) = tokio::join!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":1,"title":"A"})
+        ),
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":1,"title":"B"})
+        )
+    );
+    assert!([a.0, b.0].contains(&200) && [a.0, b.0].contains(&409));
+    let (winner, conflict) = if a.0 == 200 { (a.1, b.1) } else { (b.1, a.1) };
+    assert_eq!(conflict["current_issue"], winner);
+    for patch in [
+        json!({"title":null}),
+        json!({"description":null}),
+        json!({"status_id":null}),
+        json!({"priority":null}),
+        json!({"archived":null}),
+        json!({"title":"  "}),
+        json!({"team_id":team["id"]}),
+        json!({"status_id":uuid::Uuid::new_v4()}),
+        json!({"assignee_membership_id":uuid::Uuid::new_v4()}),
+        json!({"archived":true,"title":"no"}),
+    ] {
+        let mut patch = patch;
+        patch["expected_version"] = json!(2);
+        assert_eq!(call(&app, "PATCH", &path, &owner, patch).await.0, 400);
+    }
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":2,"assignee_membership_id":null})
+        )
+        .await
+        .1["version"],
+        2
+    );
+    // Another workspace's real status/membership/team UUIDs cannot be referenced.
+    let (_, other, _) = call(
+        &app,
+        "POST",
+        "/api/v1/workspaces",
+        &owner,
+        json!({"name":"Other","slug":"other","team_name":"Other","team_key":"OTH"}),
+    )
+    .await;
+    let other_space = other["id"].as_str().unwrap();
+    let (_, other, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{other_space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            &format!(
+                "{collection}?team_id={}",
+                other["teams"][0]["id"].as_str().unwrap()
+            ),
+            &owner,
+            Value::Null
+        )
+        .await
+        .0,
+        404
+    );
+    for patch in [
+        json!({"expected_version":2,"status_id":other["teams"][0]["statuses"][0]["id"]}),
+        json!({"expected_version":2,"assignee_membership_id":other["members"][0]["id"]}),
+    ] {
+        assert_eq!(call(&app, "PATCH", &path, &owner, patch).await.0, 400);
+    }
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &collection,
+            &owner,
+            json!({"team_id":other["teams"][0]["id"],"title":"Foreign"})
+        )
+        .await
+        .0,
+        400
+    );
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            &format!(
+                "/api/v1/workspaces/{other_space}/issues/{}",
+                issue["id"].as_str().unwrap()
+            ),
+            &owner,
+            Value::Null
+        )
+        .await
+        .0,
+        404
+    );
+    // Invite an ordinary member and exercise permissions through their own session.
+    let (_, invite, _) = call(
+        &app,
+        "POST",
+        &format!("/api/v1/workspaces/{space}/invitations"),
+        &owner,
+        json!({"role":"member"}),
+    )
+    .await;
+    let token = invite["url"].as_str().unwrap().split('#').nth(1).unwrap();
+    let (status,_,member_cookie)=call(&app,"POST","/api/v1/invitations/accept","",json!({"token":token,"email":"issue-member@example.com","password":PASSWORD,"display_name":"Issue member"})).await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            &format!("/api/v1/workspaces/{other_space}/issues"),
+            &member_cookie,
+            Value::Null
+        )
+        .await
+        .0,
+        404
+    );
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &format!(
+                "/api/v1/workspaces/{other_space}/issues/{}",
+                issue["id"].as_str().unwrap()
+            ),
+            &member_cookie,
+            json!({"expected_version":2,"title":"Leak"})
+        )
+        .await
+        .0,
+        404
+    );
+    let (_, workspace, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    let member = &workspace["members"][1]["id"];
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &member_cookie,
+            json!({"expected_version":2,"assignee_membership_id":member,"priority":"high"})
+        )
+        .await
+        .1["version"],
+        3
+    );
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":3,"archived":true})
+        )
+        .await
+        .1["version"],
+        4
+    );
+    assert_eq!(
+        call(&app, "GET", &team_collection, &member_cookie, Value::Null)
+            .await
+            .1
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(
+        call(&app, "GET", &identifier_path, &member_cookie, Value::Null)
+            .await
+            .1["archived_at"]
+            .is_string()
+    );
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &member_cookie,
+            json!({"expected_version":4,"title":"Archived edit"})
+        )
+        .await
+        .0,
+        400
+    );
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            &format!("{team_collection}&archived=true"),
+            &member_cookie,
+            Value::Null
+        )
+        .await
+        .1
+        .as_array()
+        .unwrap()
+        .len(),
+        1
+    );
+    assert_eq!(
+        call(
+            &app,
+            "GET",
+            &format!("{collection}?archived=invalid"),
+            &member_cookie,
+            Value::Null
+        )
+        .await
+        .0,
+        400
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &format!(
+                "/api/v1/workspaces/{space}/teams/{}/rename",
+                team["id"].as_str().unwrap()
+            ),
+            &owner,
+            json!({"name":"Renamed team"})
+        )
+        .await
+        .0,
+        200
+    );
+    assert_eq!(
+        call(&app, "GET", &identifier_path, &member_cookie, Value::Null)
+            .await
+            .1["identifier"],
+        issue["identifier"]
+    );
+    // Removing an assignee clears assignment even on an archived issue.
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &format!("/api/v1/workspaces/{space}/members"),
+            &owner,
+            json!({"membership_id":member,"remove":true})
+        )
+        .await
+        .0,
+        200
+    );
+    let (_, after, _) = call(&app, "GET", &path, &owner, Value::Null).await;
+    assert!(after["assignee_membership_id"].is_null());
+    assert_eq!(after["version"], 5);
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":5,"archived":false})
+        )
+        .await
+        .1["version"],
+        6
+    );
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":6,"assignee_membership_id":member})
+        )
+        .await
+        .0,
+        400
+    );
+    let (_, after, _) = call(&app, "GET", &path, &owner, Value::Null).await;
+    assert_eq!(after["description"], issue["description"]);
+    assert_eq!(
+        after["creator_membership_id"],
+        issue["creator_membership_id"]
+    );
+    let payloads: Vec<Value> = sqlx::query_scalar(
+        "SELECT payload FROM convex.issue_activity WHERE issue_id=$1 ORDER BY created_at,id",
+    )
+    .bind(issue["id"].as_str().unwrap().parse::<uuid::Uuid>().unwrap())
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(payloads.len(), 6);
+    assert_eq!(payloads[4]["before"]["assignee"]["name"], "Issue member");
+    assert_eq!(payloads[4]["actor_name"], "Owner");
+    assert!(payloads[4]["after"]["assignee"]["id"].is_null());
+}
+
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn issue_activity_failure_rolls_back_mutation_and_counter(pool: PgPool) {
+    let app = app(&pool);
+    let (owner, space, _) = initialized(&app).await;
+    let (_, workspace, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    let collection = format!("/api/v1/workspaces/{space}/issues");
+    let req = json!({"team_id":workspace["teams"][0]["id"],"title":"Rollback"});
+    let (_, issue, _) = call(&app, "POST", &collection, &owner, req.clone()).await;
+    let path = format!("{collection}/{}", issue["id"].as_str().unwrap());
+    sqlx::raw_sql("CREATE FUNCTION convex.reject_activity() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test activity failure'; END $$; CREATE TRIGGER reject_activity BEFORE INSERT ON convex.issue_activity FOR EACH ROW EXECUTE FUNCTION convex.reject_activity();").execute(&pool).await.unwrap();
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":1,"title":"Must roll back"})
+        )
+        .await
+        .0,
+        503
+    );
+    assert_eq!(
+        call(
+            &app,
+            "PATCH",
+            &path,
+            &owner,
+            json!({"expected_version":1,"archived":true})
+        )
+        .await
+        .0,
+        503
+    );
+    assert_eq!(
+        call(&app, "POST", &collection, &owner, req.clone()).await.0,
+        503
+    );
+    assert_eq!(call(&app, "GET", &path, &owner, Value::Null).await.1, issue);
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM convex.issue_activity")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+    sqlx::query("DROP TRIGGER reject_activity ON convex.issue_activity")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        call(&app, "POST", &collection, &owner, req).await.1["number"],
+        2
+    );
+}
+
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn assigning_and_removing_a_member_coordinate_and_removal_rolls_back(pool: PgPool) {
+    let app = app(&pool);
+    let (owner, space, _) = initialized(&app).await;
+    let space_id = space.parse::<uuid::Uuid>().unwrap();
+    let user = uuid::Uuid::new_v4();
+    let member = uuid::Uuid::new_v4();
+    sqlx::query("INSERT INTO convex.users(id,display_name) VALUES($1,'Departing member')")
+        .bind(user)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO convex.workspace_memberships(id,workspace_id,user_id,role) VALUES($1,$2,$3,'member')").bind(member).bind(space_id).bind(user).execute(&pool).await.unwrap();
+    let (_, workspace, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    let collection = format!("/api/v1/workspaces/{space}/issues");
+    let (_, issue, _) = call(
+        &app,
+        "POST",
+        &collection,
+        &owner,
+        json!({"team_id":workspace["teams"][0]["id"],"title":"Assignment race"}),
+    )
+    .await;
+    let path = format!("{collection}/{}", issue["id"].as_str().unwrap());
+    let remove_path = format!("/api/v1/workspaces/{space}/members");
+    let race = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        tokio::join!(
+            call(
+                &app,
+                "PATCH",
+                &path,
+                &owner,
+                json!({"expected_version":1,"assignee_membership_id":member})
+            ),
+            call(
+                &app,
+                "POST",
+                &remove_path,
+                &owner,
+                json!({"membership_id":member,"remove":true})
+            )
+        )
+    })
+    .await
+    .expect("Scoped locks must not deadlock with CP02 account locks");
+    assert_eq!(race.1.0, 200);
+    assert!([200, 400].contains(&race.0.0));
+    let (_, after, _) = call(&app, "GET", &path, &owner, Value::Null).await;
+    assert!(after["assignee_membership_id"].is_null());
+    // Reactivate the same membership and force a failure during removal history.
+    sqlx::query("UPDATE convex.workspace_memberships SET removed_at=NULL WHERE id=$1")
+        .bind(member)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let (_, assigned, _) = call(
+        &app,
+        "PATCH",
+        &path,
+        &owner,
+        json!({"expected_version":after["version"],"assignee_membership_id":member}),
+    )
+    .await;
+    sqlx::raw_sql("CREATE FUNCTION convex.reject_removal_history() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test history failure'; END $$; CREATE TRIGGER reject_removal_history BEFORE INSERT ON convex.issue_activity FOR EACH ROW EXECUTE FUNCTION convex.reject_removal_history();").execute(&pool).await.unwrap();
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &remove_path,
+            &owner,
+            json!({"membership_id":member,"remove":true})
+        )
+        .await
+        .0,
+        503
+    );
+    assert_eq!(
+        call(&app, "GET", &path, &owner, Value::Null).await.1,
+        assigned
+    );
+    let active: bool = sqlx::query_scalar(
+        "SELECT removed_at IS NULL FROM convex.workspace_memberships WHERE id=$1",
+    )
+    .bind(member)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(active);
 }

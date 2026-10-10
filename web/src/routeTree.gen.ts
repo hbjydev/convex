@@ -21,6 +21,13 @@ import { Route as AppWorkspacesWorkspaceIdRouteImport } from "./routes/_app/work
 import { Route as AuthAuthLoginRouteImport } from "./routes/_auth/auth/login";
 import { Route as AuthAuthRecoveryRouteImport } from "./routes/_auth/auth/recovery";
 import { Route as AuthAuthResetRouteImport } from "./routes/_auth/auth/reset";
+import { Route as AppWorkspaceSlugIssueIssueKeyRouteImport } from "./routes/_app/$workspaceSlug/issue/$issueKey";
+import { Route as AppWorkspaceSlugIssueIssueKeyIndexRouteImport } from "./routes/_app/$workspaceSlug/issue/$issueKey/index";
+import { Route as AppWorkspaceSlugIssueIssueKeyIssueTitleRouteImport } from "./routes/_app/$workspaceSlug/issue/$issueKey/$issueTitle";
+import { Route as AppWorkspaceSlugTeamTeamSlugIndexRouteImport } from "./routes/_app/$workspaceSlug/team/$teamSlug/index";
+import { Route as AppWorkspaceSlugTeamTeamSlugAllRouteImport } from "./routes/_app/$workspaceSlug/team/$teamSlug/all";
+import { Route as AppWorkspaceSlugTeamTeamSlugArchiveRouteImport } from "./routes/_app/$workspaceSlug/team/$teamSlug/archive";
+import { Route as AppWorkspaceSlugTeamTeamSlugNewRouteImport } from "./routes/_app/$workspaceSlug/team/$teamSlug/new";
 
 const AppRoute = AppRouteImport.update({
   id: "/_app",
@@ -81,11 +88,53 @@ const AuthAuthResetRoute = AuthAuthResetRouteImport.update({
   path: "/auth/reset",
   getParentRoute: () => AuthRoute,
 } as any);
+const AppWorkspaceSlugIssueIssueKeyRoute =
+  AppWorkspaceSlugIssueIssueKeyRouteImport.update({
+    id: "/issue/$issueKey",
+    path: "/issue/$issueKey",
+    getParentRoute: () => AppWorkspaceSlugRoute,
+  } as any);
+const AppWorkspaceSlugIssueIssueKeyIndexRoute =
+  AppWorkspaceSlugIssueIssueKeyIndexRouteImport.update({
+    id: "/",
+    path: "/",
+    getParentRoute: () => AppWorkspaceSlugIssueIssueKeyRoute,
+  } as any);
+const AppWorkspaceSlugIssueIssueKeyIssueTitleRoute =
+  AppWorkspaceSlugIssueIssueKeyIssueTitleRouteImport.update({
+    id: "/$issueTitle",
+    path: "/$issueTitle",
+    getParentRoute: () => AppWorkspaceSlugIssueIssueKeyRoute,
+  } as any);
+const AppWorkspaceSlugTeamTeamSlugIndexRoute =
+  AppWorkspaceSlugTeamTeamSlugIndexRouteImport.update({
+    id: "/team/$teamSlug/",
+    path: "/team/$teamSlug/",
+    getParentRoute: () => AppWorkspaceSlugRoute,
+  } as any);
+const AppWorkspaceSlugTeamTeamSlugAllRoute =
+  AppWorkspaceSlugTeamTeamSlugAllRouteImport.update({
+    id: "/team/$teamSlug/all",
+    path: "/team/$teamSlug/all",
+    getParentRoute: () => AppWorkspaceSlugRoute,
+  } as any);
+const AppWorkspaceSlugTeamTeamSlugArchiveRoute =
+  AppWorkspaceSlugTeamTeamSlugArchiveRouteImport.update({
+    id: "/team/$teamSlug/archive",
+    path: "/team/$teamSlug/archive",
+    getParentRoute: () => AppWorkspaceSlugRoute,
+  } as any);
+const AppWorkspaceSlugTeamTeamSlugNewRoute =
+  AppWorkspaceSlugTeamTeamSlugNewRouteImport.update({
+    id: "/team/$teamSlug/new",
+    path: "/team/$teamSlug/new",
+    getParentRoute: () => AppWorkspaceSlugRoute,
+  } as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof AppIndexRoute;
   "/system": typeof SystemRoute;
-  "/$workspaceSlug": typeof AppWorkspaceSlugRoute;
+  "/$workspaceSlug": typeof AppWorkspaceSlugRouteWithChildren;
   "/account": typeof AppAccountRoute;
   "/invite": typeof AuthInviteRoute;
   "/setup": typeof AuthSetupRoute;
@@ -93,11 +142,18 @@ export interface FileRoutesByFullPath {
   "/auth/login": typeof AuthAuthLoginRoute;
   "/auth/recovery": typeof AuthAuthRecoveryRoute;
   "/auth/reset": typeof AuthAuthResetRoute;
+  "/$workspaceSlug/issue/$issueKey": typeof AppWorkspaceSlugIssueIssueKeyRouteWithChildren;
+  "/$workspaceSlug/issue/$issueKey/$issueTitle": typeof AppWorkspaceSlugIssueIssueKeyIssueTitleRoute;
+  "/$workspaceSlug/team/$teamSlug/all": typeof AppWorkspaceSlugTeamTeamSlugAllRoute;
+  "/$workspaceSlug/team/$teamSlug/archive": typeof AppWorkspaceSlugTeamTeamSlugArchiveRoute;
+  "/$workspaceSlug/team/$teamSlug/new": typeof AppWorkspaceSlugTeamTeamSlugNewRoute;
+  "/$workspaceSlug/issue/$issueKey/": typeof AppWorkspaceSlugIssueIssueKeyIndexRoute;
+  "/$workspaceSlug/team/$teamSlug/": typeof AppWorkspaceSlugTeamTeamSlugIndexRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof AppIndexRoute;
   "/system": typeof SystemRoute;
-  "/$workspaceSlug": typeof AppWorkspaceSlugRoute;
+  "/$workspaceSlug": typeof AppWorkspaceSlugRouteWithChildren;
   "/account": typeof AppAccountRoute;
   "/invite": typeof AuthInviteRoute;
   "/setup": typeof AuthSetupRoute;
@@ -105,13 +161,19 @@ export interface FileRoutesByTo {
   "/auth/login": typeof AuthAuthLoginRoute;
   "/auth/recovery": typeof AuthAuthRecoveryRoute;
   "/auth/reset": typeof AuthAuthResetRoute;
+  "/$workspaceSlug/issue/$issueKey/$issueTitle": typeof AppWorkspaceSlugIssueIssueKeyIssueTitleRoute;
+  "/$workspaceSlug/team/$teamSlug/all": typeof AppWorkspaceSlugTeamTeamSlugAllRoute;
+  "/$workspaceSlug/team/$teamSlug/archive": typeof AppWorkspaceSlugTeamTeamSlugArchiveRoute;
+  "/$workspaceSlug/team/$teamSlug/new": typeof AppWorkspaceSlugTeamTeamSlugNewRoute;
+  "/$workspaceSlug/issue/$issueKey": typeof AppWorkspaceSlugIssueIssueKeyIndexRoute;
+  "/$workspaceSlug/team/$teamSlug": typeof AppWorkspaceSlugTeamTeamSlugIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/_app": typeof AppRouteWithChildren;
   "/_auth": typeof AuthRouteWithChildren;
   "/system": typeof SystemRoute;
-  "/_app/$workspaceSlug": typeof AppWorkspaceSlugRoute;
+  "/_app/$workspaceSlug": typeof AppWorkspaceSlugRouteWithChildren;
   "/_app/account": typeof AppAccountRoute;
   "/_auth/invite": typeof AuthInviteRoute;
   "/_auth/setup": typeof AuthSetupRoute;
@@ -120,6 +182,13 @@ export interface FileRoutesById {
   "/_auth/auth/login": typeof AuthAuthLoginRoute;
   "/_auth/auth/recovery": typeof AuthAuthRecoveryRoute;
   "/_auth/auth/reset": typeof AuthAuthResetRoute;
+  "/_app/$workspaceSlug/issue/$issueKey": typeof AppWorkspaceSlugIssueIssueKeyRouteWithChildren;
+  "/_app/$workspaceSlug/issue/$issueKey/$issueTitle": typeof AppWorkspaceSlugIssueIssueKeyIssueTitleRoute;
+  "/_app/$workspaceSlug/team/$teamSlug/all": typeof AppWorkspaceSlugTeamTeamSlugAllRoute;
+  "/_app/$workspaceSlug/team/$teamSlug/archive": typeof AppWorkspaceSlugTeamTeamSlugArchiveRoute;
+  "/_app/$workspaceSlug/team/$teamSlug/new": typeof AppWorkspaceSlugTeamTeamSlugNewRoute;
+  "/_app/$workspaceSlug/issue/$issueKey/": typeof AppWorkspaceSlugIssueIssueKeyIndexRoute;
+  "/_app/$workspaceSlug/team/$teamSlug/": typeof AppWorkspaceSlugTeamTeamSlugIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -133,7 +202,14 @@ export interface FileRouteTypes {
     | "/workspaces/$workspaceId"
     | "/auth/login"
     | "/auth/recovery"
-    | "/auth/reset";
+    | "/auth/reset"
+    | "/$workspaceSlug/issue/$issueKey"
+    | "/$workspaceSlug/issue/$issueKey/$issueTitle"
+    | "/$workspaceSlug/team/$teamSlug/all"
+    | "/$workspaceSlug/team/$teamSlug/archive"
+    | "/$workspaceSlug/team/$teamSlug/new"
+    | "/$workspaceSlug/issue/$issueKey/"
+    | "/$workspaceSlug/team/$teamSlug/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
@@ -145,7 +221,13 @@ export interface FileRouteTypes {
     | "/workspaces/$workspaceId"
     | "/auth/login"
     | "/auth/recovery"
-    | "/auth/reset";
+    | "/auth/reset"
+    | "/$workspaceSlug/issue/$issueKey/$issueTitle"
+    | "/$workspaceSlug/team/$teamSlug/all"
+    | "/$workspaceSlug/team/$teamSlug/archive"
+    | "/$workspaceSlug/team/$teamSlug/new"
+    | "/$workspaceSlug/issue/$issueKey"
+    | "/$workspaceSlug/team/$teamSlug";
   id:
     | "__root__"
     | "/_app"
@@ -159,7 +241,14 @@ export interface FileRouteTypes {
     | "/_app/workspaces/$workspaceId"
     | "/_auth/auth/login"
     | "/_auth/auth/recovery"
-    | "/_auth/auth/reset";
+    | "/_auth/auth/reset"
+    | "/_app/$workspaceSlug/issue/$issueKey"
+    | "/_app/$workspaceSlug/issue/$issueKey/$issueTitle"
+    | "/_app/$workspaceSlug/team/$teamSlug/all"
+    | "/_app/$workspaceSlug/team/$teamSlug/archive"
+    | "/_app/$workspaceSlug/team/$teamSlug/new"
+    | "/_app/$workspaceSlug/issue/$issueKey/"
+    | "/_app/$workspaceSlug/team/$teamSlug/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -254,18 +343,107 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AuthAuthResetRouteImport;
       parentRoute: typeof AuthRoute;
     };
+    "/_app/$workspaceSlug/issue/$issueKey": {
+      id: "/_app/$workspaceSlug/issue/$issueKey";
+      path: "/issue/$issueKey";
+      fullPath: "/$workspaceSlug/issue/$issueKey";
+      preLoaderRoute: typeof AppWorkspaceSlugIssueIssueKeyRouteImport;
+      parentRoute: typeof AppWorkspaceSlugRoute;
+    };
+    "/_app/$workspaceSlug/issue/$issueKey/": {
+      id: "/_app/$workspaceSlug/issue/$issueKey/";
+      path: "/";
+      fullPath: "/$workspaceSlug/issue/$issueKey/";
+      preLoaderRoute: typeof AppWorkspaceSlugIssueIssueKeyIndexRouteImport;
+      parentRoute: typeof AppWorkspaceSlugIssueIssueKeyRoute;
+    };
+    "/_app/$workspaceSlug/issue/$issueKey/$issueTitle": {
+      id: "/_app/$workspaceSlug/issue/$issueKey/$issueTitle";
+      path: "/$issueTitle";
+      fullPath: "/$workspaceSlug/issue/$issueKey/$issueTitle";
+      preLoaderRoute: typeof AppWorkspaceSlugIssueIssueKeyIssueTitleRouteImport;
+      parentRoute: typeof AppWorkspaceSlugIssueIssueKeyRoute;
+    };
+    "/_app/$workspaceSlug/team/$teamSlug/": {
+      id: "/_app/$workspaceSlug/team/$teamSlug/";
+      path: "/team/$teamSlug";
+      fullPath: "/$workspaceSlug/team/$teamSlug/";
+      preLoaderRoute: typeof AppWorkspaceSlugTeamTeamSlugIndexRouteImport;
+      parentRoute: typeof AppWorkspaceSlugRoute;
+    };
+    "/_app/$workspaceSlug/team/$teamSlug/all": {
+      id: "/_app/$workspaceSlug/team/$teamSlug/all";
+      path: "/team/$teamSlug/all";
+      fullPath: "/$workspaceSlug/team/$teamSlug/all";
+      preLoaderRoute: typeof AppWorkspaceSlugTeamTeamSlugAllRouteImport;
+      parentRoute: typeof AppWorkspaceSlugRoute;
+    };
+    "/_app/$workspaceSlug/team/$teamSlug/archive": {
+      id: "/_app/$workspaceSlug/team/$teamSlug/archive";
+      path: "/team/$teamSlug/archive";
+      fullPath: "/$workspaceSlug/team/$teamSlug/archive";
+      preLoaderRoute: typeof AppWorkspaceSlugTeamTeamSlugArchiveRouteImport;
+      parentRoute: typeof AppWorkspaceSlugRoute;
+    };
+    "/_app/$workspaceSlug/team/$teamSlug/new": {
+      id: "/_app/$workspaceSlug/team/$teamSlug/new";
+      path: "/team/$teamSlug/new";
+      fullPath: "/$workspaceSlug/team/$teamSlug/new";
+      preLoaderRoute: typeof AppWorkspaceSlugTeamTeamSlugNewRouteImport;
+      parentRoute: typeof AppWorkspaceSlugRoute;
+    };
   }
 }
 
+interface AppWorkspaceSlugIssueIssueKeyRouteChildren {
+  AppWorkspaceSlugIssueIssueKeyIssueTitleRoute: typeof AppWorkspaceSlugIssueIssueKeyIssueTitleRoute;
+  AppWorkspaceSlugIssueIssueKeyIndexRoute: typeof AppWorkspaceSlugIssueIssueKeyIndexRoute;
+}
+
+const AppWorkspaceSlugIssueIssueKeyRouteChildren: AppWorkspaceSlugIssueIssueKeyRouteChildren =
+  {
+    AppWorkspaceSlugIssueIssueKeyIssueTitleRoute:
+      AppWorkspaceSlugIssueIssueKeyIssueTitleRoute,
+    AppWorkspaceSlugIssueIssueKeyIndexRoute:
+      AppWorkspaceSlugIssueIssueKeyIndexRoute,
+  };
+
+const AppWorkspaceSlugIssueIssueKeyRouteWithChildren =
+  AppWorkspaceSlugIssueIssueKeyRoute._addFileChildren(
+    AppWorkspaceSlugIssueIssueKeyRouteChildren,
+  );
+
+interface AppWorkspaceSlugRouteChildren {
+  AppWorkspaceSlugIssueIssueKeyRoute: typeof AppWorkspaceSlugIssueIssueKeyRouteWithChildren;
+  AppWorkspaceSlugTeamTeamSlugAllRoute: typeof AppWorkspaceSlugTeamTeamSlugAllRoute;
+  AppWorkspaceSlugTeamTeamSlugArchiveRoute: typeof AppWorkspaceSlugTeamTeamSlugArchiveRoute;
+  AppWorkspaceSlugTeamTeamSlugNewRoute: typeof AppWorkspaceSlugTeamTeamSlugNewRoute;
+  AppWorkspaceSlugTeamTeamSlugIndexRoute: typeof AppWorkspaceSlugTeamTeamSlugIndexRoute;
+}
+
+const AppWorkspaceSlugRouteChildren: AppWorkspaceSlugRouteChildren = {
+  AppWorkspaceSlugIssueIssueKeyRoute:
+    AppWorkspaceSlugIssueIssueKeyRouteWithChildren,
+  AppWorkspaceSlugTeamTeamSlugAllRoute: AppWorkspaceSlugTeamTeamSlugAllRoute,
+  AppWorkspaceSlugTeamTeamSlugArchiveRoute:
+    AppWorkspaceSlugTeamTeamSlugArchiveRoute,
+  AppWorkspaceSlugTeamTeamSlugNewRoute: AppWorkspaceSlugTeamTeamSlugNewRoute,
+  AppWorkspaceSlugTeamTeamSlugIndexRoute:
+    AppWorkspaceSlugTeamTeamSlugIndexRoute,
+};
+
+const AppWorkspaceSlugRouteWithChildren =
+  AppWorkspaceSlugRoute._addFileChildren(AppWorkspaceSlugRouteChildren);
+
 interface AppRouteChildren {
-  AppWorkspaceSlugRoute: typeof AppWorkspaceSlugRoute;
+  AppWorkspaceSlugRoute: typeof AppWorkspaceSlugRouteWithChildren;
   AppAccountRoute: typeof AppAccountRoute;
   AppIndexRoute: typeof AppIndexRoute;
   AppWorkspacesWorkspaceIdRoute: typeof AppWorkspacesWorkspaceIdRoute;
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppWorkspaceSlugRoute: AppWorkspaceSlugRoute,
+  AppWorkspaceSlugRoute: AppWorkspaceSlugRouteWithChildren,
   AppAccountRoute: AppAccountRoute,
   AppIndexRoute: AppIndexRoute,
   AppWorkspacesWorkspaceIdRoute: AppWorkspacesWorkspaceIdRoute,
