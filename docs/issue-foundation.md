@@ -71,6 +71,6 @@ Projects, cycles, issue relationships and dependencies, sub-issues, saved views,
 - Self-hosting packaging and operational details.
 - Account linking, invitation, recovery, and OIDC configuration policies.
 - Open-source license.
-- Labels, search, and discussion behavior beyond the [settled CP04 issue policies](issue-data-model.md#cp04-implementation-decisions).
+- Description storage, default issue status, team-key changes, and archived-issue editability. Current model choices remain proposals.
 
 The working name, language choices, Axum/PostgreSQL/SQLx backend, utoipa generation, scope-first approach, self-hosted audience, core feature focus, and support for local and OIDC login are agreed. Detailed behavior and relational design remain proposals. Projects, cycles, sub-issues, dependencies, and board views follow the first release.

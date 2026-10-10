@@ -26,21 +26,6 @@ async function mockAccount(page: Page) {
   await page.route('**/api/v1/auth/me', (route) =>
     route.fulfill({ json: account }),
   );
-  await page.route(/\/api\/v1\/workspaces\/[^/?]+$/, (route) => {
-    const id = new URL(route.request().url()).pathname.split('/').at(-1);
-    const workspace = account.workspaces.find(
-      (workspace) => workspace.id === id,
-    );
-    return workspace && route.request().method() === 'GET'
-      ? route.fulfill({
-          json: {
-            workspace,
-            members: [],
-            teams: [],
-          } satisfies Schema['WorkspaceDetail'],
-        })
-      : route.fallback();
-  });
   return account;
 }
 
@@ -57,13 +42,7 @@ async function expectInside(control: Locator, container: Locator) {
 }
 
 async function expectNavigation(page: Page) {
-  const navigation = page.getByRole('navigation', { name: 'Team navigation' });
-  await expect(
-    page.getByRole('navigation', { name: 'Main navigation' }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole('navigation', { name: 'Workspace navigation' }),
-  ).toHaveCount(0);
+  const navigation = page.getByRole('navigation', { name: 'Main navigation' });
   if ((page.viewportSize()?.width ?? 0) < 768) {
     await page.getByRole('button', { name: 'Toggle navigation' }).click();
     await expect(navigation).toBeVisible();
@@ -178,11 +157,8 @@ test('sidebar toggles with the keyboard and mobile navigation closes after selec
     await trigger.click();
     const drawer = page.getByRole('dialog', { name: 'Sidebar' });
     await expect(drawer).toBeVisible();
-    await drawer
-      .getByRole('button', { name: 'Product workspace menu' })
-      .click();
-    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-    await expect(page).toHaveURL(/\/product$/);
+    await drawer.getByRole('link', { name: 'Members', exact: true }).click();
+    await expect(page).toHaveURL(/\/product#people$/);
     await expect(drawer).not.toBeVisible();
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   } else {

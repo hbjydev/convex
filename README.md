@@ -68,12 +68,6 @@ The Dockerfile builds the frontend in a Node/pnpm stage and embeds its output in
 
 Rust checks, unit tests, doctests, builds, and test archives enable the `integration` feature without `embed-web`, so they need neither frontend dependencies nor `web/dist`. `mise run check:bundle` builds the actual frontend, lints all Cargo features, and runs the embedded-frontend routing tests. CI keeps Rust check/build jobs independent and verifies the bundle in a separate job that installs frontend dependencies. `mise run build` and `mise run build:release` continue to produce bundled applications.
 
-## Issue workflow
-
-Under **Your teams** in the sidebar, expand a team and open **Issues**. Each team has its own **Home** and **Issues** links. Team URLs use the lowercase immutable key, such as `eng`, so renaming a team preserves its links. Routes under `/<workspace-slug>/team/<team-slug>` are the team home, `/all` for active issues, `/archive` for archived issues, and `/new` for creation. New issues default to that team. Create an issue from **New issue** or a status group's plus button. The dialog supports Markdown descriptions, status, priority, optional assignee, and **Create more**. It keeps failed drafts and preserves a closed draft while that list remains open.
-
-Issue links use `/<workspace-slug>/issue/<issue-key>/<issue-title>`, such as `/product/issue/ENG-42/fix-issue-links`. Key-only quick links at `/<workspace-slug>/issue/ENG-42` redirect to the current title slug. Titles are lowercased with words separated by hyphens; Unicode letters are retained and combining marks are removed. Saving a title updates the URL, and earlier title URLs redirect to the current title. Edit the title and formatted description directly on the issue page; they save after a short pause or when leaving the editor. Status, priority, and assignee menus save on selection. Failed saves preserve your draft with retry and discard actions. When another person changes the issue, review the current values and choose the current version or keep your changed fields for review before saving again. Archived issues remain available through direct links and the **Archived** list. Restore them before editing. Labels, text search, advanced filters, and discussion follow in CP05 and CP06.
-
 ## Roadmap
 
 Start with the [canonical delivery checkpoints](docs/checkpoints.md) for the implementation path and completion criteria.
@@ -84,6 +78,6 @@ Start with the [canonical delivery checkpoints](docs/checkpoints.md) for the imp
 - [Backend and API contract](docs/backend-and-api.md)
 - [Domain vocabulary](CONTEXT.md)
 
-The stack is Rust, Axum, PostgreSQL, and SQLx on the backend, with utoipa-generated OpenAPI and generated TypeScript contract types for a React frontend. CP01 establishes the runnable application and contract pipeline. CP02 adds local accounts, invitations, sessions, recovery, and workspace/team settings. CP04 adds the complete issue workflow.
+The stack is Rust, Axum, PostgreSQL, and SQLx on the backend, with utoipa-generated OpenAPI and generated TypeScript contract types for a React frontend. CP01 establishes the runnable application and contract pipeline. CP02 adds local accounts, invitations, sessions, recovery, and workspace/team settings; issue features follow in CP04.
 
 Developer tooling uses Mise and Docker Compose almost exclusively: Mise manages toolchains and development tasks; Docker Compose runs local services and dependencies. See the [developer tooling policy](docs/backend-and-api.md#developer-tooling) for the planning requirements.

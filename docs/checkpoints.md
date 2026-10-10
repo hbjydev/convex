@@ -6,7 +6,7 @@ CP01 through CP08 define the path to the first self-hosted alpha. CP09 onward de
 
 ## Current position
 
-CP01, CP02, and CP04 are complete. Convex now has the runnable application and generated API contract, local accounts and workspace onboarding, and a persisted issue workflow with creation, assignment, editing, conflict resolution, archival, and restoration. Completion checks passed locally; CP03 and CP05 onward remain planned.
+CP01 and CP02 are complete. Convex now has the runnable application and generated API contract, plus local accounts, workspace onboarding, invitations, session/recovery controls, and essential workspace/team settings. Completion checks passed locally; CP03 onward remain planned.
 
 - Backend: Rust, Axum, PostgreSQL, and SQLx.
 - Contract: utoipa and utoipa-axum generate OpenAPI alongside route registration; TypeScript contract types are generated from that specification and checked in CI.
@@ -30,7 +30,7 @@ Build each checkpoint across the backend and frontend where applicable. Include 
 | CP01 | Application foundation and API contract | Agreed stack | Complete |
 | CP02 | Local accounts and workspace onboarding | CP01 | Complete |
 | CP03 | OIDC login and account linking | CP02 | Planned |
-| CP04 | Complete issue workflow | CP02 | Complete |
+| CP04 | Complete issue workflow | CP02 | Planned |
 | CP05 | Labels and finding work | CP04 | Planned |
 | CP06 | Discussion and activity history | CP04 | Planned |
 | CP07 | Daily-use polish | CP03, CP05, CP06 | Planned |
@@ -126,22 +126,6 @@ Included work:
 Complete when two people can create, find, open, assign, update, archive, and restore an issue. Verify simultaneous number allocation, workspace isolation, invalid references, update conflicts, and rollback of both a mutation and its activity. A reload preserves the final state and issue links still resolve.
 
 Resolve here: description storage/editor behavior, default status, team-key policy, archived-issue behavior, and the exact patch/conflict contract. See [Issue foundation](issue-foundation.md) and [Issue data model](issue-data-model.md).
-
-Verification recorded on 2026-10-10:
-
-- `mise run check`, `mise run build`, and `mise run check:bundle` passed, including generated OpenAPI/TypeScript consistency and embedded frontend routing checks.
-- `mise run test:rust:unit` passed three tests; `mise run test:web` passed three tests. `mise run test:rust:integration` passed 13 isolated PostgreSQL tests, with exercised HTTP responses validated against the generated schemas.
-- Database tests verified simultaneous number allocation, workspace isolation, team-scoped lists, invalid scoped references, nullable patch semantics, stale-version conflicts, archive/restore, stable identifiers after team renaming, and transactional rollback of creation, editing, archival, activity, and membership removal. Concurrent assignment/removal completed without deadlock and left no assignment to the removed member.
-- `mise run test:e2e` passed all 44 desktop/mobile Chromium scenarios. Two authenticated people exercised issue creation, assignment, edits, conflict reconciliation, archival, and restoration; reloads preserved state and issue-key links resolved. Network failures retained drafts. The final conflict-focus change additionally passed both focused issue scenarios.
-- The supplied UI reference informed the compact status-grouped list and centered creation dialog. Browser checks covered property menus, Create more, draft reopening, group collapse, and keyboard focus. Populated lists, creation dialogs, and conflict/error states were inspected in desktop/mobile and light/dark themes.
-- The sidebar follow-up adds collapsible Home/Issues links per team and routes under `/<workspace-slug>/team/<lowercase-team-key>`: Home, `/all`, `/archive`, and `/new`. Desktop/mobile checks verified switching two teams, team creation defaults, reloads, and archive scope. `mise run check:web` and `mise run build:web` passed; final team-navigation captures were inspected in both themes.
-- Issue detail URLs now use `/<workspace-slug>/issue/<issue-key>/<issue-title-slug>`. Both focused desktop/mobile issue scenarios passed with key-only and stale-title redirects, URL updates after title changes without losing editor/conflict drafts, back navigation, owning-team sidebar selection, Unicode/symbol-only titles, and rejection of unsupported routes. `mise run test:web` passed four tests, including slug generation; `mise run build:web` passed.
-- The final sidebar removes duplicate workspace and settings links in favor of the top dropdown. `mise run check:web` and all 36 desktop/mobile issue and UI browser scenarios passed after this change; updated sidebar captures were inspected.
-- The initial description follow-up opened issue details with rendered Markdown and a properties column, using the standalone shadcn typeset stylesheet. Editing includes a source preview and save/cancel protection for dirty drafts. `mise run check:web`, `mise run build:web`, all six frontend unit tests, and both desktop/mobile issue scenarios passed. Checks covered Markdown/GFM rendering, raw HTML and unsafe-link filtering, preview/source round-tripping, conflicts, and archive/restore; reading and preview captures were inspected in both themes.
-
-- The in-place editing follow-up replaces the source/preview mode with a borderless Tiptap/ProseMirror description and editable property menus. Title/description changes save after a pause or on blur; property selections save immediately. Serialized writes preserve edits made during saves, failures retain drafts, conflicts require review, and navigation guards unresolved edits. `mise run check:web` and `mise run build:web` passed, along with all 14 frontend unit tests and both desktop/mobile issue workflows, covering Markdown structure, task checkbox persistence, in-flight edits, retry, conflict focus, reloads, and archive/restore. Desktop/mobile layouts were inspected in both themes.
-
-The [CP04 implementation decisions](issue-data-model.md#cp04-implementation-decisions) record description limits, defaults, retention, authorization and locking, patch semantics, and activity snapshots. Labels/search and visible discussion/history remain CP05 and CP06 work.
 
 ## CP05 Labels and finding work
 

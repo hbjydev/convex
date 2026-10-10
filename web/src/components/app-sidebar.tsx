@@ -1,11 +1,19 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { ActivityIcon } from 'lucide-react';
+import {
+  ActivityIcon,
+  LayersIcon,
+  SettingsIcon,
+  UsersIcon,
+} from 'lucide-react';
 import { useAuth } from '@/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -16,7 +24,6 @@ import {
 } from '@/components/ui/sidebar';
 import { WorkspaceMenu } from '@/components/workspace-menu';
 import { SettingsSidebar } from '@/components/settings-sidebar';
-import { TeamNavigation } from '@/components/team-navigation';
 import { useCurrentWorkspace } from '@/features/workspaces/use-current-workspace';
 
 export function AppSidebar({
@@ -25,7 +32,7 @@ export function AppSidebar({
   onError: (message: string) => void;
 }) {
   const { account } = useAuth();
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const { setOpenMobile } = useSidebar();
   const workspace = useCurrentWorkspace();
   const closeNavigation = () => setOpenMobile(false);
@@ -58,12 +65,94 @@ export function AppSidebar({
         <SidebarTrigger className="md:hidden" aria-label="Close navigation" />
       </SidebarHeader>
       <SidebarContent>
+        <nav aria-label="Main navigation">
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === '/'}>
+                    <Link
+                      to="/"
+                      aria-current={pathname === '/' ? 'page' : undefined}
+                      onClick={closeNavigation}
+                    >
+                      <LayersIcon />
+                      <span>All workspaces</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </nav>
         {workspace && (
-          <TeamNavigation
-            key={workspace.id}
-            slug={workspace.slug}
-            closeNavigation={closeNavigation}
-          />
+          <nav aria-label="Workspace navigation">
+            <SidebarGroup className="mt-4">
+              <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={workspaceOpen && !hash}
+                    >
+                      <Link
+                        to="/$workspaceSlug"
+                        params={{ workspaceSlug: workspace.slug }}
+                        onClick={closeNavigation}
+                        aria-current={
+                          workspaceOpen && !hash ? 'page' : undefined
+                        }
+                      >
+                        <SettingsIcon />
+                        <span>Settings</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={workspaceOpen && hash === 'people'}
+                    >
+                      <Link
+                        to="/$workspaceSlug"
+                        params={{ workspaceSlug: workspace.slug }}
+                        hash="people"
+                        onClick={closeNavigation}
+                        aria-current={
+                          workspaceOpen && hash === 'people'
+                            ? 'page'
+                            : undefined
+                        }
+                      >
+                        <UsersIcon />
+                        <span>Members</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={workspaceOpen && hash === 'teams'}
+                    >
+                      <Link
+                        to="/$workspaceSlug"
+                        params={{ workspaceSlug: workspace.slug }}
+                        hash="teams"
+                        onClick={closeNavigation}
+                        aria-current={
+                          workspaceOpen && hash === 'teams' ? 'page' : undefined
+                        }
+                      >
+                        <LayersIcon />
+                        <span>Teams</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </nav>
         )}
       </SidebarContent>
       <SidebarFooter>
