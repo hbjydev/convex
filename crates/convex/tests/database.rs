@@ -26,7 +26,7 @@ async fn empty_database_migrates_and_responds_with_documented_health(
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(applied, 6);
+    assert_eq!(applied, 7);
 
     let response = http::router(pool)
         .oneshot(
@@ -1458,12 +1458,22 @@ async fn cp02_session_upgrade_preserves_local_authentication(pool: PgPool) {
         .bind(uuid::Uuid::new_v4()).bind(user).bind(convex::security::digest(&token)).execute(&pool).await.unwrap();
     let cookie = format!("convex_session={token}");
     let old_expiry = session_expiry(&pool, &cookie).await;
+    sqlx::raw_sql(include_str!("../../../migrations/202610090001_issues.sql"))
+        .execute(&pool)
+        .await
+        .unwrap();
     sqlx::raw_sql(include_str!(
         "../../../migrations/202610090002_authentication_policy.sql"
     ))
     .execute(&pool)
     .await
     .unwrap();
+    for sql in [
+        include_str!("../../../migrations/202610100001_oidc_callback_origin.sql"),
+        include_str!("../../../migrations/202610100002_authentication_methods.sql"),
+    ] {
+        sqlx::raw_sql(sql).execute(&pool).await.unwrap();
+    }
     let app = http::prepare_app(pool.clone(), policy_config("604800", false, false))
         .await
         .unwrap();

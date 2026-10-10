@@ -44,6 +44,7 @@ export function OidcOutcome({ outcome }: { outcome: 'success' | 'failed' }) {
   const { account } = useAuth();
   const navigate = useNavigate();
   const successful = outcome === 'success' && !!account;
+  const methodChange = sessionStorage.getItem('convex-oidc-method') === 'yes';
   const invited = sessionStorage.getItem('convex-oidc-invitation') === 'yes';
   const returnTo =
     sessionStorage.getItem('convex-oidc-return') === '/invite'
@@ -69,7 +70,13 @@ export function OidcOutcome({ outcome }: { outcome: 'success' | 'failed' }) {
           </Notice>
           <Link
             className="after-form"
-            to={invited || returnTo === '/invite' ? '/invite' : '/auth/login'}
+            to={
+              methodChange && account
+                ? '/account'
+                : invited || returnTo === '/invite'
+                  ? '/invite'
+                  : '/auth/login'
+            }
           >
             Return and try again
           </Link>

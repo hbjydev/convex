@@ -242,6 +242,8 @@ pub async fn activate(pool: &PgPool, config: &AuthenticationConfig) -> Result<Ac
             .bind(config.oidc_required).bind(&provider_revision).execute(&mut *tx).await?;
         sqlx::query("DELETE FROM convex.oidc_flows WHERE exchange_revision IS DISTINCT FROM $1 OR expires_at<=now() OR session_id IN (SELECT id FROM convex.sessions WHERE revoked_at IS NOT NULL OR expires_at<=now())")
             .bind(&exchange_revision).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM convex.method_proofs WHERE exchange_revision IS DISTINCT FROM $1 OR expires_at<=now() OR session_id IN (SELECT id FROM convex.sessions WHERE revoked_at IS NOT NULL OR expires_at<=now())")
+            .bind(&exchange_revision).execute(&mut *tx).await?;
         sqlx::query("UPDATE convex.authentication_policy SET fingerprint=$1,provider_revision=$2,exchange_revision=$3,oidc_issuer=$4,oidc_enabled=$5,oidc_required=$6,session_ttl_seconds=$7 WHERE singleton")
             .bind(&fingerprint).bind(&provider_revision).bind(&exchange_revision)
             .bind(config.provider.as_ref().map(|p| &p.issuer))

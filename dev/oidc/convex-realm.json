@@ -41,6 +41,23 @@
         }
       ],
       "requiredActions": []
+    },
+    {
+      "id": "c3030000-0000-4000-8000-000000000002",
+      "username": "invited-member-mobile",
+      "enabled": true,
+      "email": "browser-mobile@example.com",
+      "emailVerified": true,
+      "firstName": "OIDC",
+      "lastName": "Mobile",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "convex provider test password",
+          "temporary": false
+        }
+      ],
+      "requiredActions": []
     }
   ]
 }

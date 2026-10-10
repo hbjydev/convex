@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { LoginMethods } from './methods';
 import { api } from '@/api/client';
 import type { components } from '@/api/schema';
 import { useAuth } from '@/auth';
@@ -14,10 +15,12 @@ type Schema = components['schemas'];
 
 export function AccountSettings() {
   const { account, reload } = useAuth();
+  const [methods, setMethods] = useState<Schema['Methods'] | null>(null);
   const [sessions, setSessions] = useState<Schema['SessionInfo'][]>([]);
   const [accounts, setAccounts] = useState<Schema['AdminAccount'][]>([]);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
+    setMethods(unwrap(await api.GET('/api/v1/auth/methods')));
     setSessions(unwrap(await api.GET('/api/v1/auth/sessions')));
     if (account?.user.is_instance_admin)
       setAccounts(unwrap(await api.GET('/api/v1/admin/accounts')));
@@ -35,40 +38,51 @@ export function AccountSettings() {
       </Button>
       <h1>Your account</h1>
       {error && <Notice error>{error}</Notice>}
-      <section className="settings-section">
-        <Separator />
-        <h2>Change password</h2>
-        <Form
-          submit="Change password"
-          action={async (form) => {
-            const result = unwrap(
-              await api.POST('/api/v1/auth/password', {
-                body: {
-                  current_password: text(form, 'current_password'),
-                  new_password: text(form, 'new_password'),
-                },
-              }),
-            );
+      {methods && (
+        <LoginMethods
+          methods={methods}
+          updated={async () => {
             await reload();
             await load();
-            return result.message;
           }}
-        >
-          <Field
-            name="current_password"
-            label="Current password"
-            type="password"
-            autoComplete="current-password"
-          />
-          <Field
-            name="new_password"
-            label="New password"
-            type="password"
-            autoComplete="new-password"
-            hint="Use 12–128 characters. Changing your password signs out all other sessions."
-          />
-        </Form>
-      </section>
+        />
+      )}
+      {methods?.local_usable && (
+        <section className="settings-section">
+          <Separator />
+          <h2>Change password</h2>
+          <Form
+            submit="Change password"
+            action={async (form) => {
+              const result = unwrap(
+                await api.POST('/api/v1/auth/password', {
+                  body: {
+                    current_password: text(form, 'current_password'),
+                    new_password: text(form, 'new_password'),
+                  },
+                }),
+              );
+              await reload();
+              await load();
+              return result.message;
+            }}
+          >
+            <Field
+              name="current_password"
+              label="Current password"
+              type="password"
+              autoComplete="current-password"
+            />
+            <Field
+              name="new_password"
+              label="New password"
+              type="password"
+              autoComplete="new-password"
+              hint="Use 12–128 characters. Changing your password signs out all other sessions."
+            />
+          </Form>
+        </section>
+      )}
       <section className="settings-section">
         <Separator />
         <h2>Active sessions</h2>
@@ -121,7 +135,8 @@ export function AccountSettings() {
                 <div>
                   <strong>{user.display_name}</strong>
                   <span>
-                    {user.email} · {user.disabled ? 'Disabled' : 'Active'}
+                    {user.email ?? 'Single sign-on account'} ·{' '}
+                    {user.disabled ? 'Disabled' : 'Active'}
                   </span>
                 </div>
                 {user.id !== account.user.id && (

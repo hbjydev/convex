@@ -25,6 +25,20 @@ async function mockAccount(page: Page) {
       } satisfies Schema['BootstrapInfo'],
     }),
   );
+  await page.route('**/api/v1/auth/methods', (route) =>
+    route.fulfill({
+      json: {
+        local_email: 'owner@example.com',
+        local_usable: true,
+        oidc: [],
+        provider_display_name: null,
+        can_link_oidc: false,
+        can_add_local: false,
+        can_remove_local: false,
+        pending_action: null,
+      } satisfies Schema['Methods'],
+    }),
+  );
   await page.route('**/api/v1/auth/me', (route) =>
     route.fulfill({ json: account }),
   );

@@ -126,6 +126,10 @@ pub async fn revoke_all(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> AppRe
     .await?;
     sqlx::query("DELETE FROM convex.oidc_flows WHERE user_id=$1 OR session_id IN (SELECT id FROM convex.sessions WHERE user_id=$1)")
         .bind(user).execute(&mut **tx).await?;
+    sqlx::query("DELETE FROM convex.method_proofs WHERE user_id=$1")
+        .bind(user)
+        .execute(&mut **tx)
+        .await?;
     Ok(())
 }
 
@@ -263,6 +267,7 @@ pub async fn login(
     }
     // Rotate any browser session, even when switching accounts.
     if let Ok(old) = sec::session_token(&headers) {
+        sqlx::query("DELETE FROM convex.method_proofs WHERE session_id IN (SELECT id FROM convex.sessions WHERE token_hash=$1)").bind(sec::digest(&old)).execute(&mut *tx).await?;
         sqlx::query("UPDATE convex.sessions SET revoked_at=now() WHERE token_hash=$1")
             .bind(sec::digest(&old))
             .execute(&mut *tx)
@@ -297,6 +302,7 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> AppRes
         let mut tx = transaction(&state.pool).await?;
         sqlx::query("DELETE FROM convex.oidc_flows WHERE session_id IN (SELECT id FROM convex.sessions WHERE token_hash=$1)")
             .bind(sec::digest(&token)).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM convex.method_proofs WHERE session_id IN (SELECT id FROM convex.sessions WHERE token_hash=$1)").bind(sec::digest(&token)).execute(&mut *tx).await?;
         sqlx::query("UPDATE convex.sessions SET revoked_at=now() WHERE token_hash=$1")
             .bind(sec::digest(&token))
             .execute(&mut *tx)
@@ -462,6 +468,10 @@ pub async fn revoke_session(
         return Err(AppError::not_found());
     }
     sqlx::query("DELETE FROM convex.oidc_flows WHERE session_id=$1")
+        .bind(req.session_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM convex.method_proofs WHERE session_id=$1")
         .bind(req.session_id)
         .execute(&mut *tx)
         .await?;

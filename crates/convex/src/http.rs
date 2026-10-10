@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::{accounts, auth_policy, issues, oidc, security::SecurityConfig, workspaces};
+use crate::{accounts, auth_policy, issues, methods, oidc, security::SecurityConfig, workspaces};
 use axum::{
     Json, Router,
     extract::{FromRequest, Request, State},
@@ -118,6 +118,12 @@ fn documented_router() -> OpenApiRouter<AppState> {
         .routes(routes!(accounts::bootstrap))
         .routes(routes!(oidc::start))
         .routes(routes!(oidc::callback))
+        .routes(routes!(methods::list))
+        .routes(routes!(methods::link))
+        .routes(routes!(methods::prove))
+        .routes(routes!(methods::add_local))
+        .routes(routes!(methods::remove_local))
+        .routes(routes!(methods::remove_oidc))
         .routes(routes!(accounts::setup))
         .routes(routes!(accounts::login))
         .routes(routes!(accounts::me))

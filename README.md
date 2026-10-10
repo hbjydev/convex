@@ -18,7 +18,7 @@ Open <http://127.0.0.1:5173>. The frontend opens first-admin onboarding, then lo
 
 Local defaults work without an `.env` file. Copy `.env.example` to `.env` to customize the database URLs, bind address, or log filter. The frontend uses Vite's `/api` proxy; `CONVEX_API_PROXY` changes its backend target. Never expose the local Compose databases outside your machine; their credentials are development defaults.
 
-`CONVEX_SESSION_TTL_SECONDS` sets the common absolute session lifetime, defaulting to seven days. Shortening it also caps existing sessions; increasing it applies to newly issued sessions only. Stop all replicas before changing authentication settings, then restart them with matching values. See [session configuration](docs/authentication.md#session-configuration-and-cp03-foundation) for the policy rollout and current CP03 limitations; OIDC login and invitation onboarding are available; account linking remains in progress. See [development provider setup](docs/authentication.md#development-provider).
+`CONVEX_SESSION_TTL_SECONDS` sets the common absolute session lifetime, defaulting to seven days. Shortening it also caps existing sessions; increasing it applies to newly issued sessions only. Stop all replicas before changing authentication settings, then restart them with matching values. See [session configuration](docs/authentication.md#session-configuration-and-cp03-foundation) for the policy rollout and current CP03 limitations; OIDC login and invitation onboarding are available; account linking and login-method removal are available. See [development provider setup](docs/authentication.md#development-provider).
 
 | Task | Purpose |
 | --- | --- |

@@ -2,7 +2,7 @@
 use crate::{
     accounts,
     http::{ApiJson, AppError, AppResult, AppState},
-    security as sec, workspaces,
+    methods, security as sec, workspaces,
 };
 use axum::{
     Json,
@@ -10,7 +10,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, header::SET_COOKIE},
     response::{IntoResponse, Redirect, Response},
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use openidconnect::{
     AccessTokenHash, AuthorizationCode, ClientId, ClientSecret, CsrfToken, HttpRequest,
     HttpResponse, IssuerUrl, Nonce, OAuth2TokenResponse, PkceCodeChallenge, PkceCodeVerifier,
@@ -127,7 +127,7 @@ pub struct StartResponse {
     pub authorization_url: String,
 }
 
-fn binding(headers: &HeaderMap) -> Option<String> {
+pub(crate) fn binding(headers: &HeaderMap) -> Option<String> {
     let mut matches = headers
         .get_all("cookie")
         .iter()
@@ -171,6 +171,36 @@ pub async fn start(
     headers: HeaderMap,
     ApiJson(req): ApiJson<StartRequest>,
 ) -> AppResult<Response> {
+    begin(
+        state,
+        headers,
+        FlowKind::Login {
+            invitation_token: req.invitation_token,
+        },
+    )
+    .await
+}
+
+pub(crate) enum FlowKind {
+    Login {
+        invitation_token: Option<String>,
+    },
+    Link {
+        user: Uuid,
+        session: Uuid,
+        verified_at: DateTime<Utc>,
+    },
+    Reauth {
+        user: Uuid,
+        session: Uuid,
+        action: methods::MethodAction,
+    },
+}
+pub(crate) async fn begin(
+    state: AppState,
+    headers: HeaderMap,
+    kind: FlowKind,
+) -> AppResult<Response> {
     let config = state
         .security
         .authentication
@@ -196,15 +226,22 @@ pub async fn start(
             .map_err(|_| unavailable())?,
     );
     let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
-    let (url, csrf, nonce) = client
+    let authorization = client
         .authorize_url(
             CoreAuthenticationFlow::AuthorizationCode,
             CsrfToken::new_random,
             Nonce::new_random,
         )
         .add_scope(Scope::new("profile".into()))
-        .set_pkce_challenge(challenge)
-        .url();
+        .set_pkce_challenge(challenge);
+    let authorization = if matches!(&kind, FlowKind::Login { .. }) {
+        authorization
+    } else {
+        authorization
+            .set_max_age(Duration::ZERO)
+            .add_prompt(openidconnect::core::CoreAuthPrompt::Login)
+    };
+    let (url, csrf, nonce) = authorization.url();
     let mut tx = accounts::transaction(&state.pool).await?;
     state.check_policy().await?;
     let initialized: bool =
@@ -230,18 +267,56 @@ pub async fn start(
     } else {
         None
     };
-    let invitation = if let Some(token) = req.invitation_token {
-        Some(workspaces::valid_invite(&mut tx, &token).await?.id)
-    } else {
-        None
+    let (intent, invitation, action, verified_at) = match kind {
+        FlowKind::Login { invitation_token } => {
+            let invitation = if let Some(token) = invitation_token {
+                Some(workspaces::valid_invite(&mut tx, &token).await?.id)
+            } else {
+                None
+            };
+            (
+                if invitation.is_some() {
+                    "invite"
+                } else {
+                    "login"
+                },
+                invitation,
+                None,
+                None,
+            )
+        }
+        FlowKind::Link {
+            user,
+            session,
+            verified_at,
+        } => {
+            if source != Some((user, session))
+                || verified_at < Utc::now() - chrono::Duration::minutes(5)
+            {
+                return Err(AppError::unauthorized());
+            }
+            crate::auth_policy::ensure_local_allowed(&mut tx, user).await?;
+            ("link", None, None, Some(verified_at))
+        }
+        FlowKind::Reauth {
+            user,
+            session,
+            action,
+        } => {
+            if source != Some((user, session)) {
+                return Err(AppError::unauthorized());
+            }
+            methods::enabled_identity(&mut tx, user).await?;
+            ("reauth", None, Some(action.as_str()), None)
+        }
     };
     sqlx::query("DELETE FROM convex.oidc_flows WHERE expires_at <= now()")
         .execute(&mut *tx)
         .await?;
-    sqlx::query("INSERT INTO convex.oidc_flows (id,state_hash,browser_hash,intent,exchange_revision,nonce,pkce_verifier,invitation_id,public_origin,user_id,session_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)")
+    sqlx::query("INSERT INTO convex.oidc_flows (id,state_hash,browser_hash,intent,exchange_revision,nonce,pkce_verifier,invitation_id,public_origin,user_id,session_id,method_action,local_verified_at,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $4 IN ('link','reauth') THEN LEAST(now() + interval '5 minutes',COALESCE($13,now()) + interval '5 minutes') ELSE now() + interval '10 minutes' END)")
         .bind(Uuid::new_v4()).bind(sec::digest(csrf.secret())).bind(sec::digest(&browser))
-        .bind(if invitation.is_some() {"invite"} else {"login"}).bind(revision)
-        .bind(nonce.secret()).bind(verifier.secret()).bind(invitation).bind(&state.security.origin).bind(source.map(|(u,_)|u)).bind(source.map(|(_,s)|s)).execute(&mut *tx).await?;
+        .bind(intent).bind(revision)
+        .bind(nonce.secret()).bind(verifier.secret()).bind(invitation).bind(&state.security.origin).bind(source.map(|(u,_)|u)).bind(source.map(|(_,s)|s)).bind(action).bind(verified_at).execute(&mut *tx).await?;
     tx.commit().await?;
     let mut response = Json(StartResponse {
         authorization_url: url.into(),
@@ -289,9 +364,14 @@ fn callback_query(raw: &str) -> AppResult<CallbackQuery> {
     })
 }
 #[derive(sqlx::FromRow)]
-struct Flow {
-    user_id: Option<Uuid>,
-    session_id: Option<Uuid>,
+pub(crate) struct Flow {
+    pub(crate) method_action: Option<String>,
+    local_verified_at: Option<DateTime<Utc>>,
+    created_at: DateTime<Utc>,
+    pub(crate) browser_hash: String,
+    pub(crate) exchange_revision: String,
+    pub(crate) user_id: Option<Uuid>,
+    pub(crate) session_id: Option<Uuid>,
     id: Uuid,
     intent: String,
     nonce: Option<String>,
@@ -299,40 +379,71 @@ struct Flow {
     invitation_id: Option<Uuid>,
 }
 
-#[utoipa::path(get,path="/api/v1/auth/oidc/callback",operation_id="completeOidcLogin",tag="Accounts",params(("state"=String,Query,description="Provider-returned opaque state; requires matching browser-binding cookie"),("code"=Option<String>,Query,description="Authorization code; exactly one of code or error"),("error"=Option<String>,Query,description="Provider cancellation or denial; details are discarded")),responses((status=303,description="Single-use browser-bound callback. Redirects to fixed frontend outcome; Convex session cookie on success. Cache-Control: no-store; Referrer-Policy: no-referrer. Provider errors are sanitized."),(status=503,body=crate::http::ApiError)))]
+#[utoipa::path(get,path="/api/v1/auth/oidc/callback",operation_id="completeOidcLogin",tag="Accounts",params(("state"=String,Query,description="Provider-returned opaque state; requires matching browser-binding cookie"),("code"=Option<String>,Query,description="Authorization code; exactly one of code or error"),("error"=Option<String>,Query,description="Provider cancellation or denial; details are discarded")),responses((status=303,description="Single-use browser-bound callback. Redirects to fixed login outcome or account method destination; session cookie for successful login/linking, HttpOnly proof cookie for reauthentication. Cache-Control: no-store; Referrer-Policy: no-referrer. Provider errors are sanitized."),(status=503,body=crate::http::ApiError)))]
 pub async fn callback(
     State(state): State<AppState>,
     headers: HeaderMap,
     RawQuery(raw): RawQuery,
 ) -> Response {
     let result = complete(&state, &headers, raw.as_deref().unwrap_or_default()).await;
-    let (outcome, token) = match result {
-        Ok(token) => ("success", Some(token)),
-        Err(_) => ("failed", None),
+    let (destination, session, proof) = match result {
+        Ok(Completion::Login(token)) => ("/auth/oidc?outcome=success", Some(token), None),
+        Ok(Completion::Linked(token)) => ("/account?method=linked", Some(token), None),
+        Ok(Completion::Proof(token)) => ("/account?method=proof", None, Some(token)),
+        Err(_) => ("/auth/oidc?outcome=failed", None, None),
     };
-    let mut response = Redirect::to(&format!(
-        "{}/auth/oidc?outcome={outcome}",
-        state.security.origin
-    ))
-    .into_response();
+    let mut response =
+        Redirect::to(&format!("{}{destination}", state.security.origin)).into_response();
     response
         .headers_mut()
         .insert("referrer-policy", HeaderValue::from_static("no-referrer"));
-    if let Some(token) = token {
+    if let Some(token) = session {
         response
             .headers_mut()
             .append(SET_COOKIE, state.security.cookie(&token));
+        response
+            .headers_mut()
+            .append(SET_COOKIE, methods::proof_cookie(&state, ""));
+    }
+    if let Some(token) = proof {
+        response
+            .headers_mut()
+            .append(SET_COOKIE, methods::proof_cookie(&state, &token));
     }
     response
 }
-async fn complete(state: &AppState, headers: &HeaderMap, raw: &str) -> AppResult<String> {
+enum Completion {
+    Login(String),
+    Linked(String),
+    Proof(String),
+}
+async fn complete(state: &AppState, headers: &HeaderMap, raw: &str) -> AppResult<Completion> {
     let query = callback_query(raw)?;
     let browser = binding(headers).ok_or_else(AppError::unauthorized)?;
     let revision = revision(state)?;
     let mut tx = accounts::transaction(&state.pool).await?;
     state.check_policy().await?;
-    let flow: Flow = sqlx::query_as("SELECT id,intent,nonce,pkce_verifier,invitation_id,user_id,session_id FROM convex.oidc_flows WHERE state_hash=$1 AND browser_hash=$2 AND exchange_revision=$3 AND consumed_at IS NULL AND expires_at>now() AND intent IN ('login','invite') AND public_origin=$4 FOR UPDATE")
+    let flow: Flow = sqlx::query_as("SELECT id,intent,nonce,pkce_verifier,invitation_id,user_id,session_id,method_action,local_verified_at,created_at,browser_hash,exchange_revision FROM convex.oidc_flows WHERE state_hash=$1 AND browser_hash=$2 AND exchange_revision=$3 AND consumed_at IS NULL AND expires_at>now() AND intent IN ('login','invite','link','reauth') AND public_origin=$4 FOR UPDATE")
         .bind(sec::digest(&query.state)).bind(sec::digest(&browser)).bind(&revision).bind(&state.security.origin).fetch_optional(&mut *tx).await?.ok_or_else(AppError::unauthorized)?;
+    let sensitive = matches!(flow.intent.as_str(), "link" | "reauth");
+    if sensitive && (flow.user_id.is_none() || flow.session_id.is_none()) {
+        return Err(AppError::unauthorized());
+    }
+    if flow.intent == "link"
+        && flow.local_verified_at.is_none_or(|at| {
+            at < Utc::now() - chrono::Duration::minutes(5)
+                || at > Utc::now() + chrono::Duration::seconds(30)
+        })
+    {
+        return Err(AppError::unauthorized());
+    }
+    if flow.intent == "reauth" {
+        methods::MethodAction::parse(
+            flow.method_action
+                .as_deref()
+                .ok_or_else(AppError::unauthorized)?,
+        )?;
+    }
     sqlx::query(
         "UPDATE convex.oidc_flows SET consumed_at=now(),nonce=NULL,pkce_verifier=NULL WHERE id=$1",
     )
@@ -362,13 +473,15 @@ async fn complete(state: &AppState, headers: &HeaderMap, raw: &str) -> AppResult
         .exchange_code(AuthorizationCode::new(code))
         .map_err(|_| unavailable())?
         .set_pkce_verifier(PkceCodeVerifier::new(
-            flow.pkce_verifier.ok_or_else(AppError::unauthorized)?,
+            flow.pkce_verifier
+                .clone()
+                .ok_or_else(AppError::unauthorized)?,
         ))
         .request_async(&fetch)
         .await
         .map_err(|_| unavailable())?;
     let id_token = tokens.id_token().ok_or_else(AppError::unauthorized)?;
-    let nonce = Nonce::new(flow.nonce.ok_or_else(AppError::unauthorized)?);
+    let nonce = Nonce::new(flow.nonce.clone().ok_or_else(AppError::unauthorized)?);
     let unknown_key = matches!(
         id_token.claims(&client.id_token_verifier(), &nonce),
         Err(
@@ -401,6 +514,15 @@ async fn complete(state: &AppState, headers: &HeaderMap, raw: &str) -> AppResult
             .is_some_and(|p| p.as_str() != config.client_id)
         || claims.issue_time() > Utc::now() + chrono::Duration::seconds(30)
         || claims.subject().as_str().is_empty()
+    {
+        return Err(AppError::unauthorized());
+    }
+    if sensitive
+        && claims.auth_time().is_none_or(|time| {
+            time < flow.created_at - chrono::Duration::seconds(30)
+                || time < Utc::now() - chrono::Duration::minutes(5)
+                || time > Utc::now() + chrono::Duration::seconds(30)
+        })
     {
         return Err(AppError::unauthorized());
     }
@@ -446,6 +568,36 @@ async fn complete(state: &AppState, headers: &HeaderMap, raw: &str) -> AppResult
             return Err(AppError::unauthorized());
         }
     }
+    if flow.intent == "link" {
+        let user = flow.user_id.ok_or_else(AppError::unauthorized)?;
+        crate::auth_policy::ensure_local_allowed(&mut tx, user).await?;
+        let identity = methods::link_identity(&mut tx, user, &config.issuer, subject).await?;
+        accounts::revoke_all(&mut tx, user).await?;
+        let token = sec::new_session(&mut tx, user, sec::LoginMethod::Oidc(identity)).await?;
+        tx.commit().await?;
+        return Ok(Completion::Linked(token));
+    }
+    if flow.intent == "reauth" {
+        let user = flow.user_id.ok_or_else(AppError::unauthorized)?;
+        let identity = methods::enabled_identity(&mut tx, user).await?;
+        let matches:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM convex.oidc_identities WHERE id=$1 AND issuer=$2 AND subject=$3)").bind(identity).bind(&config.issuer).bind(subject).fetch_one(&mut *tx).await?;
+        if !matches {
+            return Err(AppError::unauthorized());
+        }
+        let token = methods::issue_proof(
+            &mut tx,
+            &flow,
+            identity,
+            claims.auth_time().ok_or_else(AppError::unauthorized)?,
+        )
+        .await?;
+        sqlx::query("DELETE FROM convex.oidc_flows WHERE id=$1")
+            .bind(flow.id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        return Ok(Completion::Proof(token));
+    }
     let invitation = if flow.intent == "invite" {
         Some(
             workspaces::valid_invite_id(
@@ -486,6 +638,7 @@ async fn complete(state: &AppState, headers: &HeaderMap, raw: &str) -> AppResult
     // Rotate the presented browser session without revoking other devices.
     if let Ok(old) = sec::session_token(headers) {
         sqlx::query("DELETE FROM convex.oidc_flows WHERE session_id IN (SELECT id FROM convex.sessions WHERE token_hash=$1)").bind(sec::digest(&old)).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM convex.method_proofs WHERE session_id IN (SELECT id FROM convex.sessions WHERE token_hash=$1)").bind(sec::digest(&old)).execute(&mut *tx).await?;
         sqlx::query("UPDATE convex.sessions SET revoked_at=now() WHERE token_hash=$1 AND revoked_at IS NULL").bind(sec::digest(&old)).execute(&mut *tx).await?;
     }
     let token = sec::new_session(&mut tx, user, sec::LoginMethod::Oidc(identity)).await?;
@@ -494,7 +647,7 @@ async fn complete(state: &AppState, headers: &HeaderMap, raw: &str) -> AppResult
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
-    Ok(token)
+    Ok(Completion::Login(token))
 }
 
 #[cfg(test)]

@@ -76,8 +76,12 @@ impl Fixture {
         Self { provider, server }
     }
     fn app(&self, pool: &PgPool) -> axum::Router {
+        self.app_with_required(pool, false)
+    }
+    fn app_with_required(&self, pool: &PgPool, required: bool) -> axum::Router {
         let mut config = SecurityConfig::development();
         config.setup_token = Some(SETUP_TOKEN.into());
+        config.authentication.oidc_required = required;
         config.authentication.provider = Some(convex::auth_policy::ProviderConfig {
             issuer: self.provider.issuer.clone(),
             client_id: "convex-fixture".into(),
@@ -201,6 +205,12 @@ async fn exchange(
             Audience::new("another".into()),
         ]);
     }
+    claims = claims.set_auth_time(match code.mode {
+        "no-auth" => None,
+        "stale-auth" => Some(Utc::now() - Duration::minutes(10)),
+        "future-auth" => Some(Utc::now() + Duration::hours(1)),
+        _ => Some(Utc::now()),
+    });
     if code.mode == "rotate" {
         p.rotated.store(true, Ordering::SeqCst);
     }
@@ -492,4 +502,632 @@ async fn oidc_flow_binding_expiry_intent_denial_and_logout_are_checked_before_pr
     );
     assert!(!callback(&app, &path, &format!("{cookie}; {owner}")).await.0);
     assert_eq!(fixture.provider.calls.load(Ordering::SeqCst), 0);
+}
+
+impl Fixture {
+    async fn method_flow(
+        &self,
+        app: &axum::Router,
+        path: &str,
+        source: &str,
+        body: Value,
+        mode: &'static str,
+        subject: &str,
+    ) -> (String, String) {
+        let (status, body, cookie) = call(app, "POST", path, source, body).await;
+        assert_eq!(status, 200, "{body}");
+        let url = reqwest::Url::parse(body["authorization_url"].as_str().unwrap()).unwrap();
+        let params: HashMap<_, _> = url.query_pairs().into_owned().collect();
+        assert_eq!(params["max_age"], "0");
+        assert_eq!(params["prompt"], "login");
+        let code = convex::security::token();
+        self.provider.codes.lock().await.insert(
+            code.clone(),
+            Code {
+                nonce: params["nonce"].clone(),
+                challenge: params["code_challenge"].clone(),
+                mode,
+                subject: subject.into(),
+            },
+        );
+        (
+            format!(
+                "/api/v1/auth/oidc/callback?state={}&code={code}",
+                params["state"]
+            ),
+            {
+                let mut parts: HashMap<_, _> = source
+                    .split(';')
+                    .filter_map(|p| p.trim().split_once('='))
+                    .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                    .collect();
+                let (k, v) = cookie.split_once('=').unwrap();
+                parts.insert(k.into(), v.into());
+                parts
+                    .into_iter()
+                    .map(|(k, v)| format!("{k}={v}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            },
+        )
+    }
+}
+async fn method_callback(app: &axum::Router, path: &str, cookie: &str) -> (String, String) {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(path)
+                .header("cookie", cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    let location = response.headers()["location"].to_str().unwrap().to_owned();
+    let mut cookies: HashMap<String, String> = cookie
+        .split(';')
+        .filter_map(|part| part.trim().split_once('='))
+        .map(|(k, v)| (k.into(), v.into()))
+        .collect();
+    for header in response.headers().get_all("set-cookie") {
+        let (key, value) = header
+            .to_str()
+            .unwrap()
+            .split(';')
+            .next()
+            .unwrap()
+            .split_once('=')
+            .unwrap();
+        if value.is_empty() {
+            cookies.remove(key);
+        } else {
+            cookies.insert(key.into(), value.into());
+        }
+    }
+    (
+        location,
+        cookies
+            .into_iter()
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect::<Vec<_>>()
+            .join("; "),
+    )
+}
+async fn local_member(
+    app: &axum::Router,
+    owner: &str,
+    space: &str,
+    email: &str,
+) -> (String, String) {
+    let invitation = invite(app, owner, space).await;
+    let (status, _, cookie) = call(
+        app,
+        "POST",
+        "/api/v1/invitations/accept",
+        "",
+        json!({"token":invitation,"email":email,"password":PASSWORD,"display_name":"Local member"}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    let (_, account, _) = call(app, "GET", "/api/v1/auth/me", &cookie, Value::Null).await;
+    (cookie, account["user"]["id"].as_str().unwrap().into())
+}
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn local_oidc_linking_requires_fresh_proofs_preserves_identity_and_rejects_conflicts(
+    pool: PgPool,
+) {
+    let fixture = Fixture::new().await;
+    let app = fixture.app(&pool);
+    let (owner, space, user) = initialized(&app).await;
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/oidc/link",
+            &owner,
+            json!({"current_password":"wrong password"})
+        )
+        .await
+        .0,
+        401
+    );
+    for mode in ["no-auth", "stale-auth", "future-auth"] {
+        let (path, cookie) = fixture
+            .method_flow(
+                &app,
+                "/api/v1/auth/methods/oidc/link",
+                &owner,
+                json!({"current_password":PASSWORD}),
+                mode,
+                "owner-identity",
+            )
+            .await;
+        assert!(
+            method_callback(&app, &path, &cookie)
+                .await
+                .0
+                .ends_with("=failed")
+        );
+    }
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/link",
+            &owner,
+            json!({"current_password":PASSWORD}),
+            "valid",
+            "owner-identity",
+        )
+        .await;
+    let (location, linked) = method_callback(&app, &path, &cookie).await;
+    assert!(location.ends_with("/account?method=linked"));
+    assert_eq!(
+        call(&app, "GET", "/api/v1/auth/me", &owner, Value::Null)
+            .await
+            .0,
+        401
+    );
+    let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &linked, Value::Null).await;
+    assert_eq!(account["user"]["id"], user);
+    assert_eq!(account["workspaces"][0]["id"], space);
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/oidc/prove",
+            &linked,
+            json!({"action":"remove_local"})
+        )
+        .await
+        .0,
+        409,
+        "last local administrator"
+    );
+    let (_, methods, _) = call(&app, "GET", "/api/v1/auth/methods", &linked, Value::Null).await;
+    let identity = methods["oidc"][0]["id"].clone();
+    let (status, _, local) = call(
+        &app,
+        "POST",
+        "/api/v1/auth/methods/oidc/remove",
+        &linked,
+        json!({"identity_id":identity,"current_password":PASSWORD}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        call(&app, "GET", "/api/v1/auth/me", &linked, Value::Null)
+            .await
+            .0,
+        401
+    );
+    // An unlinked subject remains reserved to its original account and can be reattached there.
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/link",
+            &local,
+            json!({"current_password":PASSWORD}),
+            "valid",
+            "owner-identity",
+        )
+        .await;
+    let (_, linked) = method_callback(&app, &path, &cookie).await;
+    let (other, other_user) = local_member(&app, &linked, &space, "other@example.com").await;
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/link",
+            &other,
+            json!({"current_password":PASSWORD}),
+            "valid",
+            "owner-identity",
+        )
+        .await;
+    assert!(
+        method_callback(&app, &path, &cookie)
+            .await
+            .0
+            .ends_with("=failed")
+    );
+    let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &other, Value::Null).await;
+    assert_eq!(account["user"]["id"], other_user);
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM convex.oidc_identities")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        1
+    );
+}
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn oidc_local_attachment_and_removal_require_exact_single_use_session_bound_proofs(
+    pool: PgPool,
+) {
+    let fixture = Fixture::new().await;
+    let app = fixture.app(&pool);
+    let (owner, space, _) = initialized(&app).await;
+    let invitation = invite(&app, &owner, &space).await;
+    let (path, cookie) = fixture
+        .flow(&app, Some(&invitation), "valid", "oidc-member")
+        .await;
+    let (_, member) = method_callback(&app, &path, &cookie).await;
+    let (_, original, _) = call(&app, "GET", "/api/v1/auth/me", &member, Value::Null).await;
+    let request = json!({"email":"member@example.com","password":PASSWORD});
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/add",
+            &member,
+            request.clone()
+        )
+        .await
+        .0,
+        401
+    );
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/prove",
+            &member,
+            json!({"action":"add_local"}),
+            "valid",
+            "wrong-subject",
+        )
+        .await;
+    assert!(
+        method_callback(&app, &path, &cookie)
+            .await
+            .0
+            .ends_with("=failed")
+    );
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/prove",
+            &member,
+            json!({"action":"add_local"}),
+            "valid",
+            "oidc-member",
+        )
+        .await;
+    let (location, proof) = method_callback(&app, &path, &cookie).await;
+    assert!(location.ends_with("/account?method=proof"));
+    let proof_part = proof
+        .split(';')
+        .find(|p| p.trim().starts_with("convex_method_proof="))
+        .unwrap();
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/add",
+            &format!("{owner}; {proof_part}"),
+            request.clone()
+        )
+        .await
+        .0,
+        401
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/remove",
+            &proof,
+            Value::Null
+        )
+        .await
+        .0,
+        401,
+        "proof operation mismatch"
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/add",
+            &proof,
+            json!({"email":"owner@example.com","password":PASSWORD})
+        )
+        .await
+        .0,
+        409
+    );
+    let (status, _, local) = call(
+        &app,
+        "POST",
+        "/api/v1/auth/methods/local/add",
+        &proof,
+        request,
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        call(&app, "GET", "/api/v1/auth/me", &member, Value::Null)
+            .await
+            .0,
+        401
+    );
+    let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &local, Value::Null).await;
+    assert_eq!(account["user"]["id"], original["user"]["id"]);
+    assert_eq!(account["workspaces"], original["workspaces"]);
+    let recovery = convex::security::token();
+    sqlx::query("INSERT INTO convex.recovery_tokens (id,user_id,token_hash) VALUES ($1,$2,$3)")
+        .bind(uuid::Uuid::new_v4())
+        .bind(uuid::Uuid::parse_str(account["user"]["id"].as_str().unwrap()).unwrap())
+        .bind(convex::security::digest(&recovery))
+        .execute(&pool)
+        .await
+        .unwrap();
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/prove",
+            &local,
+            json!({"action":"remove_local"}),
+            "valid",
+            "oidc-member",
+        )
+        .await;
+    let (_, proof) = method_callback(&app, &path, &cookie).await;
+    let (status, _, remaining) = call(
+        &app,
+        "POST",
+        "/api/v1/auth/methods/local/remove",
+        &proof,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM convex.recovery_tokens")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/reset",
+            "",
+            json!({"token":recovery,"password":PASSWORD})
+        )
+        .await
+        .0,
+        400,
+        "removed password cannot be recreated with its old recovery token"
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/login",
+            "",
+            json!({"email":"member@example.com","password":PASSWORD})
+        )
+        .await
+        .0,
+        401
+    );
+    assert_eq!(
+        call(&app, "GET", "/api/v1/auth/me", &remaining, Value::Null)
+            .await
+            .0,
+        200
+    );
+    let (_, methods, _) = call(&app, "GET", "/api/v1/auth/methods", &remaining, Value::Null).await;
+    assert!(methods["local_email"].is_null());
+    assert!(!methods["local_usable"].as_bool().unwrap());
+}
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn concurrent_method_removal_keeps_a_usable_method_and_revoked_link_flows_cannot_mutate(
+    pool: PgPool,
+) {
+    let fixture = Fixture::new().await;
+    let app = fixture.app(&pool);
+    let (owner, space, _) = initialized(&app).await;
+    let (member, _) = local_member(&app, &owner, &space, "race@example.com").await;
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/link",
+            &member,
+            json!({"current_password":PASSWORD}),
+            "blocked",
+            "race-member",
+        )
+        .await;
+    let pending_app = app.clone();
+    let pending = tokio::spawn(async move { method_callback(&pending_app, &path, &cookie).await });
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        fixture.provider.entered.notified(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        call(&app, "POST", "/api/v1/auth/logout", &member, Value::Null)
+            .await
+            .0,
+        200
+    );
+    fixture.provider.release.notify_one();
+    assert!(pending.await.unwrap().0.ends_with("=failed"));
+    let (_, _, member) = call(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        "",
+        json!({"email":"race@example.com","password":PASSWORD}),
+    )
+    .await;
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/link",
+            &member,
+            json!({"current_password":PASSWORD}),
+            "valid",
+            "race-member",
+        )
+        .await;
+    let (_, linked) = method_callback(&app, &path, &cookie).await;
+    let (_, methods, _) = call(&app, "GET", "/api/v1/auth/methods", &linked, Value::Null).await;
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/prove",
+            &linked,
+            json!({"action":"remove_local"}),
+            "valid",
+            "race-member",
+        )
+        .await;
+    let (location, proof) = method_callback(&app, &path, &cookie).await;
+    assert!(location.ends_with("/account?method=proof"));
+    let (a, b) = tokio::join!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/remove",
+            &proof,
+            Value::Null
+        ),
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/oidc/remove",
+            &proof,
+            json!({"identity_id":methods["oidc"][0]["id"],"current_password":PASSWORD})
+        )
+    );
+    assert!(
+        matches!((a.0, b.0), (200, 401) | (401, 200)),
+        "{} {}",
+        a.0,
+        b.0
+    );
+    let remaining = if a.0 == 200 { a.2 } else { b.2 };
+    let (_, methods, _) = call(&app, "GET", "/api/v1/auth/methods", &remaining, Value::Null).await;
+    assert!(
+        methods["local_usable"].as_bool().unwrap()
+            || methods["oidc"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|m| m["usable"] == true)
+    );
+}
+
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
+async fn method_proofs_expire_are_session_bound_and_respect_required_oidc(pool: PgPool) {
+    let fixture = Fixture::new().await;
+    let app = fixture.app(&pool);
+    let (owner, space, _) = initialized(&app).await;
+    let invitation = invite(&app, &owner, &space).await;
+    let (path, cookie) = fixture
+        .flow(&app, Some(&invitation), "valid", "proof-member")
+        .await;
+    let (_, member) = method_callback(&app, &path, &cookie).await;
+    let (path, cookie) = fixture
+        .method_flow(
+            &app,
+            "/api/v1/auth/methods/oidc/prove",
+            &member,
+            json!({"action":"add_local"}),
+            "valid",
+            "proof-member",
+        )
+        .await;
+    let (location, proof) = method_callback(&app, &path, &cookie).await;
+    assert!(location.ends_with("/account?method=proof"));
+    let bounded: bool = sqlx::query_scalar(
+        "SELECT expires_at <= verified_at + interval '5 minutes' FROM convex.method_proofs",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(bounded);
+    // A separate login to the same account must not inherit the first session's proof.
+    let (path, cookie) = fixture.flow(&app, None, "valid", "proof-member").await;
+    let (_, other) = method_callback(&app, &path, &cookie).await;
+    let session = other
+        .split(';')
+        .find(|p| p.trim().starts_with("convex_session="))
+        .unwrap();
+    let crossed = proof
+        .split(';')
+        .filter(|p| !p.trim().starts_with("convex_session="))
+        .chain(std::iter::once(session))
+        .collect::<Vec<_>>()
+        .join(";");
+    let request = json!({"email":"proof-member@example.com","password":PASSWORD});
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/add",
+            &crossed,
+            request.clone()
+        )
+        .await
+        .0,
+        401
+    );
+    sqlx::query("UPDATE convex.method_proofs SET expires_at=now()-interval '1 second'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/add",
+            &proof,
+            request.clone()
+        )
+        .await
+        .0,
+        401
+    );
+    let (_, methods, _) = call(&app, "GET", "/api/v1/auth/methods", &proof, Value::Null).await;
+    assert!(methods["pending_action"].is_null());
+    // End the replica lease before enabling installation-wide enforcement.
+    drop(app);
+    let app = fixture.app_with_required(&pool, true);
+    let (_, methods, _) = call(&app, "GET", "/api/v1/auth/methods", &member, Value::Null).await;
+    assert_eq!(methods["can_add_local"], false);
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/oidc/prove",
+            &member,
+            json!({"action":"add_local"})
+        )
+        .await
+        .0,
+        403
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/add",
+            &member,
+            request
+        )
+        .await
+        .0,
+        403
+    );
 }
