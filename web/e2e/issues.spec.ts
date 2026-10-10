@@ -240,6 +240,157 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
     content.getByRole('heading', { name: 'What to build' }),
   ).toBeVisible();
   await expect(content.getByRole('table')).toBeVisible();
+  const toolbar = page.getByRole('toolbar', { name: 'Description formatting' });
+  await expect(toolbar).not.toBeVisible();
+  const selectHeading = async (selector = 'h2') => {
+    const heading = description.locator(selector).first();
+    await heading.click();
+    await heading.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+    await expect(toolbar).toBeVisible();
+  };
+  const formattingModifier = await page.evaluate(() =>
+    /Mac|iP(hone|[oa]d)/.test(navigator.platform) ? 'Meta' : 'Control',
+  );
+  for (const modifier of ['Control', 'Meta']) {
+    await selectHeading();
+    await page.keyboard.press(`${modifier}+b`);
+    if (test.info().project.name === 'desktop') {
+      await expect(
+        page.locator('[data-slot="sidebar"][data-state]'),
+      ).toHaveAttribute('data-state', 'expanded');
+    } else {
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
+    if (modifier === formattingModifier) {
+      await expect(description.locator('h2 strong')).toHaveText(
+        'What to build',
+      );
+    }
+  }
+  await expect(
+    toolbar.getByRole('button', { name: 'Bold', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await toolbar.getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect(description.locator('h2 strong')).toHaveCount(0);
+  await toolbar.getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect(description.locator('h2 strong')).toHaveText('What to build');
+  for (const [label, tag] of [
+    ['Italic', 'em'],
+    ['Strikethrough', 's'],
+    ['Inline code', 'code'],
+  ]) {
+    await toolbar.getByRole('button', { name: label, exact: true }).click();
+    await expect(description.locator(`h2 ${tag}`)).toHaveText('What to build');
+    await toolbar.getByRole('button', { name: label, exact: true }).click();
+    await expect(description.locator(`h2 ${tag}`)).toHaveCount(0);
+  }
+  await toolbar.getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect(description.locator('h2 strong')).toHaveText('What to build');
+  await toolbar
+    .getByRole('button', { name: 'Text style', exact: true })
+    .click();
+  await page
+    .getByRole('menuitemradio', { name: 'Heading 1', exact: true })
+    .click();
+  await expect(description.locator('h1')).toHaveText('What to build');
+  await toolbar
+    .getByRole('button', { name: 'Text style', exact: true })
+    .click();
+  await page
+    .getByRole('menuitemradio', { name: 'Heading 2', exact: true })
+    .click();
+  await expect(description.locator('h2')).toHaveText('What to build');
+  await toolbar.getByRole('button', { name: 'Quote', exact: true }).click();
+  await expect(description.locator('blockquote h2')).toHaveText(
+    'What to build',
+  );
+  await toolbar.getByRole('button', { name: 'Quote', exact: true }).click();
+  await expect(description.locator('blockquote h2')).toHaveCount(0);
+  await toolbar.getByRole('button', { name: 'Link', exact: true }).click();
+  const linkInput = page.getByRole('textbox', {
+    name: 'Link URL',
+    exact: true,
+  });
+  await linkInput.fill('javascript:alert(1)');
+  await page.getByRole('button', { name: 'Apply link', exact: true }).click();
+  await expect(
+    page.getByText('Enter a valid link, such as https://example.com.'),
+  ).toBeVisible();
+  await linkInput.fill('https://example.com/selected');
+  await page.getByRole('button', { name: 'Apply link', exact: true }).click();
+  await expect(description.locator('h2 a')).toHaveAttribute(
+    'href',
+    'https://example.com/selected',
+  );
+  await saved();
+  await selectHeading('p');
+  for (const colorScheme of themes) {
+    await page.emulateMedia({ colorScheme });
+    const line = await description
+      .locator('p')
+      .first()
+      .evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const rects = [...range.getClientRects()].filter(
+          (rect) => rect.width && rect.height,
+        );
+        const first = rects[0];
+        if (!first) throw new Error('Selected text has no visible line.');
+        const row = rects.filter((rect) => Math.abs(rect.top - first.top) < 3);
+        return {
+          top: first.top,
+          center:
+            (Math.min(...row.map((rect) => rect.left)) +
+              Math.max(...row.map((rect) => rect.right))) /
+            2,
+        };
+      });
+    // Wait for the selection-position debounce, and catch wrong anchors or clipping.
+    await expect
+      .poll(async () => {
+        const bounds = await toolbar.boundingBox();
+        if (!bounds) return false;
+        const expectedLeft = Math.max(
+          12,
+          Math.min(
+            line.center - bounds.width / 2,
+            page.viewportSize()!.width - 12 - bounds.width,
+          ),
+        );
+        return (
+          Math.abs(bounds.x - expectedLeft) < 3 &&
+          Math.abs(bounds.y + bounds.height - (line.top - 8)) < 3
+        );
+      })
+      .toBe(true);
+    await page.screenshot({
+      path: `test-results/issue-toolbar-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+    });
+    const bounds = await toolbar.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
+  }
+  await page.keyboard.press('Alt+F10');
+  await expect(
+    toolbar.getByRole('button', { name: 'Text style', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(
+    toolbar.getByRole('button', { name: 'Bold', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(toolbar).not.toBeVisible();
   const task = description.locator('li[data-type="taskItem"]').first();
   const checkboxBounds = await task.getByRole('checkbox').boundingBox();
   const textBounds = await task.locator('p').first().boundingBox();
@@ -293,6 +444,11 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await expect(
     content.getByRole('heading', { name: 'What to build in place safely' }),
   ).toBeVisible();
+  await expect(description.locator('h2 strong').first()).toBeVisible();
+  await expect(description.locator('h2 a')).toHaveAttribute(
+    'href',
+    'https://example.com/selected',
+  );
   await expect(content.getByRole('table')).toBeVisible();
   for (const colorScheme of themes) {
     await page.emulateMedia({ colorScheme });
@@ -313,6 +469,7 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
     page.getByRole('button', { name: 'Restore issue', exact: true }),
   ).toBeVisible();
   await expect(description).toHaveAttribute('contenteditable', 'false');
+  await expect(toolbar).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: 'Status: Done', exact: true }),
   ).toBeDisabled();

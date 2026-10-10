@@ -1130,6 +1130,24 @@
 .issue-prosemirror .selectedCell {
   background: var(--accent);
 }
+.issue-selection-floating {
+  width: max-content;
+  max-width: calc(100vw - 24px);
+}
+.issue-selection-toolbar[data-slot='button-group'] {
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: calc(100vw - 24px);
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 4px 12px color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+.issue-selection-toolbar [data-slot='button-group-separator'] {
+  min-height: 24px;
+}
 .issue-property-controls {
   display: flex;
   flex-direction: column;
@@ -1203,6 +1221,10 @@
     min-height: 44px;
   }
   .issue-property-controls .issue-property-inline {
+    min-height: 44px;
+  }
+  .issue-selection-toolbar button {
+    min-width: 44px;
     min-height: 44px;
   }
 }

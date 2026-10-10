@@ -175,7 +175,8 @@ test('sidebar toggles with the keyboard and mobile navigation closes after selec
   await page.goto('/');
   const trigger = page.getByRole('button', { name: 'Toggle navigation' });
   if ((page.viewportSize()?.width ?? 0) < 768) {
-    await trigger.click();
+    await trigger.focus();
+    await page.keyboard.press('Control+b');
     const drawer = page.getByRole('dialog', { name: 'Sidebar' });
     await expect(drawer).toBeVisible();
     await drawer
@@ -188,10 +189,12 @@ test('sidebar toggles with the keyboard and mobile navigation closes after selec
   } else {
     const sidebar = page.locator('[data-slot="sidebar"][data-state]');
     await expect(sidebar).toHaveAttribute('data-state', 'expanded');
-    await page.keyboard.press('Control+b');
-    await expect(sidebar).toHaveAttribute('data-state', 'collapsed');
-    await page.keyboard.press('Control+b');
-    await expect(sidebar).toHaveAttribute('data-state', 'expanded');
+    for (const modifier of ['Control', 'Meta']) {
+      await page.keyboard.press(`${modifier}+b`);
+      await expect(sidebar).toHaveAttribute('data-state', 'collapsed');
+      await page.keyboard.press(`${modifier}+b`);
+      await expect(sidebar).toHaveAttribute('data-state', 'expanded');
+    }
   }
 });
 
