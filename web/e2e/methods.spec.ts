@@ -106,7 +106,8 @@ test('link, remove and re-add a password with fresh provider proofs and preserve
     .fill(password);
   await member
     .getByRole('button', { name: 'Link Development SSO', exact: true })
-    .click();
+    .focus();
+  await member.keyboard.press('Enter');
   await providerLogin(member, username);
   await expect(member).toHaveURL(`${webOrigin}/account?method=linked`);
   await expect(

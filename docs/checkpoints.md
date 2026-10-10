@@ -6,7 +6,7 @@ CP01 through CP08 define the path to the first self-hosted alpha. CP09 onward de
 
 ## Current position
 
-CP01, CP02, and CP04 are complete. Convex has local accounts and workspace onboarding, plus the persisted issue workflow. CP03 implementation is in progress; CP05 onward remain planned.
+CP01 through CP04 are complete. Convex has local accounts and workspace onboarding, OIDC login and account linking, session and operator recovery, and the persisted issue workflow. Completion checks passed locally; CP05 onward remain planned.
 
 - Backend: Rust, Axum, PostgreSQL, and SQLx.
 - Contract: utoipa and utoipa-axum generate OpenAPI alongside route registration; TypeScript contract types are generated from that specification and checked in CI.
@@ -29,7 +29,7 @@ Build each checkpoint across the backend and frontend where applicable. Include 
 | --- | --- | --- | --- |
 | CP01 | Application foundation and API contract | Agreed stack | Complete |
 | CP02 | Local accounts and workspace onboarding | CP01 | Complete |
-| CP03 | OIDC login and account linking | CP02 | In progress |
+| CP03 | OIDC login and account linking | CP02 | Complete |
 | CP04 | Complete issue workflow | CP02 | Complete |
 | CP05 | Labels and finding work | CP04 | Planned |
 | CP06 | Discussion and activity history | CP04 | Planned |
@@ -111,13 +111,15 @@ Complete when local and OIDC users can use the same workspace, an account can us
 
 Resolve here: installation-level versus workspace-level providers, session behavior after provider changes, and whether operators can enforce OIDC for ordinary users. See [Accounts and OIDC login](authentication.md).
 
-Investigation started on 2026-10-09. The [implementation plan](cp03-implementation.md) records agreed policies, code changes, implementation slices, and acceptance tests. The first slice implements the shared configurable session lifetime, persisted provider/enforcement policy, replica configuration protection, and OIDC session provenance. The next slice implements OIDC login/callback, invitation onboarding, and a pinned development IdP. The account-method slice now implements linking/unlinking, fresh proofs, and method settings; whole-checkpoint completion verification remains outstanding.
+Investigation started on 2026-10-09. The [implementation plan](cp03-implementation.md) records agreed policies, code changes, implementation slices, and acceptance tests. The first slice implements the shared configurable session lifetime, persisted provider/enforcement policy, replica configuration protection, and OIDC session provenance. The next slice implements OIDC login/callback, invitation onboarding, and a pinned development IdP. The account-method slice now implements linking/unlinking, fresh proofs, and method settings; whole-checkpoint verification is recorded below.
 
 First-slice verification on 2026-10-10: `mise run check` and `mise run check:bundle` passed; four hermetic Rust tests, three frontend tests, 16 isolated PostgreSQL tests, and 42 desktop/mobile Chromium scenarios passed. See [the detailed evidence and its limits](cp03-implementation.md#first-slice-verification-2026-10-10). This records the foundation baseline; the subsequent login/invitation slice adds real OIDC authentication.
 
-Login/invitation verification on 2026-10-10: five hermetic Rust tests, three frontend tests, and 19 isolated PostgreSQL tests passed. Pinned Keycloak 26.8.0 completed desktop/mobile invitation onboarding and existing-identity login under required OIDC. See [the slice evidence and remaining work](cp03-implementation.md#login-and-invitation-slice-2026-10-10). CP03 remains in progress until the full acceptance matrix passes.
+Login/invitation verification on 2026-10-10: five hermetic Rust tests, three frontend tests, and 19 isolated PostgreSQL tests passed. Pinned Keycloak 26.8.0 completed desktop/mobile invitation onboarding and existing-identity login under required OIDC. See [the slice evidence and remaining work](cp03-implementation.md#login-and-invitation-slice-2026-10-10). This records the login/invitation baseline; completion evidence follows below.
 
-Account-method verification on 2026-10-10: 23 isolated PostgreSQL tests pass, and pinned Keycloak desktop/mobile tests complete both linking directions and method removal with fresh proofs while preserving the account and memberships. See [method-change evidence](cp03-implementation.md#account-method-slice-2026-10-10). Real-provider outage and operator recovery remain whole-checkpoint checks.
+Account-method verification on 2026-10-10: 23 isolated PostgreSQL tests pass, and pinned Keycloak desktop/mobile tests complete both linking directions and method removal with fresh proofs while preserving the account and memberships. See [method-change evidence](cp03-implementation.md#account-method-slice-2026-10-10). Real-provider outage and operator recovery are verified in the completion evidence below.
+
+CP03 completion verified on 2026-10-10: the exclusive real-Keycloak outage/recovery suite passes on desktop and mobile, including unchanged existing-session expiry, sanitized failed login/linking, required-OIDC enforcement, new local administrator access, the actual recovery binary and browser reset, revoked old administrator sessions, and successful provider restoration. The 23-test database suite additionally verifies local/OIDC invitation competition in both orders, inviter demotion/disablement during exchange, and membership removal surviving repeat provider login. Static/contract/build, unit, and all browser checks pass; [the completed acceptance matrix](cp03-implementation.md#completion-verification-2026-10-10) records evidence and compatibility limits.
 
 ## CP04 Complete issue workflow
 

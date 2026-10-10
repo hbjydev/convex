@@ -4,7 +4,7 @@ The first self-hosted release includes built-in accounts and configurable OpenID
 
 ## First release direction
 
-CP02 implements the local-account behavior recorded below. Provider behavior remains a CP03 proposal.
+CP02 implements the local-account behavior recorded below. CP03 implements the provider behavior and account-method controls recorded below.
 
 - Local login uses email and password. OIDC login appears when an operator configures a provider.
 - Begin with one installation-level OIDC provider, configured through deployment settings: issuer URL, client ID, client secret, and display name. Keep secrets out of account and workspace responses.
@@ -58,13 +58,13 @@ Convex logout revokes the local session. Provider-wide logout is separate behavi
 6. A revoked session, disabled account, or removed membership cannot continue accessing protected workspace data.
 7. Concurrent invitation acceptance or password recovery consumes its token once.
 
-## Policies still open
+## Policies and implementation evidence
 
-CP02 settles local recovery delivery and its original session lifetime in its implementation decisions below. CP03 investigation began on 2026-10-09. The [CP03 implementation plan](cp03-implementation.md) records the agreed choices below, remaining proposals, code changes, and verification requirements; the [OIDC research](cp03-oidc-research.md) records primary-source protocol and dependency findings. The foundation, login, and method-change slices are implemented; whole-checkpoint operational verification remains. Multiple providers, group-based role mapping, automatic provisioning, and local MFA remain later capabilities.
+CP02 settles local recovery delivery and its original session lifetime in its implementation decisions below. CP03 investigation began on 2026-10-09. The [CP03 implementation plan](cp03-implementation.md) records the agreed choices below, code changes, and verification evidence; the [OIDC research](cp03-oidc-research.md) records primary-source protocol and dependency findings. CP03 is complete, including the real-provider outage and local operator recovery exercise. Multiple providers, group-based role mapping, automatic provisioning, and local MFA remain later capabilities.
 
 ## CP03 agreed decisions
 
-Session lifetime, provider policy, OIDC login/callback, and account-method controls implement these decisions. Whole-checkpoint operational checks remain outstanding.
+Session lifetime, provider policy, OIDC login/callback, and account-method controls implement these decisions. The real-provider outage and local operator recovery checks also pass.
 
 - **Provider scope and configuration:** one installation-level provider shared across workspaces, configured through environment variables for CP03. No provider administration UI in this checkpoint. Workspace membership remains independent of provider claims.
 - **Enforcement:** operators can require OIDC for ordinary users. Enabling enforcement immediately revokes their existing local sessions; their next protected request requires OIDC authentication. Local instance administrators remain exempt for authentication and recovery.
@@ -117,7 +117,7 @@ Before changing authentication settings, stop every application replica, update 
 
 The CP03 foundation validates `CONVEX_OIDC_ISSUER_URL`, `CONVEX_OIDC_CLIENT_ID`, `CONVEX_OIDC_CLIENT_SECRET`, optional `CONVEX_OIDC_DISPLAY_NAME`, and boolean `CONVEX_OIDC_ENABLED`/`CONVEX_OIDC_REQUIRED`. A complete provider is enabled by default; enforcement defaults to false. The issuer must use HTTPS outside loopback development and have no credentials, query, or fragment. Required OIDC needs a configured, enabled provider. Configuration/discovery secrets are absent from account responses and no provider request is needed for policy activation, session validation, or administrator recovery.
 
-OIDC login and invitation onboarding are implemented and tested against Keycloak 26.8.0. Register exactly `<CONVEX_PUBLIC_URL>/api/v1/auth/oidc/callback` as the provider's redirect URI, enable the authorization-code flow, and require S256 PKCE for the confidential client. Public bootstrap exposes only the enabled provider's display name and enforcement flag. Matching emails never link accounts. A new external identity needs an invitation; an attached identity resolves its existing account. Existing local users can link their provider from Account settings while OIDC is optional. Link their accounts before enforcing OIDC; ordinary local sessions are revoked when enforcement activates. See the [CP03 plan](cp03-implementation.md) for rollout and remaining verification.
+OIDC login and invitation onboarding are implemented and tested against Keycloak 26.8.0. Register exactly `<CONVEX_PUBLIC_URL>/api/v1/auth/oidc/callback` as the provider's redirect URI, enable the authorization-code flow, and require S256 PKCE for the confidential client. Public bootstrap exposes only the enabled provider's display name and enforcement flag. Matching emails never link accounts. A new external identity needs an invitation; an attached identity resolves its existing account. Existing local users can link their provider from Account settings while OIDC is optional. Link their accounts before enforcing OIDC; ordinary local sessions are revoked when enforcement activates. See the [CP03 plan](cp03-implementation.md) for rollout and verification evidence.
 
 `POST /api/v1/auth/oidc/start` requires the usual same-origin CSRF headers and accepts an optional invitation token in JSON. It returns an authorization URL and a host-only HttpOnly browser-binding cookie. Flow state expires after ten minutes, is bound to its exact public origin and login/invitation intent, and is consumed before code exchange. Starts from an authenticated session bind to that session; logout or revocation cancels them. The backend validates the signed ID token, issuer, single audience, authorized party if supplied, expiry, nonce, and issuance time. An upstream access-token hash is checked when supplied. Provider access/refresh tokens are discarded. Signature keys and discovery are cached for five minutes; an unknown signing key permits one refresh per 30 seconds, without repeating code exchange. Failed refreshes also respect that cooldown.
 
@@ -141,3 +141,12 @@ Sensitive provider flows request `prompt=login` and `max_age=0`. The callback re
 A successful method change revokes all old account sessions and issues a fresh session through a proven eligible method, preserving the account and memberships. Removing a password deletes its recovery-token records, so old reset links cannot recreate it. Unlinked provider identities stay reserved to their original account: that account may reattach them, but another account cannot claim them.
 
 `mise run test:e2e:methods` exercises linking, password removal and reattachment, and provider removal on desktop and mobile against the pinned provider with optional OIDC. Its second fixture user is `invited-member-mobile` with the same development password; each browser scenario uses a separate exact provider subject.
+
+
+### Provider outage and operator recovery
+
+Run `mise run test:e2e:outage` exclusively: it stops and restarts the disposable `oidc-cp03` service, so do not run other provider suites alongside it. Each desktop/mobile scenario uses the same isolated API/browser ports and a fresh suite database. It holds real provider-issued authorization codes before the callback, stops Keycloak, and checks sanitized login/linking failures, unchanged accounts and session expiry, required-OIDC enforcement, new local administrator sign-in, administration, the real `recover-account` binary, browser password reset, old administrator-session revocation, and recovery after provider restart. The provider is restarted in cleanup even when an assertion fails.
+
+A temporary outage does not change installation policy. Existing eligible Convex sessions retain their original expiry; new provider authentication needs the provider to return. Use a local instance administrator for installation access. If its password is lost, run the documented [operator recovery command](#first-installation-and-operator-recovery) with trusted database access and reset the existing local account; this does not add local credentials to OIDC-only users or bypass enforcement for ordinary users. Stop all replicas and wait for their database connections to close before changing provider settings, then restart every replica with matching environment values.
+
+Verified compatibility covers the pinned Keycloak 26.8.0 realm and Chromium on desktop and an iPhone 13 viewport. Other providers and browser engines are not covered by this checkpoint's interoperability evidence.

@@ -220,3 +220,11 @@ run = 'env CONVEX_OIDC_ISSUER_URL="http://127.0.0.1:8083/realms/convex" CONVEX_O
 description = "Verify account method changes with fresh provider authentication"
 depends = ["db:test:up", "oidc:up"]
 run = 'CONVEX_E2E_OIDC=1 CONVEX_E2E_OIDC_REQUIRED=false CONVEX_E2E_API_PORT=3103 CONVEX_E2E_WEB_PORT=5274 DATABASE_URL="$TEST_DATABASE_URL" pnpm --dir web exec playwright test methods.spec.ts'
+
+[tasks."test:e2e:outage"]
+description = "Stop the real development provider and verify sessions, enforcement, operator recovery and restoration"
+depends = ["db:test:up", "oidc:up"]
+run = [
+  "cargo build --locked -p convex --bin recover-account",
+  'CONVEX_E2E_OIDC=1 CONVEX_E2E_OIDC_REQUIRED=true CONVEX_E2E_OUTAGE=1 CONVEX_E2E_API_PORT=3103 CONVEX_E2E_WEB_PORT=5274 DATABASE_URL="$TEST_DATABASE_URL" pnpm --dir web exec playwright test outage.spec.ts',
+]

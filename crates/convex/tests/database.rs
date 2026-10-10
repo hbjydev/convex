@@ -10,6 +10,19 @@ use sqlx::{
 };
 use tower::ServiceExt;
 
+// Dropping a router closes its dedicated socket, but PostgreSQL may not have
+// observed the close yet. Configuration-change tests must wait for shutdown,
+// rather than racing the backend's release of its shared policy lease.
+async fn wait_for_policy_leases(pool: &PgPool) {
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let released: bool = sqlx::query_scalar("SELECT NOT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND database=(SELECT oid FROM pg_database WHERE datname=current_database()) AND classid=4413016::oid AND objid=3::oid AND mode='ShareLock' AND granted)").fetch_one(pool).await.unwrap();
+            if released { break; }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    }).await.expect("stopped replica releases its policy lease");
+}
+
 #[sqlx::test(migrator = "convex::MIGRATOR")]
 #[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
 async fn empty_database_migrates_and_responds_with_documented_health(
@@ -114,7 +127,7 @@ async fn call(
         .iter()
         .find(|(pattern, _)| {
             let a: Vec<_> = pattern.split('/').collect();
-            let b: Vec<_> = path.split('/').collect();
+            let b: Vec<_> = path.split('?').next().unwrap().split('/').collect();
             a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.starts_with('{') || *a == b)
         })
         .unwrap()
@@ -1123,6 +1136,7 @@ async fn shortening_sessions_is_persistent_and_increases_never_resurrect(pool: P
     sqlx::query("UPDATE convex.sessions SET created_at=now()-interval '2 days',expires_at=now()+interval '5 days' WHERE token_hash=$1")
         .bind(convex::security::digest(&old_token)).execute(&pool).await.unwrap();
     drop(app);
+    wait_for_policy_leases(&pool).await;
     let shorter = http::prepare_app(pool.clone(), policy_config("86400", true, false))
         .await
         .unwrap();
@@ -1153,6 +1167,7 @@ async fn shortening_sessions_is_persistent_and_increases_never_resurrect(pool: P
     // Activity does not slide expiration forward.
     assert_eq!(session_expiry(&pool, &young).await, young_expiry);
     drop(shorter);
+    wait_for_policy_leases(&pool).await;
     let longer = http::prepare_app(pool.clone(), policy_config("604800", true, false))
         .await
         .unwrap();
@@ -1190,6 +1205,7 @@ async fn required_oidc_revokes_ordinary_local_access_and_preserves_admin_recover
         .unwrap();
     tx.commit().await.unwrap();
     drop(app);
+    wait_for_policy_leases(&pool).await;
     let required = http::prepare_app(pool.clone(), policy_config("604800", true, true))
         .await
         .unwrap();
@@ -1281,6 +1297,7 @@ async fn required_oidc_revokes_ordinary_local_access_and_preserves_admin_recover
     assert_eq!(login(&required, "owner@example.com", PASSWORD).await.0, 200);
     // Disabling enforcement does not restore sessions explicitly revoked by its activation.
     drop(required);
+    wait_for_policy_leases(&pool).await;
     let optional = http::prepare_app(pool.clone(), policy_config("604800", true, false))
         .await
         .unwrap();
@@ -1308,6 +1325,7 @@ async fn provider_secret_rotation_preserves_sessions_but_client_change_revokes(p
     sqlx::query("INSERT INTO convex.oidc_flows (id,state_hash,browser_hash,intent,exchange_revision,nonce,pkce_verifier) VALUES ($1,'hashed-state','hashed-browser','login',$2,'nonce','verifier')")
         .bind(uuid::Uuid::new_v4()).bind(config.authentication.exchange_revision()).execute(&pool).await.unwrap();
     drop(app);
+    wait_for_policy_leases(&pool).await;
     let mut rotated = config;
     rotated
         .authentication
@@ -1344,6 +1362,7 @@ async fn provider_secret_rotation_preserves_sessions_but_client_change_revokes(p
     );
     let (_, _, another) = oidc_account(&pool, false).await;
     drop(app);
+    wait_for_policy_leases(&pool).await;
     rotated.authentication.provider.as_mut().unwrap().client_id = "different client".into();
     let app = http::prepare_app(pool.clone(), rotated.clone())
         .await
@@ -1362,6 +1381,7 @@ async fn provider_secret_rotation_preserves_sessions_but_client_change_revokes(p
     );
     let (_, _, disabled) = oidc_account(&pool, false).await;
     drop(app);
+    wait_for_policy_leases(&pool).await;
     rotated.authentication.provider.as_mut().unwrap().enabled = false;
     let app = http::prepare_app(pool.clone(), rotated).await.unwrap();
     assert_eq!(
@@ -1422,6 +1442,7 @@ async fn authentication_replicas_must_agree_and_lost_leases_fail_closed(pool: Pg
             .0,
         503
     );
+    wait_for_policy_leases(&pool).await;
     let replacement = http::prepare_app(pool.clone(), changed).await.unwrap();
     assert_eq!(
         call(&replacement, "GET", "/api/v1/auth/me", &owner, Value::Null)

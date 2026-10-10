@@ -388,40 +388,100 @@ async fn callback_rechecks_invitation_after_exchange_without_holding_database_ga
     let fixture = Fixture::new().await;
     let app = fixture.app(&pool);
     let (owner, space, _) = initialized(&app).await;
-    let token = invite(&app, &owner, &space).await;
-    let (path, cookie) = fixture
-        .flow(&app, Some(&token), "blocked", "new-member")
-        .await;
-    let callback_app = app.clone();
-    let pending = tokio::spawn(async move { callback(&callback_app, &path, &cookie).await });
-    tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        fixture.provider.entered.notified(),
-    )
-    .await
-    .unwrap();
-    // The installation gate must be free while waiting on the provider.
-    let mut tx = tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        convex::accounts::transaction(&pool),
-    )
-    .await
-    .unwrap()
-    .unwrap();
-    sqlx::query("UPDATE convex.invitations SET revoked_at=now() WHERE token_hash=$1")
-        .bind(convex::security::digest(&token))
-        .execute(&mut *tx)
+    for change in [
+        "revoked",
+        "inviter-demoted",
+        "inviter-disabled",
+        "local-accept",
+    ] {
+        let token = invite(&app, &owner, &space).await;
+        let (path, cookie) = fixture
+            .flow(&app, Some(&token), "blocked", "new-member")
+            .await;
+        let callback_app = app.clone();
+        let pending = tokio::spawn(async move { callback(&callback_app, &path, &cookie).await });
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            fixture.provider.entered.notified(),
+        )
         .await
         .unwrap();
-    tx.commit().await.unwrap();
-    fixture.provider.release.notify_one();
-    assert!(!pending.await.unwrap().0);
-    assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM convex.users")
-            .fetch_one(&pool)
+        if change == "local-accept" {
+            let (status, _, _) = tokio::time::timeout(std::time::Duration::from_secs(2), call(&app, "POST", "/api/v1/invitations/accept", "", json!({"token":token,"email":"local-winner@example.com","password":PASSWORD,"display_name":"Local winner"}))).await.unwrap();
+            assert_eq!(
+                status, 200,
+                "local acceptance must finish while exchange is blocked"
+            );
+        } else {
+            // The installation gate must remain free during provider work.
+            let mut tx = tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                convex::accounts::transaction(&pool),
+            )
             .await
-            .unwrap(),
-        1
+            .unwrap()
+            .unwrap();
+            let statement = match change {
+                "revoked" => "UPDATE convex.invitations SET revoked_at=now() WHERE token_hash=$1",
+                "inviter-demoted" => {
+                    "UPDATE convex.workspace_memberships SET role='member' WHERE id=(SELECT inviter_membership_id FROM convex.invitations WHERE token_hash=$1)"
+                }
+                _ => {
+                    "UPDATE convex.users SET disabled_at=now() WHERE id=(SELECT m.user_id FROM convex.invitations i JOIN convex.workspace_memberships m ON m.id=i.inviter_membership_id WHERE i.token_hash=$1)"
+                }
+            };
+            sqlx::query(statement)
+                .bind(convex::security::digest(&token))
+                .execute(&mut *tx)
+                .await
+                .unwrap();
+            tx.commit().await.unwrap();
+        }
+        fixture.provider.release.notify_one();
+        assert!(!pending.await.unwrap().0, "{change}");
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM convex.users")
+                .fetch_one(&pool)
+                .await
+                .unwrap(),
+            if change == "local-accept" { 2 } else { 1 }
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM convex.oidc_identities")
+                .fetch_one(&pool)
+                .await
+                .unwrap(),
+            0,
+            "failed callback leaves no identity"
+        );
+        sqlx::query("UPDATE convex.workspace_memberships SET role='owner' WHERE role='member' AND user_id=(SELECT id FROM convex.users WHERE is_instance_admin)").execute(&pool).await.unwrap();
+        sqlx::query("UPDATE convex.users SET disabled_at=NULL")
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    // Also verify the reverse ordering: OIDC wins and local acceptance cannot reuse it.
+    let token = invite(&app, &owner, &space).await;
+    let (path, cookie) = fixture
+        .flow(&app, Some(&token), "valid", "oidc-winner")
+        .await;
+    let (success, member) = callback(&app, &path, &cookie).await;
+    assert!(success);
+    assert_eq!(call(&app, "POST", "/api/v1/invitations/accept", "", json!({"token":token,"email":"local-loser@example.com","password":PASSWORD,"display_name":"Local loser"})).await.0, 400);
+    let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &member, Value::Null).await;
+    let id = uuid::Uuid::parse_str(account["user"]["id"].as_str().unwrap()).unwrap();
+    sqlx::query("UPDATE convex.workspace_memberships SET removed_at=now() WHERE user_id=$1")
+        .bind(id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let (path, cookie) = fixture.flow(&app, None, "valid", "oidc-winner").await;
+    let (success, member) = callback(&app, &path, &cookie).await;
+    assert!(success);
+    let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &member, Value::Null).await;
+    assert!(
+        account["workspaces"].as_array().unwrap().is_empty(),
+        "repeat provider login must not restore removed membership"
     );
 }
 
@@ -1071,6 +1131,30 @@ async fn method_proofs_expire_are_session_bound_and_respect_required_oidc(pool: 
         .collect::<Vec<_>>()
         .join(";");
     let request = json!({"email":"proof-member@example.com","password":PASSWORD});
+    let wrong_browser = proof
+        .split(';')
+        .map(|part| {
+            if part.trim().starts_with("convex_oidc_browser=") {
+                format!("convex_oidc_browser={}", "0".repeat(64))
+            } else {
+                part.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(";");
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            "/api/v1/auth/methods/local/add",
+            &wrong_browser,
+            request.clone()
+        )
+        .await
+        .0,
+        401,
+        "proof cannot cross browser binding"
+    );
     assert_eq!(
         call(
             &app,
@@ -1103,6 +1187,7 @@ async fn method_proofs_expire_are_session_bound_and_respect_required_oidc(pool: 
     assert!(methods["pending_action"].is_null());
     // End the replica lease before enabling installation-wide enforcement.
     drop(app);
+    wait_for_policy_leases(&pool).await;
     let app = fixture.app_with_required(&pool, true);
     let (_, methods, _) = call(&app, "GET", "/api/v1/auth/methods", &member, Value::Null).await;
     assert_eq!(methods["can_add_local"], false);
