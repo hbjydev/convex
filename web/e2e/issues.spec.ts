@@ -104,53 +104,58 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   ).json();
   const issueId = initialIssue.id;
   const content = page.getByRole('article', { name: 'Issue content' });
+  const description = page.getByRole('textbox', {
+    name: 'Description',
+    exact: true,
+  });
+  const saved = () => expect(page.getByRole('status')).toHaveText('Saved');
+  const choose = async (
+    target: typeof page,
+    property: string,
+    value: string,
+  ) => {
+    await target
+      .getByRole('button', { name: new RegExp(`^${property}:`) })
+      .click();
+    await target
+      .getByRole('menuitemradio', { name: value, exact: true })
+      .click();
+  };
   await expect(
     content.getByRole('heading', { name: 'Acceptance' }),
   ).toBeVisible();
   await expect(content.locator('strong')).toHaveText('Markdown');
-  await expect(page.getByLabel('Description', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Edit issue', exact: true }).click();
-  await expect(page.getByLabel('Title', { exact: true })).toBeFocused();
-  await page.getByLabel('Title', { exact: true }).fill('A discarded title');
-  await expect(
-    page.getByRole('button', { name: 'View issue', exact: true }),
-  ).toBeDisabled();
-  await page
-    .getByRole('button', { name: 'Cancel editing', exact: true })
-    .click();
-  await expect(
-    content.getByRole('heading', {
-      name: 'Ship the issue workflow',
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(description).toHaveAttribute('contenteditable', 'true');
   await expect(
     page.getByRole('button', { name: 'Edit issue', exact: true }),
-  ).toBeFocused();
-  await page.getByRole('button', { name: 'Edit issue', exact: true }).click();
+  ).toHaveCount(0);
+  // Opening an issue must not rewrite or version its Markdown.
+  await saved();
+  expect(
+    (
+      await (
+        await page.request.get(
+          `/api/v1/workspaces/${workspace.id}/issues/ENG-1`,
+        )
+      ).json()
+    ).version,
+  ).toBe(1);
   await second.goto(issueUrl);
-  await second.getByRole('button', { name: 'Edit issue', exact: true }).click();
-  await expect(second.getByLabel('Title', { exact: true })).toHaveValue(
-    'Ship the issue workflow',
-  );
   await page
-    .getByLabel('Title', { exact: true })
+    .getByRole('textbox', { name: 'Title', exact: true })
     .fill('Deliver the issue workflow');
-  await second.getByLabel('Priority', { exact: true }).selectOption('high');
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Changes saved');
+  await saved();
   await expect(page).toHaveURL(
     new RegExp(`/${slug}/issue/ENG-1/deliver-the-issue-workflow$`),
   );
-  await second
-    .getByRole('button', { name: 'Save changes', exact: true })
-    .click();
+  // Properties are editable in the reading layout and still detect stale versions.
+  await choose(second, 'Priority', 'High');
   await expect(second.getByRole('alert')).toContainText(
     'Your draft is preserved',
   );
-  await expect(second.getByLabel('Priority', { exact: true })).toHaveValue(
-    'high',
-  );
+  await expect(
+    second.getByRole('button', { name: 'Priority: High', exact: true }),
+  ).toBeDisabled();
   await expect(
     second.getByRole('button', { name: 'Use current version', exact: true }),
   ).toBeFocused();
@@ -161,106 +166,141 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await second
     .getByRole('button', { name: 'Keep my changed fields for review' })
     .click();
-  await expect(second.getByLabel('Title', { exact: true })).toHaveValue(
-    'Deliver the issue workflow',
-  );
+  await expect(
+    second.getByRole('textbox', { name: 'Title', exact: true }),
+  ).toHaveValue('Deliver the issue workflow');
+  await expect(second.getByRole('status')).toHaveText('Review changes');
   await second
-    .getByRole('button', { name: 'Save changes', exact: true })
+    .getByRole('button', { name: 'Save reviewed changes', exact: true })
     .click();
-  await expect(second.getByRole('status')).toContainText('Changes saved');
-  // Same-property conflict requires an explicit choice, and adopting current data works.
-  await page.getByLabel('Title', { exact: true }).fill('My alternate title');
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(second.getByRole('status')).toHaveText('Saved');
+  await page
+    .getByRole('textbox', { name: 'Title', exact: true })
+    .fill('My alternate title');
   await expect(page.getByRole('alert')).toContainText(
     'Your draft is preserved',
   );
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
-    'My alternate title',
-  );
+  await expect(
+    page.getByRole('textbox', { name: 'Title', exact: true }),
+  ).toHaveValue('My alternate title');
   await page.getByRole('button', { name: 'Use current version' }).click();
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
-    'Deliver the issue workflow',
-  );
-  // A failed request retains the editor draft and can be retried.
+  await expect(
+    page.getByRole('textbox', { name: 'Title', exact: true }),
+  ).toHaveValue('Deliver the issue workflow');
+  // Failed autosaves preserve the content and guard navigation away.
   await page.route('**/api/v1/workspaces/*/issues/*', (route) =>
     route.request().method() === 'PATCH' ? route.abort() : route.continue(),
   );
-  await page
-    .getByLabel('Description', { exact: true })
-    .fill('## Final\nPersist this description.');
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await description.fill('A draft retained after a failed autosave.');
   await expect(page.getByRole('alert')).toContainText('Check your connection');
-  await expect(page.getByLabel('Description', { exact: true })).toHaveValue(
-    '## Final\nPersist this description.',
+  await expect(description).toHaveText(
+    'A draft retained after a failed autosave.',
+  );
+  await page.getByRole('link', { name: 'Back to issues' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Unsaved changes' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Stay on issue' }).click();
+  await expect(description).toHaveText(
+    'A draft retained after a failed autosave.',
   );
   await page.unroute('**/api/v1/workspaces/*/issues/*');
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Changes saved');
+  await page.getByRole('button', { name: 'Retry save' }).click();
+  await saved();
   await page.reload();
-  await expect(content.getByRole('heading', { name: 'Final' })).toBeVisible();
-  await page.getByRole('button', { name: 'Edit issue', exact: true }).click();
-  await expect(page.getByLabel('Description', { exact: true })).toHaveValue(
-    '## Final\nPersist this description.',
+  await expect(description).toHaveText(
+    'A draft retained after a failed autosave.',
   );
-  await expect(page.getByLabel('Priority', { exact: true })).toHaveValue(
-    'high',
-  );
-  await page.getByLabel('Assignee', { exact: true }).selectOption('');
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Changes saved');
-  await page
-    .getByLabel('Status', { exact: true })
-    .selectOption({ label: 'Done' });
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Changes saved');
+  await choose(page, 'Assignee', 'Unassigned');
+  await saved();
+  await choose(page, 'Status', 'Done');
+  await saved();
+  // Seed existing rich Markdown and edit it without switching modes or losing structure.
+  const current = await (
+    await page.request.get(`/api/v1/workspaces/${workspace.id}/issues/ENG-1`)
+  ).json();
   const formattedDescription =
     '## What to build\n\nRender **Markdown** with a readable layout and keep the original source for editing.\n\n### Acceptance criteria\n\n- [x] Preserve saved descriptions after reload\n- [ ] Keep status and assignee easy to find\n\nSee the [documentation](https://example.com/docs) and use `expected_version` when saving.\n\n> Failed requests should preserve your draft.\n\n```json\n{ "expected_version": 2 }\n```\n\n| Property | Behavior |\n| --- | --- |\n| Status | Scoped to the team |\n| Assignee | Workspace member |';
-  await page
-    .getByLabel('Description', { exact: true })
-    .fill(formattedDescription);
-  await page
-    .getByRole('button', { name: 'Preview description', exact: true })
-    .click();
-  const preview = page.getByRole('region', { name: 'Description preview' });
-  await expect(page.getByLabel('Description', { exact: true })).toBeHidden();
-  await expect(
-    preview.getByRole('heading', { name: 'What to build' }),
-  ).toBeVisible();
-  await expect(preview.getByRole('checkbox').first()).toBeChecked();
-  await page.screenshot({
-    path: `test-results/issue-preview-${test.info().project.name}.png`,
-    fullPage: true,
-  });
-  await page
-    .getByRole('button', { name: 'Write description', exact: true })
-    .click();
-  await expect(page.getByLabel('Description', { exact: true })).toHaveValue(
-    formattedDescription,
-  );
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Changes saved');
-  await page.getByRole('button', { name: 'View issue', exact: true }).click();
+  expect(
+    (
+      await page.request.patch(
+        `/api/v1/workspaces/${workspace.id}/issues/ENG-1`,
+        {
+          headers,
+          data: {
+            expected_version: current.version,
+            description: formattedDescription,
+          },
+        },
+      )
+    ).ok(),
+  ).toBe(true);
   await page.reload();
   await expect(
     content.getByRole('heading', { name: 'What to build' }),
   ).toBeVisible();
-  await expect(content.getByRole('checkbox')).toHaveCount(2);
-  await expect(content.getByRole('checkbox').first()).toBeDisabled();
   await expect(content.getByRole('table')).toBeVisible();
+  const task = description.locator('li[data-type="taskItem"]').first();
+  const checkboxBounds = await task.getByRole('checkbox').boundingBox();
+  const textBounds = await task.locator('p').first().boundingBox();
+  expect(checkboxBounds).not.toBeNull();
+  expect(textBounds).not.toBeNull();
+  expect(Math.abs(checkboxBounds!.y - textBounds!.y)).toBeLessThan(16);
+  await expect(content.getByRole('checkbox').first()).toBeChecked();
+  await content.getByRole('checkbox').nth(1).check();
+  await saved();
+  await expect(content.getByRole('checkbox').nth(1)).toBeChecked();
+  // Keyboard formatting edits the document and round-trips as Markdown.
+  await description.locator('h2').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' in place');
+  await saved();
   await expect(
-    content.getByRole('link', { name: 'documentation' }),
-  ).toHaveAttribute('href', 'https://example.com/docs');
+    content.getByRole('heading', { name: 'What to build in place' }),
+  ).toBeVisible();
+  // A delayed response must not replace text entered after the request started.
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let delayed = false;
+  await page.route('**/api/v1/workspaces/*/issues/*', async (route) => {
+    if (route.request().method() === 'PATCH' && !delayed) {
+      delayed = true;
+      const response = await route.fetch();
+      await gate;
+      await route.fulfill({ response });
+    } else await route.continue();
+  });
+  await page
+    .getByRole('textbox', { name: 'Title', exact: true })
+    .fill('Deliver the issue workflow safely');
+  await expect.poll(() => delayed).toBe(true);
+  await description.locator('h2').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' safely');
+  release?.();
+  await saved();
+  await page.unroute('**/api/v1/workspaces/*/issues/*');
+  await expect(
+    content.getByRole('heading', { name: 'What to build in place safely' }),
+  ).toBeVisible();
+  await page
+    .getByRole('textbox', { name: 'Title', exact: true })
+    .fill('Deliver the issue workflow');
+  await saved();
+  await page.reload();
+  await expect(
+    content.getByRole('heading', { name: 'What to build in place safely' }),
+  ).toBeVisible();
+  await expect(content.getByRole('table')).toBeVisible();
   for (const colorScheme of themes) {
     await page.emulateMedia({ colorScheme });
     await page.screenshot({
-      path: `test-results/issue-rendered-${test.info().project.name}-${colorScheme}.png`,
+      path: `test-results/issue-inline-${test.info().project.name}-${colorScheme}.png`,
       fullPage: true,
     });
   }
-  await page.screenshot({
-    path: `test-results/issue-detail-${test.info().project.name}.png`,
-    fullPage: true,
-  });
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -272,12 +312,10 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await expect(
     page.getByRole('button', { name: 'Restore issue', exact: true }),
   ).toBeVisible();
+  await expect(description).toHaveAttribute('contenteditable', 'false');
   await expect(
-    page.getByRole('button', { name: 'Edit issue', exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    content.getByRole('heading', { name: 'What to build' }),
-  ).toBeVisible();
+    page.getByRole('button', { name: 'Status: Done', exact: true }),
+  ).toBeDisabled();
   await page.getByRole('link', { name: 'Back to issues' }).click();
   await expect(page.getByText('Capture your first issue')).toBeVisible();
   await page.getByRole('link', { name: 'Archived', exact: true }).click();
@@ -288,32 +326,15 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await page
     .getByRole('button', { name: 'Restore issue', exact: true })
     .click();
-  await expect(
-    page.getByRole('button', { name: 'Edit issue', exact: true }),
-  ).toBeEnabled();
+  await expect(description).toHaveAttribute('contenteditable', 'true');
   await page.goto(`/${slug}/issue/eng-1`);
   await expect(page).toHaveURL(
     new RegExp(`/${slug}/issue/ENG-1/deliver-the-issue-workflow$`),
   );
-  await expect(
-    page.getByRole('heading', {
-      name: 'Deliver the issue workflow',
-      exact: true,
-    }),
-  ).toBeVisible();
   await page.getByRole('link', { name: 'Back to issues' }).click();
   await expect(
     page.getByText('Deliver the issue workflow', { exact: true }),
   ).toBeVisible();
-  await page.screenshot({
-    path: `test-results/issue-list-${test.info().project.name}.png`,
-    fullPage: true,
-  });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
   const persisted = await (
     await page.request.get(
       `/api/v1/workspaces/${workspace.id}/issues/${issueId}`,
@@ -472,8 +493,8 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
     page.getByRole('heading', { name: 'A design team issue', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('article', { name: 'Issue content' }),
-  ).toContainText('No description yet.');
+    page.getByRole('textbox', { name: 'Description', exact: true }),
+  ).toBeEmpty();
   await page.reload();
   await openNavigation();
   await expect(

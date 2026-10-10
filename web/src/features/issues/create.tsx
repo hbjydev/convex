@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { ChevronRightIcon, UsersIcon, LayersIcon } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
+import { PropertyMenu } from './property-menu';
 import { api } from '@/api/client';
 import { Notice } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
@@ -10,13 +11,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from '@/components/ui/dropdown-menu';
 import { Field, FieldGroup, FieldLabel, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,46 +23,6 @@ import {
   type WorkspaceDetail,
 } from './model';
 import { PriorityIcon, StatusIcon } from './icons';
-export function PropertyMenu({
-  label,
-  value,
-  options,
-  onChange,
-  icon,
-}: {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-  icon: ReactNode;
-}) {
-  const selected = options.find((option) => option.value === value);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="issue-property"
-          aria-label={`${label}: ${selected?.label ?? 'Choose'}`}
-        >
-          {icon}
-          {selected?.label ?? label}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-48">
-        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          {options.map((option) => (
-            <DropdownMenuRadioItem key={option.value} value={option.value}>
-              {option.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 export function CreateIssueDialog({
   detail,
   slug,

@@ -20,7 +20,7 @@ The sidebar groups navigation by team, following the user's second reference. Ea
 
 Workspace switching, All workspaces, and workspace settings are reached through the top dropdown; these links are not repeated in the main sidebar.
 
-Issue details follow the user's Linear reference, with a rendered Markdown description and separate properties column. Use shadcn's standalone typeset stylesheet for document typography while keeping the Markdown source available for editing and preview.
+Issue details follow the user's Linear reference, with a borderless ProseMirror description editor styled by shadcn typeset and a separate column of editable property menus. Keep Markdown as the storage format. Save title and description changes automatically after a pause and on blur, and properties when selected; preserve drafts through failed requests and conflict review.
 
 ## Constraints
 

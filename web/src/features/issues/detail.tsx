@@ -1,24 +1,35 @@
-import { Link, useLocation, useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import {
+  Link,
+  useBlocker,
+  useLocation,
+  useNavigate,
+} from '@tanstack/react-router';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ChevronRightIcon, UserRoundIcon } from 'lucide-react';
 import { api } from '@/api/client';
 import { LoadingState, Notice } from '@/components/feedback';
-import { ChevronRightIcon, PencilIcon, UserRoundIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FieldSet } from '@/components/ui/field';
-import { Spinner } from '@/components/ui/spinner';
-import { errorMessage, unwrap } from '@/lib/requests';
-import { IssueFields } from './fields';
-import { IssueDescription } from './description';
-import { PriorityIcon, StatusIcon } from './icons';
 import {
-  issuePatch,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { errorMessage, unwrap } from '@/lib/requests';
+import { IssueDescription } from './description';
+import { createIssueEditing } from './editing';
+import { PriorityIcon, StatusIcon } from './icons';
+import { PropertyMenu } from './property-menu';
+import { RichDescription } from './rich-description';
+import {
   issueRouteParams,
-  type Draft,
+  priorities,
   type Issue,
-  type IssuePatch,
   type WorkspaceDetail,
 } from './model';
 import { useIssueWorkspace } from './use-workspace';
+
 function Editor({
   initial,
   detail,
@@ -28,26 +39,50 @@ function Editor({
   detail: WorkspaceDetail;
   onCurrentIssue: (issue: Issue) => void;
 }) {
-  const [issue, setIssue] = useState(initial);
-  const [draft, setDraft] = useState<Draft>(initial);
-  const [conflict, setConflict] = useState<Issue>();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [editing, setEditing] = useState(false);
-  const editButton = useRef<HTMLButtonElement>(null);
-  const wasEditing = useRef(false);
-  useEffect(() => {
-    if (editing) {
-      wasEditing.current = true;
-      document.getElementById('issue-title')?.focus();
-    } else if (wasEditing.current) {
-      wasEditing.current = false;
-      editButton.current?.focus();
-    }
-  }, [editing]);
+  const [editing] = useState(() =>
+    createIssueEditing(
+      initial,
+      async (patch) => {
+        try {
+          const result = await api.PATCH(
+            '/api/v1/workspaces/{workspace_id}/issues/{issue_ref}',
+            {
+              params: {
+                path: {
+                  workspace_id: initial.workspace_id,
+                  issue_ref: initial.id,
+                },
+              },
+              body: patch,
+            },
+          );
+          if (
+            result.response.status === 409 &&
+            result.error &&
+            'current_issue' in result.error
+          )
+            return { conflict: result.error.current_issue };
+          return { issue: unwrap(result) };
+        } catch (reason) {
+          throw new Error(errorMessage(reason));
+        }
+      },
+      onCurrentIssue,
+    ),
+  );
+  const state = useSyncExternalStore(editing.subscribe, editing.getSnapshot);
+  const { issue, draft, pending, error, conflict, review } = state;
+  const dirty = editing.dirty();
+  const archived = !!issue.archived_at;
+  const disabled = archived || !!conflict || state.archiving;
+  const team = detail.teams.find((team) => team.id === issue.team_id);
+  const status = team?.statuses.find((status) => status.id === draft.status_id);
   const currentVersionButton = useRef<HTMLButtonElement>(null);
   const hadConflict = useRef(false);
+  useEffect(() => {
+    editing.activate();
+    return editing.dispose;
+  }, [editing]);
   useEffect(() => {
     if (conflict) {
       hadConflict.current = true;
@@ -57,54 +92,23 @@ function Editor({
       document.getElementById('issue-title')?.focus();
     }
   }, [conflict]);
-  async function save(patch: IssuePatch) {
-    setPending(true);
-    setError('');
-    setMessage('');
-    try {
-      const result = await api.PATCH(
-        '/api/v1/workspaces/{workspace_id}/issues/{issue_ref}',
-        {
-          params: {
-            path: { workspace_id: issue.workspace_id, issue_ref: issue.id },
-          },
-          body: patch,
-        },
-      );
-      if (
-        result.response.status === 409 &&
-        result.error &&
-        'current_issue' in result.error
-      ) {
-        setConflict(result.error.current_issue);
-        return;
-      }
-      const saved = unwrap(result);
-      setIssue(saved);
-      onCurrentIssue(saved);
-      setDraft(saved);
-      setConflict(undefined);
-      if (saved.archived_at) setEditing(false);
-      setMessage(
-        saved.archived_at
-          ? 'Issue archived.'
-          : patch.archived === false
-            ? 'Issue restored.'
-            : 'Changes saved.',
-      );
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setPending(false);
+  const propertyMenuClosed = (event: Event) => {
+    if (editing.getSnapshot().conflict) {
+      event.preventDefault();
+      currentVersionButton.current?.focus();
     }
-  }
-  const archived = !!issue.archived_at;
-  const dirty = Object.keys(issuePatch(issue, draft)).length > 1;
-  const team = detail.teams.find((team) => team.id === issue.team_id);
-  const status = team?.statuses.find((status) => status.id === issue.status_id);
-  const assignee = detail.members.find(
-    (member) => member.id === issue.assignee_membership_id,
-  );
+  };
+  const blocker = useBlocker({
+    withResolver: true,
+    enableBeforeUnload: () => editing.dirty() || editing.getSnapshot().pending,
+    shouldBlockFn: async ({ next }) => {
+      const prefix = `/${detail.workspace.slug}/issue/${issue.identifier}`;
+      if (next.pathname === prefix || next.pathname.startsWith(`${prefix}/`))
+        return false;
+      await editing.save();
+      return editing.dirty() || editing.getSnapshot().pending;
+    },
+  });
   return (
     <section className="issue-detail-page">
       <header className="issues-header">
@@ -122,31 +126,27 @@ function Editor({
             Issues
           </Link>
           <ChevronRightIcon aria-hidden="true" />
-          <span className="issue-detail-key">{issue.identifier}</span>
+          <span>{issue.identifier}</span>
         </nav>
         <div className="issue-detail-actions">
-          {!archived && (
-            <Button
-              ref={editButton}
-              variant="outline"
-              size="sm"
-              disabled={pending || !!conflict || (editing && dirty)}
-              onClick={() => setEditing(!editing)}
-            >
-              <PencilIcon data-icon="inline-start" />
-              {editing ? 'View issue' : 'Edit issue'}
-            </Button>
-          )}
+          <span className="issue-save-status" role="status">
+            {pending
+              ? 'Saving…'
+              : conflict
+                ? 'Review conflict'
+                : error
+                  ? 'Not saved'
+                  : review
+                    ? 'Review changes'
+                    : dirty
+                      ? 'Unsaved changes'
+                      : 'Saved'}
+          </span>
           <Button
             size="sm"
             variant="ghost"
-            disabled={pending || !!conflict || dirty}
-            onClick={() =>
-              void save({
-                expected_version: issue.version,
-                archived: !archived,
-              })
-            }
+            disabled={pending || !!conflict || review || !!error}
+            onClick={() => void editing.archive()}
           >
             {archived ? 'Restore issue' : 'Archive issue'}
           </Button>
@@ -176,11 +176,8 @@ function Editor({
               <dt>Current status</dt>
               <dd>
                 {
-                  detail.teams
-                    .find((team) => team.id === conflict.team_id)
-                    ?.statuses.find(
-                      (status) => status.id === conflict.status_id,
-                    )?.name
+                  team?.statuses.find((item) => item.id === conflict.status_id)
+                    ?.name
                 }
               </dd>
               <dt>Current priority</dt>
@@ -196,140 +193,164 @@ function Editor({
             </dl>
             <div className="flex flex-wrap gap-2">
               <Button
-                variant="outline"
                 ref={currentVersionButton}
-                onClick={() => {
-                  setIssue(conflict);
-                  onCurrentIssue(conflict);
-                  setDraft(conflict);
-                  setConflict(undefined);
-                }}
+                variant="outline"
+                onClick={() => editing.resolve(false)}
               >
                 Use current version
               </Button>
               <Button
                 variant="outline"
                 disabled={!!conflict.archived_at}
-                onClick={() => {
-                  const patch = issuePatch(issue, draft);
-                  const merged: Draft = {
-                    title: patch.title ?? conflict.title,
-                    description: patch.description ?? conflict.description,
-                    status_id: patch.status_id ?? conflict.status_id,
-                    priority: patch.priority ?? conflict.priority,
-                    assignee_membership_id:
-                      'assignee_membership_id' in patch
-                        ? (patch.assignee_membership_id ?? null)
-                        : conflict.assignee_membership_id,
-                  };
-                  setIssue(conflict);
-                  onCurrentIssue(conflict);
-                  setDraft(merged);
-                  setConflict(undefined);
-                  setMessage(
-                    'Your changes are ready for review. Check them, then save.',
-                  );
-                }}
+                onClick={() => editing.resolve(true)}
               >
                 Keep my changed fields for review
               </Button>
             </div>
           </div>
         )}
-        {editing && !archived ? (
-          <form
-            className="app-form issue-editor"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void save(issuePatch(issue, draft));
-            }}
-            aria-busy={pending}
-          >
-            <FieldSet disabled={pending || archived || !!conflict}>
-              <IssueFields
-                draft={draft}
-                onChange={setDraft}
-                detail={detail}
-                teamId={issue.team_id}
-                disabled={pending || archived || !!conflict}
+        <div className="issue-detail-layout">
+          <article className="issue-document" aria-label="Issue content">
+            <h1 className="issue-title-heading" aria-label={draft.title}>
+              <Textarea
+                id="issue-title"
+                aria-label="Title"
+                className="issue-inline-title"
+                value={draft.title}
+                maxLength={240}
+                rows={1}
+                disabled={disabled}
+                onChange={(event) =>
+                  editing.change({ title: event.target.value })
+                }
+                onBlur={() => void editing.save()}
               />
-              <div className="issue-editor-actions">
-                <Button
-                  type="submit"
-                  disabled={pending || archived || !!conflict}
-                >
-                  {pending && <Spinner data-icon="inline-start" />}Save changes
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={pending || !!conflict}
-                  onClick={() => {
-                    setDraft(issue);
-                    setEditing(false);
-                    setError('');
-                    setMessage('');
-                  }}
-                >
-                  Cancel editing
-                </Button>
-                {dirty && (
-                  <span className="text-sm text-muted-foreground">
-                    Unsaved changes
-                  </span>
-                )}
-              </div>
-            </FieldSet>
-          </form>
-        ) : (
-          <div className="issue-detail-layout">
-            <article className="issue-document" aria-label="Issue content">
-              <h1>{issue.title}</h1>
-              {issue.description.trim() ? (
-                <IssueDescription description={issue.description} />
-              ) : (
-                <p className="issue-no-description">No description yet.</p>
-              )}
-            </article>
-            <aside className="issue-properties" aria-label="Issue properties">
-              <h2>Properties</h2>
-              <dl>
-                <div>
-                  <dt className="sr-only">Status</dt>
-                  <dd>
-                    <StatusIcon category={status?.category} />
-                    {status?.name}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="sr-only">Priority</dt>
-                  <dd>
-                    <PriorityIcon priority={issue.priority} />
-                    {issue.priority === 'none'
+            </h1>
+            <RichDescription
+              value={draft.description}
+              disabled={disabled}
+              onChange={(description) => editing.change({ description })}
+              onBlur={() => void editing.save()}
+            />
+          </article>
+          <aside className="issue-properties" aria-label="Issue properties">
+            <h2>Properties</h2>
+            <div className="issue-property-controls">
+              <PropertyMenu
+                onCloseAutoFocus={propertyMenuClosed}
+                inline
+                disabled={disabled}
+                label="Status"
+                value={draft.status_id}
+                icon={<StatusIcon category={status?.category} />}
+                options={
+                  team?.statuses.map((item) => ({
+                    value: item.id,
+                    label: item.name,
+                  })) ?? []
+                }
+                onChange={(status_id) => editing.change({ status_id }, true)}
+              />
+              <PropertyMenu
+                onCloseAutoFocus={propertyMenuClosed}
+                inline
+                disabled={disabled}
+                label="Priority"
+                value={draft.priority}
+                icon={<PriorityIcon priority={draft.priority} />}
+                options={priorities.map((value) => ({
+                  value,
+                  label:
+                    value === 'none'
                       ? 'No priority'
-                      : issue.priority.charAt(0).toUpperCase() +
-                        issue.priority.slice(1)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="sr-only">Assignee</dt>
-                  <dd>
-                    <UserRoundIcon aria-hidden="true" />
-                    {assignee?.display_name ?? 'Unassigned'}
-                  </dd>
-                </div>
-              </dl>
-            </aside>
+                      : value.charAt(0).toUpperCase() + value.slice(1),
+                }))}
+                onChange={(value) => {
+                  const priority = priorities.find((item) => item === value);
+                  if (priority) editing.change({ priority }, true);
+                }}
+              />
+              <PropertyMenu
+                onCloseAutoFocus={propertyMenuClosed}
+                inline
+                disabled={disabled}
+                label="Assignee"
+                value={draft.assignee_membership_id ?? ''}
+                icon={<UserRoundIcon data-icon="inline-start" />}
+                options={[
+                  { value: '', label: 'Unassigned' },
+                  ...detail.members
+                    .filter((member) => !member.disabled)
+                    .map((member) => ({
+                      value: member.id,
+                      label: member.display_name,
+                    })),
+                ]}
+                onChange={(value) =>
+                  editing.change(
+                    { assignee_membership_id: value || null },
+                    true,
+                  )
+                }
+              />
+            </div>
+          </aside>
+        </div>
+        {error && (
+          <div className="issue-save-recovery">
+            <Notice error>{error} Your draft is preserved.</Notice>
+            <Button variant="outline" onClick={() => void editing.save(true)}>
+              Retry save
+            </Button>
+            <Button variant="ghost" onClick={editing.discard}>
+              Discard changes
+            </Button>
           </div>
         )}
-        {error && <Notice error>{error}</Notice>}
-        {message && <Notice>{message}</Notice>}
-        {dirty && (
-          <p className="mt-2 text-sm text-muted-foreground">
-            Save your changes before archiving.
-          </p>
+        {review && (
+          <div className="issue-save-recovery">
+            <p className="text-sm text-muted-foreground">
+              Your changes are ready for review. Check them, then save.
+            </p>
+            <Button disabled={pending} onClick={() => void editing.save(true)}>
+              Save reviewed changes
+            </Button>
+            <Button
+              disabled={pending}
+              variant="ghost"
+              onClick={editing.discard}
+            >
+              Discard changes
+            </Button>
+          </div>
         )}
       </div>
+      <Dialog
+        open={blocker.status === 'blocked'}
+        onOpenChange={(open) => {
+          if (!open) blocker.reset?.();
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Unsaved changes</DialogTitle>
+          <DialogDescription>
+            Your changes could not be saved. Stay on this issue to retry, or
+            discard them before leaving.
+          </DialogDescription>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => blocker.reset?.()}>Stay on issue</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                editing.discard();
+                blocker.proceed?.();
+              }}
+            >
+              Discard and leave
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
