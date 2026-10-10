@@ -88,6 +88,7 @@ Start with the [canonical delivery checkpoints](docs/checkpoints.md) for the imp
 - [Issue data model](docs/issue-data-model.md)
 - [Accounts and OIDC login](docs/authentication.md)
 - [Backend and API contract](docs/backend-and-api.md)
+- [Backend crate responsibilities and transaction flow](docs/backend-crates.md)
 - [Domain vocabulary](CONTEXT.md)
 
 The stack is Rust, Axum, PostgreSQL, and SQLx on the backend, with utoipa-generated OpenAPI and generated TypeScript contract types for a React frontend. CP01 establishes the runnable application and contract pipeline. CP02 adds local accounts, invitations, sessions, recovery, and workspace/team settings. CP04 adds the complete issue workflow.

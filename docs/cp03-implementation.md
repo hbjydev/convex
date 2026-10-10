@@ -33,6 +33,9 @@ Provider configuration and enforcement use a shared persisted revision across re
 
 ## Existing code and necessary changes
 
+This section records the pre-CP03 code layout. The current implementation lives in
+`convex-auth`, `convex-api` and `convex-app`; see [backend crate boundaries](backend-crates.md).
+
 | Area | Finding | Required change |
 | --- | --- | --- |
 | `migrations/202610080002_accounts_workspaces.sql` | Sessions have `CHECK (login_method = 'local')`; accounts already exist independently of local credentials. | Add a new migration for external identities, pending flows, policy revisions, and OIDC session provenance. Preserve existing migrations and local sessions. |

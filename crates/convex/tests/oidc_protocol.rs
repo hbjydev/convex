@@ -82,7 +82,7 @@ impl Fixture {
         let mut config = SecurityConfig::development();
         config.setup_token = Some(SETUP_TOKEN.into());
         config.authentication.oidc_required = required;
-        config.authentication.provider = Some(convex::auth_policy::ProviderConfig {
+        config.authentication.provider = Some(convex_auth::auth_policy::ProviderConfig {
             issuer: self.provider.issuer.clone(),
             client_id: "convex-fixture".into(),
             client_secret: "fixture-secret".into(),
@@ -122,7 +122,7 @@ impl Fixture {
         let params: HashMap<_, _> = url.query_pairs().into_owned().collect();
         assert_eq!(params["code_challenge_method"], "S256");
         assert!(!params.contains_key("invitation_token"));
-        let code = convex::security::token();
+        let code = convex_auth::security::token();
         self.provider.codes.lock().await.insert(
             code.clone(),
             Code {
@@ -336,7 +336,7 @@ async fn signed_oidc_callbacks_preserve_identity_and_invitation_atomicity(pool: 
             !sqlx::query_scalar::<_, bool>(
                 "SELECT accepted_at IS NOT NULL FROM convex.invitations WHERE token_hash=$1"
             )
-            .bind(convex::security::digest(&token))
+            .bind(convex_auth::security::digest(&token))
             .fetch_one(&pool)
             .await
             .unwrap()
@@ -416,7 +416,7 @@ async fn callback_rechecks_invitation_after_exchange_without_holding_database_ga
             // The installation gate must remain free during provider work.
             let mut tx = tokio::time::timeout(
                 std::time::Duration::from_secs(2),
-                convex::accounts::transaction(&pool),
+                convex_auth::postgres::accounts::transaction(&pool),
             )
             .await
             .unwrap()
@@ -431,7 +431,7 @@ async fn callback_rechecks_invitation_after_exchange_without_holding_database_ga
                 }
             };
             sqlx::query(statement)
-                .bind(convex::security::digest(&token))
+                .bind(convex_auth::security::digest(&token))
                 .execute(&mut *tx)
                 .await
                 .unwrap();
@@ -487,7 +487,7 @@ async fn callback_rechecks_invitation_after_exchange_without_holding_database_ga
 
 fn state_hash(path: &str) -> String {
     let url = reqwest::Url::parse(&format!("{ORIGIN}{path}")).unwrap();
-    convex::security::digest(&url.query_pairs().find(|(key, _)| key == "state").unwrap().1)
+    convex_auth::security::digest(&url.query_pairs().find(|(key, _)| key == "state").unwrap().1)
 }
 #[sqlx::test(migrator = "convex::MIGRATOR")]
 #[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
@@ -580,7 +580,7 @@ impl Fixture {
         let params: HashMap<_, _> = url.query_pairs().into_owned().collect();
         assert_eq!(params["max_age"], "0");
         assert_eq!(params["prompt"], "login");
-        let code = convex::security::token();
+        let code = convex_auth::security::token();
         self.provider.codes.lock().await.insert(
             code.clone(),
             Code {
@@ -916,11 +916,11 @@ async fn oidc_local_attachment_and_removal_require_exact_single_use_session_boun
     let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &local, Value::Null).await;
     assert_eq!(account["user"]["id"], original["user"]["id"]);
     assert_eq!(account["workspaces"], original["workspaces"]);
-    let recovery = convex::security::token();
+    let recovery = convex_auth::security::token();
     sqlx::query("INSERT INTO convex.recovery_tokens (id,user_id,token_hash) VALUES ($1,$2,$3)")
         .bind(uuid::Uuid::new_v4())
         .bind(uuid::Uuid::parse_str(account["user"]["id"].as_str().unwrap()).unwrap())
-        .bind(convex::security::digest(&recovery))
+        .bind(convex_auth::security::digest(&recovery))
         .execute(&pool)
         .await
         .unwrap();

@@ -8,8 +8,8 @@ autotests = false
 version = "0.1.0"
 
 [features]
-integration = []
-embed-web = ["dep:rust-embed", "dep:mime_guess"]
+integration = ["convex-db/testing"]
+embed-web = ["convex-api/embed-web"]
 
 [[test]]
 name = "integration_database"
@@ -17,28 +17,26 @@ path = "tests/database.rs"
 required-features = ["integration"]
 
 [dependencies]
-openidconnect.workspace = true
-reqwest.workspace = true
-argon2.workspace = true
-sha2.workspace = true
-uuid.workspace = true
-chrono.workspace = true
-lettre.workspace = true
+convex-db = { workspace = true, features = ["postgres"] }
+convex-auth = { workspace = true, features = ["postgres"] }
+convex-app = { workspace = true, features = ["postgres"] }
+convex-api.workspace = true
 anyhow.workspace = true
 axum.workspace = true
-rust-embed = { workspace = true, optional = true }
-mime_guess = { workspace = true, optional = true }
-serde.workspace = true
 serde_json.workspace = true
-sqlx.workspace = true
 tokio.workspace = true
-tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-utoipa.workspace = true
-utoipa-axum.workspace = true
 
 [dev-dependencies]
+convex-workspaces.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+lettre.workspace = true
+openidconnect.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+sqlx.workspace = true
 jsonschema.workspace = true
 tower.workspace = true
 

@@ -15,7 +15,14 @@ The exact Mise tasks and Compose service layout will be established in CP01. Thi
 
 ## Application structure
 
-Build one Rust application, organized into modules for accounts, workspaces/teams, and issues. Each module owns its operations, permission checks, validation, SQLx transactions, and activity recording. HTTP handlers translate requests and results across those module interfaces.
+Build one Rust application with domain crates for accounts/authentication,
+workspaces/teams and issues. Domain crates own models, rules, repository traits and
+feature-gated PostgreSQL/mock adapters. Application operations coordinate those
+repositories through a shared unit of work; HTTP handlers translate requests and
+results. `convex` only configures dependencies, starts the server and runs operator commands.
+`convex-api` owns Axum, DTOs, cookies and OpenAPI; `convex-auth` owns authentication
+internals. See [backend crate boundaries](backend-crates.md) for the reading map
+and transaction guarantees.
 
 Use explicit HTTP request/response types distinct from database rows. This keeps internal credentials, token hashes, instance permissions, and persistence details out of issue responses. Derive utoipa schemas on these public types and describe documented success and error responses on handlers.
 
