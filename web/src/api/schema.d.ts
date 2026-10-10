@@ -117,6 +117,134 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/auth/methods': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getLoginMethods'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/methods/local/add': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['addLocalMethod'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/methods/local/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['removeLocalMethod'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/methods/oidc/link': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['linkOidcMethod'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/methods/oidc/prove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['proveOidcMethod'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/methods/oidc/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['removeOidcMethod'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/oidc/callback': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['completeOidcLogin'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/oidc/start': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['startOidcLogin'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/password': {
     parameters: {
       query?: never;
@@ -436,10 +564,14 @@ export interface components {
       user: components['schemas']['User'];
       workspaces: components['schemas']['Workspace'][];
     };
+    AddLocal: {
+      email: string;
+      password: string;
+    };
     AdminAccount: {
       disabled: boolean;
       display_name: string;
-      email: string;
+      email?: string | null;
       /** Format: uuid */
       id: string;
       is_instance_admin: boolean;
@@ -453,6 +585,8 @@ export interface components {
     };
     BootstrapInfo: {
       mail_available: boolean;
+      oidc_display_name?: string | null;
+      oidc_required: boolean;
       setup_enabled: boolean;
       setup_required: boolean;
     };
@@ -572,6 +706,9 @@ export interface components {
       status_id?: string;
       title?: string;
     };
+    LocalProof: {
+      current_password: string;
+    };
     LoginRequest: {
       email: string;
       password: string;
@@ -594,14 +731,40 @@ export interface components {
     MessageResponse: {
       message: string;
     };
+    /** @enum {string} */
+    MethodAction: 'add_local' | 'remove_local';
+    Methods: {
+      can_add_local: boolean;
+      can_link_oidc: boolean;
+      can_remove_local: boolean;
+      local_email?: string | null;
+      local_usable: boolean;
+      oidc: components['schemas']['OidcMethod'][];
+      pending_action?: null | components['schemas']['MethodAction'];
+      provider_display_name?: string | null;
+    };
+    OidcMethod: {
+      /** Format: uuid */
+      id: string;
+      issuer: string;
+      usable: boolean;
+    };
     PasswordChange: {
       current_password: string;
       new_password: string;
     };
     /** @enum {string} */
     Priority: 'none' | 'urgent' | 'high' | 'medium' | 'low';
+    ProveOidc: {
+      action: components['schemas']['MethodAction'];
+    };
     RecoveryRequest: {
       email: string;
+    };
+    RemoveOidc: {
+      current_password: string;
+      /** Format: uuid */
+      identity_id: string;
     };
     RenameRequest: {
       name: string;
@@ -638,6 +801,12 @@ export interface components {
       team_name: string;
       workspace_name: string;
       workspace_slug: string;
+    };
+    StartRequest: {
+      invitation_token?: string | null;
+    };
+    StartResponse: {
+      authorization_url: string;
     };
     Team: {
       /** Format: uuid */
@@ -962,6 +1131,481 @@ export interface operations {
         };
       };
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  getLoginMethods: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Methods'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  addLocalMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AddLocal'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  removeLocalMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  linkOidcMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LocalProof'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StartResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  proveOidcMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ProveOidc'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StartResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  removeOidcMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RemoveOidc'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  completeOidcLogin: {
+    parameters: {
+      query: {
+        /** @description Provider-returned opaque state; requires matching browser-binding cookie */
+        state: string;
+        /** @description Authorization code; exactly one of code or error */
+        code?: string;
+        /** @description Provider cancellation or denial; details are discarded */
+        error?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Single-use browser-bound callback. Redirects to fixed login outcome or account method destination; session cookie for successful login/linking, HttpOnly proof cookie for reauthentication. Cache-Control: no-store; Referrer-Policy: no-referrer. Provider errors are sanitized. */
+      303: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  startOidcLogin: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StartRequest'];
+      };
+    };
+    responses: {
+      /** @description Authorization URL and HttpOnly browser-binding cookie; requires same-origin CSRF headers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StartResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      429: {
         headers: {
           [name: string]: unknown;
         };
@@ -1331,7 +1975,7 @@ export interface operations {
           'application/json': components['schemas']['HealthResponse'];
         };
       };
-      /** @description Database or application schema is unavailable */
+      /** @description Database, application schema, or authentication policy lease is unavailable */
       503: {
         headers: {
           [name: string]: unknown;

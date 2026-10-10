@@ -18,6 +18,8 @@ Open <http://127.0.0.1:5173>. The frontend opens first-admin onboarding, then lo
 
 Local defaults work without an `.env` file. Copy `.env.example` to `.env` to customize the database URLs, bind address, or log filter. The frontend uses Vite's `/api` proxy; `CONVEX_API_PROXY` changes its backend target. Never expose the local Compose databases outside your machine; their credentials are development defaults.
 
+`CONVEX_SESSION_TTL_SECONDS` sets the common absolute session lifetime, defaulting to seven days. Shortening it also caps existing sessions; increasing it applies to newly issued sessions only. Stop all replicas before changing authentication settings, then restart them with matching values. See [session configuration](docs/authentication.md#session-configuration-and-cp03-foundation) for policy rollout, operator recovery, and supported provider verification. OIDC login, invitation onboarding, account linking, and login-method removal are available. See [development provider setup](docs/authentication.md#development-provider).
+
 | Task | Purpose |
 | --- | --- |
 | `mise run dev` | Start PostgreSQL and both development processes |
@@ -36,6 +38,8 @@ Local defaults work without an `.env` file. Copy `.env.example` to `.env` to cus
 | `mise run test:e2e` | Run desktop/mobile browser tests against the test database |
 | `mise run fmt` | Format and apply safe lint fixes |
 | `mise run account:recover EMAIL [--enable]` | Issue a short-lived operator recovery link for an existing local account |
+| `mise run oidc:up` | Start the pinned development OIDC provider |
+| `mise run test:e2e:oidc` | Verify OIDC onboarding and login against Keycloak on desktop/mobile |
 | `mise run mail:up` | Start optional development SMTP and the Mailpit inbox |
 
 `mise run db:up` and `mise run db:test:up` can start services independently. Database tests use PostgreSQL on port 5433, separate from development on port 5432. SQLx creates a fresh database for each integration test, applies migrations, and removes successful test databases. The test server uses disposable storage; it is not a place to keep work. Browser tests run their own API on port 3001 and Vite on port 5174, creating a new database for each suite run and dropping it on graceful shutdown. They require a configured test-database name ending in `_test` and never clear the configured database.
@@ -51,6 +55,8 @@ The frontend uses shadcn/ui's Nova style with Radix primitives, Tailwind CSS v4,
 CI uses the repository's `setup-repo` action and the same Mise tasks. Rust and Web checks, builds, and tests run in separate jobs; API contract verification and browser-to-API tests have dedicated jobs. Rust Build creates a Nextest archive once, and the Rust Unit Tests and Rust Integration Tests jobs download it and run their suites without recompiling. Both test jobs retain JUnit results; Rust checks run doctests separately because Nextest does not archive them. The aggregate `check`, `build`, and `test` tasks remain available locally. `test:rust` remains an alias for the hermetic suite and `test:db` for the integration suite. `mise run check` compiles and regenerates contracts before starting PostgreSQL. Current SQL queries use SQLx's runtime query API, so no query-macro metadata is needed. See [the implementation decisions](docs/backend-and-api.md#cp01-implementation-decisions) for conventions and tooling exceptions.
 
 Keep hermetic Rust tests in source modules or database-free test targets. Register tests that require services explicitly in the crate's `Cargo.toml`, with a name beginning `integration_` and `required-features = ["integration"]`, and mark each such test ignored with its required service in the reason. The database suite is registered as `integration_database` in `crates/convex/tests/database.rs`. Nextest selects ordinary and integration binaries with complementary filters; integration tasks enable the feature, run ignored tests, and start the Compose test database. This keeps ordinary `cargo test` safe to run without services and includes all registered integration targets in CI.
+
+For concurrent checkouts, set `CONVEX_E2E_API_PORT` and `CONVEX_E2E_WEB_PORT` to free loopback ports when running `mise run test:e2e`. The browser, API, CSRF origin, and operator-recovery fixture use those ports consistently; defaults remain 3001 and 5174. The local-account suite clears inherited OIDC settings and fixes its session lifetime to seven days.
 
 ## Bundled deployment
 

@@ -121,12 +121,12 @@ pub struct AcceptInvite {
     pub display_name: Option<String>,
 }
 #[derive(sqlx::FromRow)]
-struct ValidInvite {
-    id: Uuid,
-    workspace_id: Uuid,
-    role: String,
-    workspace_name: String,
-    workspace_slug: String,
+pub(crate) struct ValidInvite {
+    pub(crate) id: Uuid,
+    pub(crate) workspace_id: Uuid,
+    pub(crate) role: String,
+    pub(crate) workspace_name: String,
+    pub(crate) workspace_slug: String,
 }
 
 pub async fn list_for_user(
@@ -514,9 +514,14 @@ pub async fn revoke_invitation(
     }))
 }
 
-async fn valid_invite(tx: &mut Transaction<'_, Postgres>, token: &str) -> AppResult<ValidInvite> {
-    // Recheck inviter authority at use time, including account disablement.
-    sqlx::query_as("SELECT i.id,i.workspace_id,i.role,w.name AS workspace_name,w.slug AS workspace_slug FROM convex.invitations i JOIN convex.workspaces w ON w.id=i.workspace_id JOIN convex.workspace_memberships m ON m.id=i.inviter_membership_id JOIN convex.users u ON u.id=m.user_id WHERE i.token_hash=$1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now() AND m.removed_at IS NULL AND u.disabled_at IS NULL AND (m.role='owner' OR (m.role='admin' AND i.role='member')) FOR UPDATE OF i,w,m,u").bind(sec::digest(token)).fetch_optional(&mut **tx).await?.ok_or_else(||AppError::validation("This invitation is invalid, expired, or already used. Ask a workspace admin for a new link."))
+pub(crate) async fn valid_invite(
+    tx: &mut Transaction<'_, Postgres>,
+    token: &str,
+) -> AppResult<ValidInvite> {
+    let id: Uuid = sqlx::query_scalar("SELECT id FROM convex.invitations WHERE token_hash=$1")
+        .bind(sec::digest(token)).fetch_optional(&mut **tx).await?
+        .ok_or_else(||AppError::validation("This invitation is invalid, expired, or already used. Ask a workspace admin for a new link."))?;
+    valid_invite_id(tx, id).await
 }
 
 #[utoipa::path(post,path="/api/v1/invitations/preview",operation_id="previewInvitation",tag="Accounts",request_body=InviteToken,responses((status=200,body=InvitePreview),(status=400,body=crate::http::ApiError),(status=403,body=crate::http::ApiError),(status=429,body=crate::http::ApiError),(status=503,body=crate::http::ApiError)))]
@@ -573,24 +578,20 @@ pub async fn accept(
     };
     let mut tx = accounts::transaction(&state.pool).await?;
     let invitation = valid_invite(&mut tx, &req.token).await?;
+    let new_local = credentials.is_some();
     let user = if let Some((email, hash, name)) = credentials {
         accounts::create_local(&mut tx, email, hash, name, false).await?
     } else {
         accounts::authenticate(&mut tx, &headers).await?
     };
-    // Existing active membership is not demoted/promoted by accepting another invitation.
-    let current:Option<bool>=sqlx::query_scalar("SELECT removed_at IS NULL FROM convex.workspace_memberships WHERE workspace_id=$1 AND user_id=$2").bind(invitation.workspace_id).bind(user.id).fetch_optional(&mut *tx).await?;
-    if current == Some(true) {
-        return Err(AppError::conflict("You already belong to this workspace."));
-    }
-    sqlx::query("INSERT INTO convex.workspace_memberships (id,workspace_id,user_id,role) VALUES ($1,$2,$3,$4) ON CONFLICT (workspace_id,user_id) DO UPDATE SET removed_at=NULL,role=EXCLUDED.role,joined_at=now()").bind(Uuid::new_v4()).bind(invitation.workspace_id).bind(user.id).bind(&invitation.role).execute(&mut *tx).await?;
-    sqlx::query("UPDATE convex.invitations SET accepted_at=now(),accepted_by=$2 WHERE id=$1")
-        .bind(invitation.id)
-        .bind(user.id)
-        .execute(&mut *tx)
-        .await?;
+    let method = if new_local {
+        sec::LoginMethod::Local
+    } else {
+        sec::session_method(&mut tx, &headers).await?
+    };
+    accept_for_user(&mut tx, &invitation, user.id).await?;
     accounts::revoke_all(&mut tx, user.id).await?;
-    let token = sec::new_session(&mut tx, user.id).await?;
+    let token = sec::new_session(&mut tx, user.id, method).await?;
     tx.commit().await?;
     Ok(accounts::signed_in(
         &state,
@@ -602,4 +603,30 @@ pub async fn accept(
             role: invitation.role,
         },
     ))
+}
+
+pub(crate) async fn accept_for_user(
+    tx: &mut Transaction<'_, Postgres>,
+    invitation: &ValidInvite,
+    user: Uuid,
+) -> AppResult<()> {
+    // Existing active membership is not demoted/promoted by accepting another invitation.
+    let current:Option<bool>=sqlx::query_scalar("SELECT removed_at IS NULL FROM convex.workspace_memberships WHERE workspace_id=$1 AND user_id=$2").bind(invitation.workspace_id).bind(user).fetch_optional(&mut **tx).await?;
+    if current == Some(true) {
+        return Err(AppError::conflict("You already belong to this workspace."));
+    }
+    sqlx::query("INSERT INTO convex.workspace_memberships (id,workspace_id,user_id,role) VALUES ($1,$2,$3,$4) ON CONFLICT (workspace_id,user_id) DO UPDATE SET removed_at=NULL,role=EXCLUDED.role,joined_at=now()").bind(Uuid::new_v4()).bind(invitation.workspace_id).bind(user).bind(&invitation.role).execute(&mut **tx).await?;
+    sqlx::query("UPDATE convex.invitations SET accepted_at=now(),accepted_by=$2 WHERE id=$1")
+        .bind(invitation.id)
+        .bind(user)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn valid_invite_id(
+    tx: &mut Transaction<'_, Postgres>,
+    id: Uuid,
+) -> AppResult<ValidInvite> {
+    sqlx::query_as("SELECT i.id,i.workspace_id,i.role,w.name AS workspace_name,w.slug AS workspace_slug FROM convex.invitations i JOIN convex.workspaces w ON w.id=i.workspace_id JOIN convex.workspace_memberships m ON m.id=i.inviter_membership_id JOIN convex.users u ON u.id=m.user_id WHERE i.id=$1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now() AND m.removed_at IS NULL AND u.disabled_at IS NULL AND (m.role='owner' OR (m.role='admin' AND i.role='member')) FOR UPDATE OF i,w,m,u").bind(id).fetch_optional(&mut **tx).await?.ok_or_else(||AppError::validation("This invitation is invalid, expired, or already used. Ask a workspace admin for a new link."))
 }

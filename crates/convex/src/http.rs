@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
-use crate::{accounts, issues, security::SecurityConfig, workspaces};
+use crate::{accounts, auth_policy, issues, methods, oidc, security::SecurityConfig, workspaces};
 use axum::{
     Json, Router,
     extract::{FromRequest, Request, State},
@@ -11,6 +11,7 @@ use axum::{
 };
 use serde::{Serialize, de::DeserializeOwned};
 use sqlx::PgPool;
+use tokio::sync::OnceCell;
 use tower_http::trace::TraceLayer;
 use utoipa::{ToSchema, openapi::OpenApi};
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -67,10 +68,15 @@ pub struct HealthResponse {
     get, path = "/api/v1/health", operation_id = "getHealth", tag = "System",
     responses(
         (status = 200, description = "Application and database are ready", body = HealthResponse),
-        (status = 503, description = "Database or application schema is unavailable", body = ApiError)
+        (status = 503, description = "Database, application schema, or authentication policy lease is unavailable", body = ApiError)
     )
 )]
 async fn health(State(state): State<AppState>) -> Response {
+    if let Some(policy) = state.policy.get()
+        && let Err(error) = policy.check().await
+    {
+        return AppError::internal(error).into_response();
+    }
     let pool = state.pool;
     let result = sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'convex')",
@@ -110,6 +116,14 @@ fn documented_router() -> OpenApiRouter<AppState> {
         .routes(routes!(health))
         .routes(routes!(specification))
         .routes(routes!(accounts::bootstrap))
+        .routes(routes!(oidc::start))
+        .routes(routes!(oidc::callback))
+        .routes(routes!(methods::list))
+        .routes(routes!(methods::link))
+        .routes(routes!(methods::prove))
+        .routes(routes!(methods::add_local))
+        .routes(routes!(methods::remove_local))
+        .routes(routes!(methods::remove_oidc))
         .routes(routes!(accounts::setup))
         .routes(routes!(accounts::login))
         .routes(routes!(accounts::me))
@@ -155,7 +169,7 @@ pub fn openapi() -> OpenApi {
                 ),
             ),
         );
-    document.info.description = Some("Convex HTTP contract. Mutations require Origin matching CONVEX_PUBLIC_URL and X-Convex-CSRF: 1, including public authentication endpoints. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and expire after seven days. Tokens in invitation/reset links use URL fragments and are submitted in JSON bodies. Errors use ApiError. Protected operations recheck active accounts and workspace membership.".into());
+    document.info.description = Some("Convex HTTP contract. Mutations require Origin matching CONVEX_PUBLIC_URL and X-Convex-CSRF: 1, including public authentication endpoints. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and use CONVEX_SESSION_TTL_SECONDS (default seven days), with no sliding renewal. Shortening the lifetime caps existing sessions; increasing it does not extend them. Tokens in invitation/reset links use URL fragments and are submitted in JSON bodies. Errors use ApiError. Protected operations recheck active accounts, workspace membership, and authentication policy without contacting an identity provider. Logout revokes only the Convex session.".into());
     document
 }
 
@@ -165,7 +179,21 @@ pub fn router(pool: PgPool) -> Router {
 
 /// Serves the API and, when enabled, the compiled frontend on the same origin.
 pub fn app_with_config(pool: PgPool, security: SecurityConfig) -> Router {
-    let api = router_with_config(pool, security);
+    with_frontend(router_with_config(pool, security))
+}
+
+/// Production startup activates policy before accepting any requests. Test routers
+/// activate lazily so contract and frontend tests remain database-free.
+pub async fn prepare_app(pool: PgPool, security: SecurityConfig) -> anyhow::Result<Router> {
+    let active = auth_policy::activate(&pool, &security.authentication).await?;
+    Ok(with_frontend(router_with_policy(
+        pool,
+        security,
+        Arc::new(OnceCell::new_with(Some(active))),
+    )))
+}
+
+fn with_frontend(api: Router) -> Router {
     #[cfg(feature = "embed-web")]
     {
         crate::frontend::with_api(api)
@@ -177,6 +205,14 @@ pub fn app_with_config(pool: PgPool, security: SecurityConfig) -> Router {
 }
 
 pub fn router_with_config(pool: PgPool, security: SecurityConfig) -> Router {
+    router_with_policy(pool, security, Arc::new(OnceCell::new()))
+}
+
+fn router_with_policy(
+    pool: PgPool,
+    security: SecurityConfig,
+    policy: Arc<OnceCell<auth_policy::ActivePolicy>>,
+) -> Router {
     use argon2::{
         Argon2, PasswordHasher,
         password_hash::{SaltString, rand_core::OsRng},
@@ -194,10 +230,16 @@ pub fn router_with_config(pool: PgPool, security: SecurityConfig) -> Router {
         pool,
         security,
         dummy_hash: DUMMY_HASH.clone(),
+        oidc: Arc::new(oidc::Runtime::default()),
+        policy,
     };
     documented_router()
         .split_for_parts()
         .0
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            authentication_policy,
+        ))
         .fallback(|| async {
             ApiError::response(
                 ErrorCode::NotFound,
@@ -212,7 +254,9 @@ pub fn router_with_config(pool: PgPool, security: SecurityConfig) -> Router {
                 StatusCode::METHOD_NOT_ALLOWED,
             )
         })
-        .layer(TraceLayer::new_for_http())
+        .layer(TraceLayer::new_for_http().make_span_with(|request: &Request| {
+            tracing::info_span!("http_request", method = %request.method(), path = %request.uri().path())
+        }))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             csrf_and_cache,
@@ -225,6 +269,19 @@ pub struct AppState {
     pub pool: PgPool,
     pub security: SecurityConfig,
     pub dummy_hash: String,
+    pub oidc: Arc<oidc::Runtime>,
+    policy: Arc<OnceCell<auth_policy::ActivePolicy>>,
+}
+
+impl AppState {
+    pub(crate) async fn check_policy(&self) -> AppResult<()> {
+        let policy = self
+            .policy
+            .get_or_try_init(|| auth_policy::activate(&self.pool, &self.security.authentication))
+            .await
+            .map_err(AppError::internal)?;
+        policy.check().await.map_err(AppError::internal)
+    }
 }
 
 pub type AppResult<T> = Result<T, AppError>;
@@ -329,7 +386,7 @@ impl<T: DeserializeOwned + Send, S: Send + Sync> FromRequest<S> for ApiJson<T> {
 }
 async fn csrf_and_cache(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let method = request.method();
-    if !matches!(
+    let mut response = if !matches!(
         *method,
         axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS
     ) && (request
@@ -343,9 +400,13 @@ async fn csrf_and_cache(State(state): State<AppState>, request: Request, next: N
             .and_then(|v| v.to_str().ok())
             != Some(state.security.origin.as_str()))
     {
-        return AppError::forbidden().into_response();
-    }
-    let mut response = next.run(request).await;
+        AppError::forbidden().into_response()
+    } else {
+        next.run(request).await
+    };
+    response
+        .headers_mut()
+        .insert("referrer-policy", HeaderValue::from_static("no-referrer"));
     response
         .headers_mut()
         .insert("cache-control", HeaderValue::from_static("no-store"));
@@ -354,6 +415,21 @@ async fn csrf_and_cache(State(state): State<AppState>, request: Request, next: N
         HeaderValue::from_static("nosniff"),
     );
     response
+}
+
+async fn authentication_policy(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    // route_layer applies only to registered methods, preserving database-free
+    // unknown-route/method errors as well as health and contract requests.
+    if !matches!(request.uri().path(), "/api/openapi.json" | "/api/v1/health")
+        && let Err(error) = state.check_policy().await
+    {
+        return error.into_response();
+    }
+    next.run(request).await
 }
 
 #[cfg(test)]
@@ -397,7 +473,15 @@ mod tests {
         for (method, uri, status, code) in [
             ("GET", "/api/v1/health", 503, "service_unavailable"),
             ("GET", "/missing", 404, "not_found"),
+            ("GET", "/api/v1/auth/missing", 404, "not_found"),
+            (
+                "GET",
+                "/api/v1/workspaces/missing/unknown",
+                404,
+                "not_found",
+            ),
             ("POST", "/api/v1/health", 405, "method_not_allowed"),
+            ("POST", "/api/v1/auth/me", 405, "method_not_allowed"),
         ] {
             let response = app
                 .clone()

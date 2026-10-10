@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { webOrigin } from './environment';
 import type { components } from '../src/api/schema';
 const themes: ('light' | 'dark')[] = ['light', 'dark'];
 const password = 'a secure browser test password';
-const headers = { Origin: 'http://127.0.0.1:5174', 'X-Convex-CSRF': '1' };
+const headers = { Origin: webOrigin, 'X-Convex-CSRF': '1' };
 
 test('two members create, edit, reconcile, archive, and restore an issue', async ({
   page,
@@ -55,11 +56,12 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   );
   const token = (await invitation.json()).url.split('#')[1];
   const context = await browser.newContext({
+    baseURL: webOrigin,
     viewport: page.viewportSize() ?? undefined,
   });
   const second = await context.newPage();
   const joined = await second.request.post(
-    'http://127.0.0.1:5174/api/v1/invitations/accept',
+    `${webOrigin}/api/v1/invitations/accept`,
     {
       headers,
       data: {
@@ -583,7 +585,7 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
     const issue: components['schemas']['Issue'] = await created.json();
     await page.goto(`/${slug}/issue/${issue.identifier}`);
     await expect(page).toHaveURL(
-      `http://127.0.0.1:5174/${slug}/issue/${issue.identifier}/${encodeURIComponent(titleSlug)}`,
+      `${webOrigin}/${slug}/issue/${issue.identifier}/${encodeURIComponent(titleSlug)}`,
     );
     await expect(
       page.getByRole('heading', { name: title, exact: true }),

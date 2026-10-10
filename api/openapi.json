@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Convex API",
-    "description": "Convex HTTP contract. Mutations require Origin matching CONVEX_PUBLIC_URL and X-Convex-CSRF: 1, including public authentication endpoints. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and expire after seven days. Tokens in invitation/reset links use URL fragments and are submitted in JSON bodies. Errors use ApiError. Protected operations recheck active accounts and workspace membership.",
+    "description": "Convex HTTP contract. Mutations require Origin matching CONVEX_PUBLIC_URL and X-Convex-CSRF: 1, including public authentication endpoints. Cookies are HttpOnly, SameSite=Lax, Secure on HTTPS, and use CONVEX_SESSION_TTL_SECONDS (default seven days), with no sliding renewal. Shortening the lifetime caps existing sessions; increasing it does not extend them. Tokens in invitation/reset links use URL fragments and are submitted in JSON bodies. Errors use ApiError. Protected operations recheck active accounts, workspace membership, and authentication policy without contacting an identity provider. Logout revokes only the Convex session.",
     "version": "0.1.0"
   },
   "paths": {
@@ -359,6 +359,622 @@
             "cookieSession": []
           }
         ]
+      }
+    },
+    "/api/v1/auth/methods": {
+      "get": {
+        "tags": ["Accounts"],
+        "operationId": "getLoginMethods",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Methods"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/methods/local/add": {
+      "post": {
+        "tags": ["Accounts"],
+        "operationId": "addLocalMethod",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddLocal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/methods/local/remove": {
+      "post": {
+        "tags": ["Accounts"],
+        "operationId": "removeLocalMethod",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/methods/oidc/link": {
+      "post": {
+        "tags": ["Accounts"],
+        "operationId": "linkOidcMethod",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalProof"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/methods/oidc/prove": {
+      "post": {
+        "tags": ["Accounts"],
+        "operationId": "proveOidcMethod",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProveOidc"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/methods/oidc/remove": {
+      "post": {
+        "tags": ["Accounts"],
+        "operationId": "removeOidcMethod",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveOidc"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": ["Accounts"],
+        "operationId": "completeOidcLogin",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "description": "Provider-returned opaque state; requires matching browser-binding cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code; exactly one of code or error",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "Provider cancellation or denial; details are discarded",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Single-use browser-bound callback. Redirects to fixed login outcome or account method destination; session cookie for successful login/linking, HttpOnly proof cookie for reauthentication. Cache-Control: no-store; Referrer-Policy: no-referrer. Provider errors are sanitized."
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/start": {
+      "post": {
+        "tags": ["Accounts"],
+        "operationId": "startOidcLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL and HttpOnly browser-binding cookie; requires same-origin CSRF headers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth/password": {
@@ -804,7 +1420,7 @@
             }
           },
           "503": {
-            "description": "Database or application schema is unavailable",
+            "description": "Database, application schema, or authentication policy lease is unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -2182,15 +2798,22 @@
           }
         }
       },
+      "AddLocal": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "AdminAccount": {
         "type": "object",
-        "required": [
-          "id",
-          "display_name",
-          "email",
-          "disabled",
-          "is_instance_admin"
-        ],
+        "required": ["id", "display_name", "disabled", "is_instance_admin"],
         "properties": {
           "disabled": {
             "type": "boolean"
@@ -2199,7 +2822,7 @@
             "type": "string"
           },
           "email": {
-            "type": "string"
+            "type": ["string", "null"]
           },
           "id": {
             "type": "string",
@@ -2236,9 +2859,20 @@
       },
       "BootstrapInfo": {
         "type": "object",
-        "required": ["setup_required", "setup_enabled", "mail_available"],
+        "required": [
+          "setup_required",
+          "setup_enabled",
+          "mail_available",
+          "oidc_required"
+        ],
         "properties": {
           "mail_available": {
+            "type": "boolean"
+          },
+          "oidc_display_name": {
+            "type": ["string", "null"]
+          },
+          "oidc_required": {
             "type": "boolean"
           },
           "setup_enabled": {
@@ -2546,6 +3180,16 @@
         },
         "additionalProperties": false
       },
+      "LocalProof": {
+        "type": "object",
+        "required": ["current_password"],
+        "properties": {
+          "current_password": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "LoginRequest": {
         "type": "object",
         "required": ["email", "password"],
@@ -2608,6 +3252,72 @@
           }
         }
       },
+      "MethodAction": {
+        "type": "string",
+        "enum": ["add_local", "remove_local"]
+      },
+      "Methods": {
+        "type": "object",
+        "required": [
+          "local_usable",
+          "oidc",
+          "can_link_oidc",
+          "can_add_local",
+          "can_remove_local"
+        ],
+        "properties": {
+          "can_add_local": {
+            "type": "boolean"
+          },
+          "can_link_oidc": {
+            "type": "boolean"
+          },
+          "can_remove_local": {
+            "type": "boolean"
+          },
+          "local_email": {
+            "type": ["string", "null"]
+          },
+          "local_usable": {
+            "type": "boolean"
+          },
+          "oidc": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OidcMethod"
+            }
+          },
+          "pending_action": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MethodAction"
+              }
+            ]
+          },
+          "provider_display_name": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "OidcMethod": {
+        "type": "object",
+        "required": ["id", "issuer", "usable"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "usable": {
+            "type": "boolean"
+          }
+        }
+      },
       "PasswordChange": {
         "type": "object",
         "required": ["current_password", "new_password"],
@@ -2625,12 +3335,36 @@
         "type": "string",
         "enum": ["none", "urgent", "high", "medium", "low"]
       },
+      "ProveOidc": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MethodAction"
+          }
+        },
+        "additionalProperties": false
+      },
       "RecoveryRequest": {
         "type": "object",
         "required": ["email"],
         "properties": {
           "email": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RemoveOidc": {
+        "type": "object",
+        "required": ["identity_id", "current_password"],
+        "properties": {
+          "current_password": {
+            "type": "string"
+          },
+          "identity_id": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "additionalProperties": false
@@ -2750,6 +3484,24 @@
           }
         },
         "additionalProperties": false
+      },
+      "StartRequest": {
+        "type": "object",
+        "properties": {
+          "invitation_token": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "StartResponse": {
+        "type": "object",
+        "required": ["authorization_url"],
+        "properties": {
+          "authorization_url": {
+            "type": "string"
+          }
+        }
       },
       "Team": {
         "type": "object",
