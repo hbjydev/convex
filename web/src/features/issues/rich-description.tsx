@@ -1,6 +1,7 @@
 import { EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useRef, useState } from 'react';
 import { descriptionExtensions, parseDescription } from './description-schema';
+import { SelectionToolbar } from './selection-toolbar';
 
 export function RichDescription({
   value,
@@ -21,11 +22,25 @@ export function RichDescription({
     editable: !disabled,
     immediatelyRender: true,
     editorProps: {
+      handleKeyDown: (_view, event) => {
+        if (event.altKey && event.key === 'F10') {
+          const button = document.querySelector<HTMLButtonElement>(
+            '[data-description-toolbar] button',
+          );
+          if (button) {
+            button.focus();
+            return true;
+          }
+        }
+        return false;
+      },
       attributes: {
         class: 'typeset issue-description issue-prosemirror',
         role: 'textbox',
         'aria-label': 'Description',
         'aria-multiline': 'true',
+        'aria-description':
+          'Select text to format it. Press Alt+F10 to focus the formatting toolbar.',
         'aria-readonly': disabled ? 'true' : 'false',
         spellcheck: 'true',
       },
@@ -48,5 +63,10 @@ export function RichDescription({
       lastValue.current = value;
     }
   }, [editor, value]);
-  return <EditorContent editor={editor} />;
+  return (
+    <>
+      <EditorContent editor={editor} />
+      {editor && !disabled && <SelectionToolbar editor={editor} />}
+    </>
+  );
 }
