@@ -20,6 +20,8 @@ The sidebar groups navigation by team, following the user's second reference. Ea
 
 Workspace switching, All workspaces, and workspace settings are reached through the top dropdown; these links are not repeated in the main sidebar.
 
+Issue details follow the user's Linear reference, with a rendered Markdown description and separate properties column. Use shadcn's standalone typeset stylesheet for document typography while keeping the Markdown source available for editing and preview.
+
 ## Constraints
 
 Preserve working account, invitation, workspace, and team flows and role-based permissions. Derive screens from implemented functionality and real API data. Preserve native form validation, pending states, errors, keyboard access, and mobile usability.

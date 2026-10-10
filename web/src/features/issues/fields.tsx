@@ -10,6 +10,10 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { cn } from 'cn';
+import { IssueDescription } from './description';
 import { priorities, type Draft, type WorkspaceDetail } from './model';
 export function IssueFields({
   draft,
@@ -25,39 +29,68 @@ export function IssueFields({
   disabled?: boolean;
 }) {
   const team = detail.teams.find((team) => team.id === teamId);
+  const [preview, setPreview] = useState(false);
   return (
-    <FieldGroup>
-      <Field>
-        <FieldLabel htmlFor="issue-title">Title</FieldLabel>
-        <Input
-          id="issue-title"
-          value={draft.title}
-          onChange={(event) =>
-            onChange({ ...draft, title: event.target.value })
-          }
-          required
-          maxLength={240}
-          disabled={disabled}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="issue-description">Description</FieldLabel>
-        <Textarea
-          id="issue-description"
-          value={draft.description}
-          onChange={(event) =>
-            onChange({ ...draft, description: event.target.value })
-          }
-          maxLength={50000}
-          rows={9}
-          disabled={disabled}
-          aria-describedby="description-hint"
-        />
-        <FieldDescription id="description-hint">
-          Write in Markdown. Your formatting is kept as text.
-        </FieldDescription>
-      </Field>
-      <FieldGroup className="grid gap-4 sm:grid-cols-3">
+    <FieldGroup className="issue-detail-layout">
+      <FieldGroup className="issue-writing-fields">
+        <Field>
+          <FieldLabel htmlFor="issue-title">Title</FieldLabel>
+          <Input
+            id="issue-title"
+            value={draft.title}
+            onChange={(event) =>
+              onChange({ ...draft, title: event.target.value })
+            }
+            required
+            maxLength={240}
+            disabled={disabled}
+          />
+        </Field>
+        <Field>
+          <div className="flex items-center justify-between gap-3">
+            <FieldLabel htmlFor="issue-description">Description</FieldLabel>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setPreview(!preview)}
+            >
+              {preview ? 'Write description' : 'Preview description'}
+            </Button>
+          </div>
+          <Textarea
+            className={cn(preview && 'hidden')}
+            id="issue-description"
+            value={draft.description}
+            onChange={(event) =>
+              onChange({ ...draft, description: event.target.value })
+            }
+            maxLength={50000}
+            rows={9}
+            disabled={disabled}
+            aria-describedby="description-hint"
+          />
+          {preview && (
+            <section
+              aria-label="Description preview"
+              className="issue-description-preview"
+            >
+              {draft.description.trim() ? (
+                <IssueDescription description={draft.description} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No description yet.
+                </p>
+              )}
+            </section>
+          )}
+          <FieldDescription id="description-hint">
+            Write in Markdown. Preview your formatting before saving.
+          </FieldDescription>
+        </Field>
+      </FieldGroup>
+      <FieldGroup className="issue-property-fields">
+        <h2>Properties</h2>
         <Field>
           <FieldLabel htmlFor="issue-status">Status</FieldLabel>
           <NativeSelect

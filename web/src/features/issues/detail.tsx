@@ -2,12 +2,14 @@ import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/api/client';
 import { LoadingState, Notice } from '@/components/feedback';
-import { Badge } from '@/components/ui/badge';
+import { ChevronRightIcon, PencilIcon, UserRoundIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FieldSet } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import { errorMessage, unwrap } from '@/lib/requests';
 import { IssueFields } from './fields';
+import { IssueDescription } from './description';
+import { PriorityIcon, StatusIcon } from './icons';
 import {
   issuePatch,
   issueRouteParams,
@@ -32,6 +34,18 @@ function Editor({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(false);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (editing) {
+      wasEditing.current = true;
+      document.getElementById('issue-title')?.focus();
+    } else if (wasEditing.current) {
+      wasEditing.current = false;
+      editButton.current?.focus();
+    }
+  }, [editing]);
   const currentVersionButton = useRef<HTMLButtonElement>(null);
   const hadConflict = useRef(false);
   useEffect(() => {
@@ -70,6 +84,7 @@ function Editor({
       onCurrentIssue(saved);
       setDraft(saved);
       setConflict(undefined);
+      if (saved.archived_at) setEditing(false);
       setMessage(
         saved.archived_at
           ? 'Issue archived.'
@@ -85,135 +100,237 @@ function Editor({
   }
   const archived = !!issue.archived_at;
   const dirty = Object.keys(issuePatch(issue, draft)).length > 1;
+  const team = detail.teams.find((team) => team.id === issue.team_id);
+  const status = team?.statuses.find((status) => status.id === issue.status_id);
+  const assignee = detail.members.find(
+    (member) => member.id === issue.assignee_membership_id,
+  );
   return (
-    <>
-      <div className="page-heading mt-6 flex-wrap justify-between">
-        <h1>{issue.identifier}</h1>
-        <Badge variant="outline">
-          {detail.teams.find((team) => team.id === issue.team_id)?.name}
-        </Badge>
-      </div>
-      {archived && (
-        <Notice>This issue is archived. Restore it to make changes.</Notice>
-      )}
-      {conflict && (
-        <div className="my-5 flex flex-col gap-4">
-          <Notice error>
-            This issue changed while you were editing. Your draft is preserved.
-            Review the current values before choosing what to keep.
-          </Notice>
-          <dl className="conflict-values">
-            <dt>Current title</dt>
-            <dd>{conflict.title}</dd>
-            <dt>Current description</dt>
-            <dd className="whitespace-pre-wrap">
-              {conflict.description || 'No description'}
-            </dd>
-            <dt>Current status</dt>
-            <dd>
-              {
-                detail.teams
-                  .find((team) => team.id === conflict.team_id)
-                  ?.statuses.find((status) => status.id === conflict.status_id)
-                  ?.name
-              }
-            </dd>
-            <dt>Current priority</dt>
-            <dd>{conflict.priority}</dd>
-            <dt>Current assignee</dt>
-            <dd>
-              {detail.members.find(
-                (member) => member.id === conflict.assignee_membership_id,
-              )?.display_name ?? 'Unassigned'}
-            </dd>
-            <dt>Archived</dt>
-            <dd>{conflict.archived_at ? 'Yes' : 'No'}</dd>
-          </dl>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              ref={currentVersionButton}
-              onClick={() => {
-                setIssue(conflict);
-                onCurrentIssue(conflict);
-                setDraft(conflict);
-                setConflict(undefined);
-              }}
-            >
-              Use current version
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!!conflict.archived_at}
-              onClick={() => {
-                const patch = issuePatch(issue, draft);
-                const merged: Draft = {
-                  title: patch.title ?? conflict.title,
-                  description: patch.description ?? conflict.description,
-                  status_id: patch.status_id ?? conflict.status_id,
-                  priority: patch.priority ?? conflict.priority,
-                  assignee_membership_id:
-                    'assignee_membership_id' in patch
-                      ? (patch.assignee_membership_id ?? null)
-                      : conflict.assignee_membership_id,
-                };
-                setIssue(conflict);
-                onCurrentIssue(conflict);
-                setDraft(merged);
-                setConflict(undefined);
-                setMessage(
-                  'Your changes are ready for review. Check them, then save.',
-                );
-              }}
-            >
-              Keep my changed fields for review
-            </Button>
-          </div>
-        </div>
-      )}
-      <form
-        className="app-form issue-editor"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save(issuePatch(issue, draft));
-        }}
-        aria-busy={pending}
-      >
-        <FieldSet disabled={pending || archived || !!conflict}>
-          <IssueFields
-            draft={draft}
-            onChange={setDraft}
-            detail={detail}
-            teamId={issue.team_id}
-            disabled={pending || archived || !!conflict}
-          />
-          <Button
-            type="submit"
-            className="mt-5 w-fit"
-            disabled={pending || archived || !!conflict}
+    <section className="issue-detail-page">
+      <header className="issues-header">
+        <nav aria-label="Issue navigation" className="issues-breadcrumb">
+          <span>{team?.name}</span>
+          <ChevronRightIcon aria-hidden="true" />
+          <Link
+            aria-label="Back to issues"
+            to="/$workspaceSlug/team/$teamSlug/all"
+            params={{
+              workspaceSlug: detail.workspace.slug,
+              teamSlug: team?.key.toLowerCase() ?? '',
+            }}
           >
-            {pending && <Spinner data-icon="inline-start" />}Save changes
+            Issues
+          </Link>
+          <ChevronRightIcon aria-hidden="true" />
+          <span className="issue-detail-key">{issue.identifier}</span>
+        </nav>
+        <div className="issue-detail-actions">
+          {!archived && (
+            <Button
+              ref={editButton}
+              variant="outline"
+              size="sm"
+              disabled={pending || !!conflict || (editing && dirty)}
+              onClick={() => setEditing(!editing)}
+            >
+              <PencilIcon data-icon="inline-start" />
+              {editing ? 'View issue' : 'Edit issue'}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={pending || !!conflict || dirty}
+            onClick={() =>
+              void save({
+                expected_version: issue.version,
+                archived: !archived,
+              })
+            }
+          >
+            {archived ? 'Restore issue' : 'Archive issue'}
           </Button>
-        </FieldSet>
-      </form>
-      {error && <Notice error>{error}</Notice>}
-      {message && <Notice>{message}</Notice>}
-      <Button
-        className="mt-6"
-        variant="outline"
-        disabled={pending || !!conflict || dirty}
-        onClick={() =>
-          void save({ expected_version: issue.version, archived: !archived })
-        }
-      >
-        {archived ? 'Restore issue' : 'Archive issue'}
-      </Button>
-      {dirty && (
-        <p className="mt-2 text-sm text-muted-foreground">
-          Save your changes before archiving.
-        </p>
-      )}
-    </>
+        </div>
+      </header>
+      <div className="issue-detail-body">
+        {archived && (
+          <Notice>This issue is archived. Restore it to make changes.</Notice>
+        )}
+        {conflict && (
+          <div className="my-5 flex flex-col gap-4">
+            <Notice error>
+              This issue changed while you were editing. Your draft is
+              preserved. Review the current values before choosing what to keep.
+            </Notice>
+            <dl className="conflict-values">
+              <dt>Current title</dt>
+              <dd>{conflict.title}</dd>
+              <dt>Current description</dt>
+              <dd>
+                {conflict.description ? (
+                  <IssueDescription description={conflict.description} />
+                ) : (
+                  'No description'
+                )}
+              </dd>
+              <dt>Current status</dt>
+              <dd>
+                {
+                  detail.teams
+                    .find((team) => team.id === conflict.team_id)
+                    ?.statuses.find(
+                      (status) => status.id === conflict.status_id,
+                    )?.name
+                }
+              </dd>
+              <dt>Current priority</dt>
+              <dd>{conflict.priority}</dd>
+              <dt>Current assignee</dt>
+              <dd>
+                {detail.members.find(
+                  (member) => member.id === conflict.assignee_membership_id,
+                )?.display_name ?? 'Unassigned'}
+              </dd>
+              <dt>Archived</dt>
+              <dd>{conflict.archived_at ? 'Yes' : 'No'}</dd>
+            </dl>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                ref={currentVersionButton}
+                onClick={() => {
+                  setIssue(conflict);
+                  onCurrentIssue(conflict);
+                  setDraft(conflict);
+                  setConflict(undefined);
+                }}
+              >
+                Use current version
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!!conflict.archived_at}
+                onClick={() => {
+                  const patch = issuePatch(issue, draft);
+                  const merged: Draft = {
+                    title: patch.title ?? conflict.title,
+                    description: patch.description ?? conflict.description,
+                    status_id: patch.status_id ?? conflict.status_id,
+                    priority: patch.priority ?? conflict.priority,
+                    assignee_membership_id:
+                      'assignee_membership_id' in patch
+                        ? (patch.assignee_membership_id ?? null)
+                        : conflict.assignee_membership_id,
+                  };
+                  setIssue(conflict);
+                  onCurrentIssue(conflict);
+                  setDraft(merged);
+                  setConflict(undefined);
+                  setMessage(
+                    'Your changes are ready for review. Check them, then save.',
+                  );
+                }}
+              >
+                Keep my changed fields for review
+              </Button>
+            </div>
+          </div>
+        )}
+        {editing && !archived ? (
+          <form
+            className="app-form issue-editor"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save(issuePatch(issue, draft));
+            }}
+            aria-busy={pending}
+          >
+            <FieldSet disabled={pending || archived || !!conflict}>
+              <IssueFields
+                draft={draft}
+                onChange={setDraft}
+                detail={detail}
+                teamId={issue.team_id}
+                disabled={pending || archived || !!conflict}
+              />
+              <div className="issue-editor-actions">
+                <Button
+                  type="submit"
+                  disabled={pending || archived || !!conflict}
+                >
+                  {pending && <Spinner data-icon="inline-start" />}Save changes
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={pending || !!conflict}
+                  onClick={() => {
+                    setDraft(issue);
+                    setEditing(false);
+                    setError('');
+                    setMessage('');
+                  }}
+                >
+                  Cancel editing
+                </Button>
+                {dirty && (
+                  <span className="text-sm text-muted-foreground">
+                    Unsaved changes
+                  </span>
+                )}
+              </div>
+            </FieldSet>
+          </form>
+        ) : (
+          <div className="issue-detail-layout">
+            <article className="issue-document" aria-label="Issue content">
+              <h1>{issue.title}</h1>
+              {issue.description.trim() ? (
+                <IssueDescription description={issue.description} />
+              ) : (
+                <p className="issue-no-description">No description yet.</p>
+              )}
+            </article>
+            <aside className="issue-properties" aria-label="Issue properties">
+              <h2>Properties</h2>
+              <dl>
+                <div>
+                  <dt className="sr-only">Status</dt>
+                  <dd>
+                    <StatusIcon category={status?.category} />
+                    {status?.name}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="sr-only">Priority</dt>
+                  <dd>
+                    <PriorityIcon priority={issue.priority} />
+                    {issue.priority === 'none'
+                      ? 'No priority'
+                      : issue.priority.charAt(0).toUpperCase() +
+                        issue.priority.slice(1)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="sr-only">Assignee</dt>
+                  <dd>
+                    <UserRoundIcon aria-hidden="true" />
+                    {assignee?.display_name ?? 'Unassigned'}
+                  </dd>
+                </div>
+              </dl>
+            </aside>
+          </div>
+        )}
+        {error && <Notice error>{error}</Notice>}
+        {message && <Notice>{message}</Notice>}
+        {dirty && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Save your changes before archiving.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 export function IssueDetail({
@@ -278,7 +395,7 @@ export function IssueDetail({
   const owningTeam = detail?.teams.find((team) => team.id === issue?.team_id);
   return (
     <>
-      {owningTeam && (
+      {owningTeam && (error || workspace.error) && (
         <Link
           to="/$workspaceSlug/team/$teamSlug/all"
           params={{

@@ -93,7 +93,7 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   });
   await page.getByRole('button', { name: 'Create issue', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'ENG-1', exact: true }),
+    page.getByRole('heading', { name: 'Ship the issue workflow', exact: true }),
   ).toBeVisible();
   const issueUrl = page.url();
   await expect(page).toHaveURL(
@@ -103,7 +103,33 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
     await page.request.get(`/api/v1/workspaces/${workspace.id}/issues/ENG-1`)
   ).json();
   const issueId = initialIssue.id;
+  const content = page.getByRole('article', { name: 'Issue content' });
+  await expect(
+    content.getByRole('heading', { name: 'Acceptance' }),
+  ).toBeVisible();
+  await expect(content.locator('strong')).toHaveText('Markdown');
+  await expect(page.getByLabel('Description', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Edit issue', exact: true }).click();
+  await expect(page.getByLabel('Title', { exact: true })).toBeFocused();
+  await page.getByLabel('Title', { exact: true }).fill('A discarded title');
+  await expect(
+    page.getByRole('button', { name: 'View issue', exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole('button', { name: 'Cancel editing', exact: true })
+    .click();
+  await expect(
+    content.getByRole('heading', {
+      name: 'Ship the issue workflow',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Edit issue', exact: true }),
+  ).toBeFocused();
+  await page.getByRole('button', { name: 'Edit issue', exact: true }).click();
   await second.goto(issueUrl);
+  await second.getByRole('button', { name: 'Edit issue', exact: true }).click();
   await expect(second.getByLabel('Title', { exact: true })).toHaveValue(
     'Ship the issue workflow',
   );
@@ -171,6 +197,8 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Changes saved');
   await page.reload();
+  await expect(content.getByRole('heading', { name: 'Final' })).toBeVisible();
+  await page.getByRole('button', { name: 'Edit issue', exact: true }).click();
   await expect(page.getByLabel('Description', { exact: true })).toHaveValue(
     '## Final\nPersist this description.',
   );
@@ -185,6 +213,50 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
     .selectOption({ label: 'Done' });
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Changes saved');
+  const formattedDescription =
+    '## What to build\n\nRender **Markdown** with a readable layout and keep the original source for editing.\n\n### Acceptance criteria\n\n- [x] Preserve saved descriptions after reload\n- [ ] Keep status and assignee easy to find\n\nSee the [documentation](https://example.com/docs) and use `expected_version` when saving.\n\n> Failed requests should preserve your draft.\n\n```json\n{ "expected_version": 2 }\n```\n\n| Property | Behavior |\n| --- | --- |\n| Status | Scoped to the team |\n| Assignee | Workspace member |';
+  await page
+    .getByLabel('Description', { exact: true })
+    .fill(formattedDescription);
+  await page
+    .getByRole('button', { name: 'Preview description', exact: true })
+    .click();
+  const preview = page.getByRole('region', { name: 'Description preview' });
+  await expect(page.getByLabel('Description', { exact: true })).toBeHidden();
+  await expect(
+    preview.getByRole('heading', { name: 'What to build' }),
+  ).toBeVisible();
+  await expect(preview.getByRole('checkbox').first()).toBeChecked();
+  await page.screenshot({
+    path: `test-results/issue-preview-${test.info().project.name}.png`,
+    fullPage: true,
+  });
+  await page
+    .getByRole('button', { name: 'Write description', exact: true })
+    .click();
+  await expect(page.getByLabel('Description', { exact: true })).toHaveValue(
+    formattedDescription,
+  );
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Changes saved');
+  await page.getByRole('button', { name: 'View issue', exact: true }).click();
+  await page.reload();
+  await expect(
+    content.getByRole('heading', { name: 'What to build' }),
+  ).toBeVisible();
+  await expect(content.getByRole('checkbox')).toHaveCount(2);
+  await expect(content.getByRole('checkbox').first()).toBeDisabled();
+  await expect(content.getByRole('table')).toBeVisible();
+  await expect(
+    content.getByRole('link', { name: 'documentation' }),
+  ).toHaveAttribute('href', 'https://example.com/docs');
+  for (const colorScheme of themes) {
+    await page.emulateMedia({ colorScheme });
+    await page.screenshot({
+      path: `test-results/issue-rendered-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+    });
+  }
   await page.screenshot({
     path: `test-results/issue-detail-${test.info().project.name}.png`,
     fullPage: true,
@@ -200,7 +272,12 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await expect(
     page.getByRole('button', { name: 'Restore issue', exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel('Title', { exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Edit issue', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    content.getByRole('heading', { name: 'What to build' }),
+  ).toBeVisible();
   await page.getByRole('link', { name: 'Back to issues' }).click();
   await expect(page.getByText('Capture your first issue')).toBeVisible();
   await page.getByRole('link', { name: 'Archived', exact: true }).click();
@@ -211,14 +288,19 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await page
     .getByRole('button', { name: 'Restore issue', exact: true })
     .click();
-  await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Edit issue', exact: true }),
+  ).toBeEnabled();
   await page.goto(`/${slug}/issue/eng-1`);
   await expect(page).toHaveURL(
     new RegExp(`/${slug}/issue/ENG-1/deliver-the-issue-workflow$`),
   );
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
-    'Deliver the issue workflow',
-  );
+  await expect(
+    page.getByRole('heading', {
+      name: 'Deliver the issue workflow',
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.getByRole('link', { name: 'Back to issues' }).click();
   await expect(
     page.getByText('Deliver the issue workflow', { exact: true }),
@@ -387,8 +469,11 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await page.getByLabel('Title', { exact: true }).fill('A design team issue');
   await page.getByRole('button', { name: 'Create issue', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'DES-1', exact: true }),
+    page.getByRole('heading', { name: 'A design team issue', exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('article', { name: 'Issue content' }),
+  ).toContainText('No description yet.');
   await page.reload();
   await openNavigation();
   await expect(
@@ -439,9 +524,12 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await expect(page).toHaveURL(
     new RegExp(`/${slug}/issue/ENG-1/deliver-the-issue-workflow$`),
   );
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
-    'Deliver the issue workflow',
-  );
+  await expect(
+    page.getByRole('heading', {
+      name: 'Deliver the issue workflow',
+      exact: true,
+    }),
+  ).toBeVisible();
   for (const path of [
     `/${slug}/issues`,
     `/${slug}/issues/${issueId}`,
@@ -476,6 +564,8 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
     await expect(page).toHaveURL(
       `http://127.0.0.1:5174/${slug}/issue/${issue.identifier}/${encodeURIComponent(titleSlug)}`,
     );
-    await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
+    await expect(
+      page.getByRole('heading', { name: title, exact: true }),
+    ).toBeVisible();
   }
 });
