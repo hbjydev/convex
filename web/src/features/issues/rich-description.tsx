@@ -1,5 +1,6 @@
 import { EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useRef, useState } from 'react';
+import { Prose } from '@/components/prose';
 import { descriptionExtensions, parseDescription } from './description-schema';
 import { SelectionToolbar } from './selection-toolbar';
 
@@ -35,7 +36,6 @@ export function RichDescription({
         return false;
       },
       attributes: {
-        class: 'typeset issue-description issue-prosemirror',
         role: 'textbox',
         'aria-label': 'Description',
         'aria-multiline': 'true',
@@ -65,7 +65,9 @@ export function RichDescription({
   }, [editor, value]);
   return (
     <>
-      <EditorContent editor={editor} />
+      <Prose editor>
+        <EditorContent editor={editor} />
+      </Prose>
       {editor && !disabled && <SelectionToolbar editor={editor} />}
     </>
   );

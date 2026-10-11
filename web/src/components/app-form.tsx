@@ -67,7 +67,11 @@ export function Form({
     }
   }
 
-  const formClassName = cn('app-form', className, inline && 'inline-form');
+  const formClassName = cn(
+    'mt-6 flex w-full max-w-[560px] flex-col gap-4',
+    className,
+    inline && 'm-0 w-auto max-w-full',
+  );
 
   return (
     <form onSubmit={handle} className={formClassName} aria-busy={pending}>

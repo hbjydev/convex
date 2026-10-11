@@ -1,3 +1,4 @@
+import { WorkspaceAvatar } from '@/components/settings-controls';
 import { Link } from '@tanstack/react-router';
 import {
   ArrowLeftIcon,
@@ -70,7 +71,10 @@ export function WorkspaceMenu({
               onClick={closeNavigation}
               aria-current={workspace?.id === space.id ? 'page' : undefined}
             >
-              <span className="workspace-mark" aria-hidden="true">
+              <span
+                className="inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-sidebar-border text-[10px] font-medium"
+                aria-hidden="true"
+              >
                 {space.name.slice(0, 1).toUpperCase()}
               </span>
               <span className="truncate">{space.name}</span>
@@ -113,9 +117,9 @@ export function WorkspaceMenu({
           disabled={signingOut}
           aria-label={`${workspace?.name ?? 'Convex'} workspace menu`}
         >
-          <span className="workspace-avatar" aria-hidden="true">
+          <WorkspaceAvatar aria-hidden="true">
             {workspace?.name.slice(0, 2).toUpperCase() ?? <LayersIcon />}
-          </span>
+          </WorkspaceAvatar>
           <span className="truncate">{workspace?.name ?? 'Convex'}</span>
           <ChevronDownIcon />
         </SidebarMenuButton>

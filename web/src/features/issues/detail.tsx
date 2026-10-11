@@ -1,3 +1,4 @@
+import { PageTitle, SectionTitle } from '@/components/typography';
 import {
   Link,
   useBlocker,
@@ -110,9 +111,12 @@ function Editor({
     },
   });
   return (
-    <section className="issue-detail-page">
-      <header className="issues-header">
-        <nav aria-label="Issue navigation" className="issues-breadcrumb">
+    <section data-layout="issue-detail">
+      <header className="flex items-center justify-between gap-4 border-b px-6 py-4 max-[600px]:flex-wrap max-[600px]:px-4 max-[600px]:py-3 in-[[data-layout=issue-detail]]:max-md:flex-wrap in-[[data-layout=issue-detail]]:max-md:gap-3">
+        <nav
+          aria-label="Issue navigation"
+          className="flex min-w-0 items-center gap-2.5 text-[13px] [&>span]:max-w-[180px] [&>span]:truncate [&>span]:text-muted-foreground max-[600px]:[&>span]:max-w-[120px] [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground [&_h1]:m-0 [&_h1]:text-sm [&_h1]:font-medium [&_h1]:tracking-normal [&_a]:text-primary [&_a]:underline"
+        >
           <span>{team?.name}</span>
           <ChevronRightIcon aria-hidden="true" />
           <Link
@@ -128,8 +132,8 @@ function Editor({
           <ChevronRightIcon aria-hidden="true" />
           <span>{issue.identifier}</span>
         </nav>
-        <div className="issue-detail-actions">
-          <span className="issue-save-status" role="status">
+        <div className="flex flex-wrap items-center gap-2 max-md:[&_[data-slot=button]]:min-h-11">
+          <span className="text-xs text-muted-foreground" role="status">
             {pending
               ? 'Saving…'
               : conflict
@@ -152,7 +156,7 @@ function Editor({
           </Button>
         </div>
       </header>
-      <div className="issue-detail-body">
+      <div className="mx-auto max-w-[1200px] px-4 py-6 md:px-6 md:py-8 lg:p-12 [&>[role=status]]:my-4 [&>[role=alert]]:my-4">
         {archived && (
           <Notice>This issue is archived. Restore it to make changes.</Notice>
         )}
@@ -162,7 +166,7 @@ function Editor({
               This issue changed while you were editing. Your draft is
               preserved. Review the current values before choosing what to keep.
             </Notice>
-            <dl className="conflict-values">
+            <dl className="grid max-w-[780px] grid-cols-[minmax(100px,140px)_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm [&_dt]:text-muted-foreground [&_dd]:wrap-anywhere">
               <dt>Current title</dt>
               <dd>{conflict.title}</dd>
               <dt>Current description</dt>
@@ -209,13 +213,17 @@ function Editor({
             </div>
           </div>
         )}
-        <div className="issue-detail-layout">
-          <article className="issue-document" aria-label="Issue content">
-            <h1 className="issue-title-heading" aria-label={draft.title}>
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 md:grid-cols-[minmax(0,1fr)_200px] lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-14">
+          <article className="min-w-0" aria-label="Issue content">
+            <PageTitle
+              className="mb-6 text-[28px] leading-[1.35] tracking-[-0.025em] text-pretty wrap-anywhere md:text-2xl"
+              aria-label={draft.title}
+            >
               <Textarea
+                className="rounded-none!"
                 id="issue-title"
                 aria-label="Title"
-                className="issue-inline-title"
+                variant="inline"
                 value={draft.title}
                 maxLength={240}
                 rows={1}
@@ -225,7 +233,7 @@ function Editor({
                 }
                 onBlur={() => void editing.save()}
               />
-            </h1>
+            </PageTitle>
             <RichDescription
               value={draft.description}
               disabled={disabled}
@@ -233,9 +241,14 @@ function Editor({
               onBlur={() => void editing.save()}
             />
           </article>
-          <aside className="issue-properties" aria-label="Issue properties">
-            <h2>Properties</h2>
-            <div className="issue-property-controls">
+          <aside
+            className="border-t pt-6 md:border-0 md:pt-0 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground"
+            aria-label="Issue properties"
+          >
+            <SectionTitle className="mb-3 text-[13px] font-medium text-muted-foreground">
+              Properties
+            </SectionTitle>
+            <div className="flex flex-col items-stretch gap-1">
               <PropertyMenu
                 onCloseAutoFocus={propertyMenuClosed}
                 inline
@@ -297,7 +310,7 @@ function Editor({
           </aside>
         </div>
         {error && (
-          <div className="issue-save-recovery">
+          <div className="mt-6 flex flex-wrap items-center gap-3 [&>[role=alert]]:basis-full">
             <Notice error>{error} Your draft is preserved.</Notice>
             <Button variant="outline" onClick={() => void editing.save(true)}>
               Retry save
@@ -308,7 +321,7 @@ function Editor({
           </div>
         )}
         {review && (
-          <div className="issue-save-recovery">
+          <div className="mt-6 flex flex-wrap items-center gap-3 [&>[role=alert]]:basis-full">
             <p className="text-sm text-muted-foreground">
               Your changes are ready for review. Check them, then save.
             </p>

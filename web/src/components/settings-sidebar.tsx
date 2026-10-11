@@ -137,7 +137,9 @@ export function SettingsSidebar({
             />
           </SidebarMenuItem>
         </SidebarMenu>
-        <p className="sidebar-caption">Workspace settings</p>
+        <p className="px-2 pt-1 pb-2 text-[11px] text-muted-foreground">
+          Workspace settings
+        </p>
       </SidebarFooter>
     </>
   );

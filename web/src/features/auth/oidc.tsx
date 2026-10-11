@@ -69,7 +69,7 @@ export function OidcOutcome({ outcome }: { outcome: 'success' | 'failed' }) {
             need a valid workspace invitation.
           </Notice>
           <Link
-            className="after-form"
+            className="mt-6 inline-flex text-sm text-primary underline"
             to={
               methodChange && account
                 ? '/account'

@@ -1,3 +1,4 @@
+import { SectionTitle, PageTitle } from '@/components/typography';
 import { Link } from '@tanstack/react-router';
 import {
   ChevronDownIcon,
@@ -41,18 +42,22 @@ function IssueGroup({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
-    <section className="issue-group" aria-label={`${team.key} ${status.name}`}>
-      <div className="issue-group-heading">
+    <section className="mb-3" aria-label={`${team.key} ${status.name}`}>
+      <div className="flex items-center justify-between rounded-[5px] bg-muted px-2 py-0.5">
         <button
           type="button"
-          className="issue-group-toggle"
+          className="flex flex-1 cursor-pointer items-center gap-[9px] py-1.5 text-left [&_svg]:size-3.5 [&_svg]:text-muted-foreground [&_[data-status-category=completed]]:text-primary"
           onClick={() => setCollapsed((value) => !value)}
           aria-expanded={!collapsed}
         >
           {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
           <StatusIcon category={status.category} />
-          <h2>{status.name}</h2>
-          <span className="issue-group-count">{issues.length}</span>
+          <SectionTitle className="m-0 text-[13px] font-medium">
+            {status.name}
+          </SectionTitle>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {issues.length}
+          </span>
           {detail.teams.length > 1 && (
             <Badge variant="outline">{team.key}</Badge>
           )}
@@ -67,34 +72,45 @@ function IssueGroup({
         </Button>
       </div>
       {!collapsed && (
-        <ul className="issue-list">
+        <ul className="m-0 list-none p-0">
           {issues.map((issue) => {
             const member = detail.members.find(
               (member) => member.id === issue.assignee_membership_id,
             );
             return (
-              <li key={issue.id}>
+              <li key={issue.id} className="border-b">
                 <Link
+                  className="grid grid-cols-[16px_70px_16px_minmax(0,1fr)_24px_52px] items-center gap-3 px-5 py-3 text-[13px] text-foreground no-underline transition-colors duration-[120ms] ease-out hover:bg-muted focus-visible:rounded focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 motion-reduce:transition-none max-[600px]:grid-cols-[16px_65px_16px_minmax(0,1fr)_24px] max-[600px]:gap-2 max-[600px]:px-2"
                   to="/$workspaceSlug/issue/$issueKey/$issueTitle"
                   params={issueRouteParams(slug, issue)}
                 >
                   <span
-                    className="issue-row-priority"
+                    className="[&_svg]:size-4 [&_svg]:text-muted-foreground"
                     title={`${issue.priority} priority`}
                   >
                     <PriorityIcon priority={issue.priority} />
                   </span>
-                  <span className="issue-identifier">{issue.identifier}</span>
-                  <span className="issue-row-status" title={status.name}>
+                  <span className="text-muted-foreground tabular-nums">
+                    {issue.identifier}
+                  </span>
+                  <span
+                    className="flex [&_svg]:size-4 [&_svg]:text-muted-foreground [&_[data-status-category=completed]]:text-primary"
+                    title={status.name}
+                  >
                     <StatusIcon category={status.category} />
                   </span>
-                  <strong title={issue.title}>{issue.title}</strong>
+                  <strong
+                    className="truncate font-medium max-[600px]:col-[2/5] max-[600px]:row-start-2 max-[600px]:whitespace-normal max-[600px]:wrap-anywhere"
+                    title={issue.title}
+                  >
+                    {issue.title}
+                  </strong>
                   <span className="sr-only">
                     {status.name}, {issue.priority} priority,{' '}
                     {member?.display_name ?? 'Unassigned'}
                   </span>
                   <span
-                    className="issue-row-assignee"
+                    className="[&>svg]:size-4 [&>svg]:text-muted-foreground max-[600px]:col-start-5 max-[600px]:row-[1/3]"
                     title={member?.display_name ?? 'Unassigned'}
                   >
                     {member ? (
@@ -107,7 +123,10 @@ function IssueGroup({
                       <UserRoundIcon />
                     )}
                   </span>
-                  <time dateTime={issue.created_at} className="issue-row-date">
+                  <time
+                    dateTime={issue.created_at}
+                    className="text-right text-xs text-muted-foreground max-[600px]:hidden"
+                  >
                     {new Intl.DateTimeFormat(undefined, {
                       month: 'short',
                       day: 'numeric',
@@ -190,12 +209,12 @@ export function IssueList({
       )
       .filter((group) => group.issues.length > 0) ?? [];
   return (
-    <div className="issues-page">
-      <header className="issues-header">
-        <div className="issues-breadcrumb">
+    <div data-layout="issues">
+      <header className="flex items-center justify-between gap-4 border-b px-6 py-4 max-[600px]:flex-wrap max-[600px]:px-4 max-[600px]:py-3 in-[[data-layout=issue-detail]]:max-md:flex-wrap in-[[data-layout=issue-detail]]:max-md:gap-3">
+        <div className="flex min-w-0 items-center gap-2.5 text-[13px] [&>span]:max-w-[180px] [&>span]:truncate [&>span]:text-muted-foreground max-[600px]:[&>span]:max-w-[120px] [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground [&_h1]:m-0 [&_h1]:text-sm [&_h1]:font-medium [&_h1]:tracking-normal [&_a]:text-primary [&_a]:underline">
           <span>{selectedTeam?.name ?? 'Team'}</span>
           <ChevronRightIcon aria-hidden="true" />
-          <h1>Issues</h1>
+          <PageTitle>Issues</PageTitle>
         </div>
         <Button
           variant="outline"
@@ -207,15 +226,18 @@ export function IssueList({
           New issue
         </Button>
       </header>
-      <div className="issues-toolbar">
-        <nav aria-label="Issue lists">
+      <div className="flex items-center justify-between gap-4 px-6 py-2.5 max-[600px]:px-4">
+        <nav className="flex gap-1" aria-label="Issue lists">
           <Link
             to="/$workspaceSlug/team/$teamSlug/all"
             params={{
               workspaceSlug: slug,
               teamSlug: teamKey.toLowerCase(),
             }}
-            className={cn('issue-view', !archived && 'issue-view-active')}
+            className={cn(
+              'rounded-full px-3 py-[5px] text-xs font-medium text-muted-foreground no-underline hover:bg-muted',
+              !archived && 'bg-secondary text-foreground',
+            )}
             aria-current={!archived ? 'page' : undefined}
           >
             All issues
@@ -226,19 +248,22 @@ export function IssueList({
               workspaceSlug: slug,
               teamSlug: teamKey.toLowerCase(),
             }}
-            className={cn('issue-view', archived && 'issue-view-active')}
+            className={cn(
+              'rounded-full px-3 py-[5px] text-xs font-medium text-muted-foreground no-underline hover:bg-muted',
+              archived && 'bg-secondary text-foreground',
+            )}
             aria-current={archived ? 'page' : undefined}
           >
             Archived
           </Link>
         </nav>
-        <span className="issues-total">
+        <span className="text-xs text-muted-foreground">
           {issues
             ? `${issues.length} ${issues.length === 1 ? 'issue' : 'issues'}`
             : ''}
         </span>
       </div>
-      <div className="issues-body">
+      <div className="px-3 pb-8">
         {detail && !selectedTeam ? (
           <Notice error>
             This team is unavailable. Choose a team from the sidebar.
@@ -257,7 +282,7 @@ export function IssueList({
         ) : !issues || !detail ? (
           <LoadingState>Loading issues…</LoadingState>
         ) : issues.length === 0 ? (
-          <Empty className="issue-empty">
+          <Empty className="px-6 py-25">
             <EmptyHeader>
               <EmptyTitle>
                 {archived ? 'No archived issues' : 'Capture your first issue'}

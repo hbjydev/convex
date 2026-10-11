@@ -103,7 +103,7 @@ export function CreateIssueDialog({
       }}
     >
       <DialogContent
-        className="create-issue-dialog"
+        className="w-[min(750px,calc(100vw-32px))] max-w-[750px] rounded-xl p-4"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           document.getElementById('new-issue-title')?.focus();
@@ -125,7 +125,7 @@ export function CreateIssueDialog({
           aria-busy={pending}
         >
           <FieldSet disabled={pending} className="gap-0">
-            <div className="create-issue-header">
+            <div className="mb-3.5 flex items-center gap-2 pr-8 [&>svg]:size-3.5 [&>svg]:text-muted-foreground [&_h2]:text-[13px] [&_h2]:font-medium">
               <PropertyMenu
                 label="Team"
                 value={teamId}
@@ -149,13 +149,13 @@ export function CreateIssueDialog({
               <ChevronRightIcon aria-hidden="true" />
               <DialogTitle>New issue</DialogTitle>
             </div>
-            <FieldGroup className="create-issue-writing">
+            <FieldGroup className="gap-1 [container-type:normal]">
               <Field>
                 <FieldLabel className="sr-only" htmlFor="new-issue-title">
                   Title
                 </FieldLabel>
                 <Input
-                  className="create-issue-title"
+                  className="h-auto min-h-9 border-transparent bg-transparent p-1.5 text-lg font-medium shadow-none md:text-lg"
                   id="new-issue-title"
                   placeholder="Issue title"
                   value={draft.title}
@@ -171,7 +171,7 @@ export function CreateIssueDialog({
                   Description
                 </FieldLabel>
                 <Textarea
-                  className="create-issue-description"
+                  className="min-h-25 resize-y border-transparent bg-transparent p-1.5 shadow-none"
                   id="new-issue-description"
                   placeholder="Add description…"
                   value={draft.description}
@@ -183,7 +183,7 @@ export function CreateIssueDialog({
                 />
               </Field>
             </FieldGroup>
-            <div className="create-issue-properties">
+            <div className="mt-3.5 mb-6 flex flex-wrap gap-1.5">
               <PropertyMenu
                 label="Status"
                 value={draft.status_id}
@@ -244,7 +244,7 @@ export function CreateIssueDialog({
             </div>
             {error && <Notice error>{error}</Notice>}
             {message && <Notice>{message}</Notice>}
-            <div className="create-issue-footer">
+            <div className="flex items-center justify-between gap-4 [&_label]:text-xs [&_label]:text-muted-foreground [&_input[type=checkbox]]:accent-primary max-[600px]:flex-col max-[600px]:items-start max-[600px]:gap-3 max-[600px]:[&>div]:w-full max-[600px]:[&>div]:justify-end">
               <span className="text-xs text-muted-foreground">
                 Markdown supported
               </span>

@@ -1,3 +1,4 @@
+import { Intro } from '@/components/typography';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
@@ -57,12 +58,12 @@ export function InvitationAcceptance() {
         <Notice error>{error}</Notice>
       ) : preview ? (
         <>
-          <p className="intro">
+          <Intro>
             You’ve been invited as a workspace {preview.role}.{' '}
             {account
               ? `Continue as ${account.user.display_name}.`
               : 'Create your account to join, or sign in with your existing account.'}
-          </p>
+          </Intro>
           {!account && <OidcContinue invitationToken={token} />}
           {(account || !bootstrap.oidc_required) && (
             <Form
@@ -96,7 +97,7 @@ export function InvitationAcceptance() {
           )}
           {!account && (
             <Link
-              className="after-form"
+              className="mt-6 inline-flex text-sm text-primary underline"
               to="/auth/login"
               search={{ return: 'invite' }}
             >

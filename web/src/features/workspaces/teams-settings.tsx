@@ -1,3 +1,15 @@
+import { SettingsTable } from '@/components/settings-table';
+import { SettingsSortButton } from '@/components/settings-controls';
+import {
+  SettingsDirectory,
+  SettingsToolbar,
+  SettingsToolbarActions,
+  SettingsBlock,
+  SettingsPage,
+  SettingsPanel,
+  SettingsRow,
+} from '@/components/settings-layout';
+import { PageTitle, SectionTitle, Intro } from '@/components/typography';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ArrowDownIcon, ChevronLeftIcon, UsersRoundIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -28,15 +40,15 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
     .sort((a, b) => (ascending ? 1 : -1) * a.name.localeCompare(b.name));
   const team = detail.teams.find((item) => item.id === selected);
   return (
-    <div className="settings-directory">
-      <h1>Teams</h1>
-      <div className="settings-toolbar">
+    <SettingsDirectory>
+      <PageTitle>Teams</PageTitle>
+      <SettingsToolbar>
         <SettingsSearch
           label="Filter by name or identifier…"
           value={search}
           onChange={setSearch}
         />
-        <div className="settings-toolbar-actions">
+        <SettingsToolbarActions>
           <Button
             variant="outline"
             className="rounded-full"
@@ -60,22 +72,22 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
               </Link>
             </Button>
           )}
-        </div>
-      </div>
-      <div className="settings-table-scroll">
-        <table className="settings-table teams-table">
+        </SettingsToolbarActions>
+      </SettingsToolbar>
+      <div className="overflow-x-auto">
+        <SettingsTable kind="teams">
           <caption className="sr-only">Workspace teams</caption>
           <thead>
             <tr>
               <th aria-sort={ascending ? 'ascending' : 'descending'}>
-                <button
+                <SettingsSortButton
                   ref={sortButton}
-                  className="settings-sort"
+
                   onClick={() => setAscending(!ascending)}
                 >
                   Name{' '}
                   <ArrowDownIcon className={ascending ? '' : 'rotate-180'} />
-                </button>
+                </SettingsSortButton>
               </th>
               <th>Identifier</th>
               <th>Visibility</th>
@@ -84,7 +96,10 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
           </thead>
           <tbody>
             {teams.length > 0 && (
-              <tr className="settings-group-row">
+              <tr
+                data-group
+                className="[&_th]:bg-muted [&_th]:py-1.5 [&_th]:text-xs [&_span]:ml-1.5 max-md:[&_th]:col-span-full"
+              >
                 <th colSpan={4} scope="rowgroup">
                   Active <span>{teams.length}</span>
                 </th>
@@ -94,7 +109,7 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
               <tr key={item.id}>
                 <td>
                   <button
-                    className="settings-name-button"
+                    className="flex min-w-0 items-center gap-2 text-left font-medium text-foreground max-md:min-h-11 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-4"
                     onClick={(event) => {
                       openingButton.current = event.currentTarget;
                       setSelected(item.id);
@@ -111,13 +126,16 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
             ))}
             {teams.length === 0 && (
               <tr>
-                <td colSpan={4} className="settings-empty">
+                <td
+                  colSpan={4}
+                  className="py-10! text-center max-md:col-span-full"
+                >
                   {search ? 'No teams match your search.' : 'No teams yet.'}
                 </td>
               </tr>
             )}
           </tbody>
-        </table>
+        </SettingsTable>
       </div>
       <Dialog
         open={!!team}
@@ -135,15 +153,18 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
               )?.focus();
             }}
           >
-            <DialogTitle className="settings-dialog-title">
+            <DialogTitle className="mb-3 flex items-center gap-2 pr-8 text-[15px] font-medium">
               {team.name}
             </DialogTitle>
-            <DialogDescription className="muted">
+            <DialogDescription className="text-[13px] leading-[1.6] text-muted-foreground">
               {team.key} · Visible to all workspace members
             </DialogDescription>
-            <section className="settings-block">
-              <h2>Workflow</h2>
-              <ol className="workflow" aria-label={`${team.name} workflow`}>
+            <SettingsBlock>
+              <SectionTitle>Workflow</SectionTitle>
+              <ol
+                className="m-0 flex list-none flex-wrap gap-2 p-0 [&_li]:flex [&_li]:min-w-0 [&_li]:flex-col [&_li]:gap-1.5 [&_li]:rounded-lg [&_li]:border [&_li]:px-3 [&_li]:py-2.5 [&_li]:text-[13px] [&_small]:text-xs [&_small]:text-muted-foreground"
+                aria-label={`${team.name} workflow`}
+              >
                 {team.statuses.map((status) => (
                   <li key={status.id}>
                     {status.name}
@@ -151,10 +172,10 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
                   </li>
                 ))}
               </ol>
-              <p className="muted">
+              <p className="text-[13px] leading-[1.6] text-muted-foreground">
                 Team identifiers stay fixed to preserve issue identifiers.
               </p>
-            </section>
+            </SettingsBlock>
             {manage && (
               <Form
                 submit="Save team name"
@@ -187,7 +208,7 @@ export function TeamsSettings({ detail, manage, load }: SettingsProps) {
           </DialogContent>
         )}
       </Dialog>
-    </div>
+    </SettingsDirectory>
   );
 }
 
@@ -199,20 +220,24 @@ export function CreateTeam({ detail, load }: SettingsProps) {
   const params = { workspaceSlug: detail.workspace.slug };
   return (
     <>
-      <Button asChild variant="ghost" className="settings-back">
+      <Button
+        asChild
+        variant="ghost"
+        className="mb-4 flex w-fit md:absolute md:top-2 md:left-6 md:mb-0"
+      >
         <Link to="/$workspaceSlug" params={params} hash="teams">
           <ChevronLeftIcon />
           Back
         </Link>
       </Button>
-      <div className="settings-narrow">
-        <h1>Create a new team</h1>
-        <p className="intro">
+      <SettingsPage>
+        <PageTitle>Create a new team</PageTitle>
+        <Intro>
           Create a new team to organize work with its own issue identifiers and
           workflow.
-        </p>
+        </Intro>
         <Form
-          className="settings-profile-form"
+          className="mt-0 max-w-none [&>fieldset>[data-slot=field-group]]:gap-4 [&>fieldset>[data-slot=field-group]>button]:self-end"
           submit="Create team"
           action={async () => {
             const result = unwrap(
@@ -226,12 +251,18 @@ export function CreateTeam({ detail, load }: SettingsProps) {
             return result.message;
           }}
         >
-          <div className="settings-panel">
-            <div className="settings-row">
-              <label className="settings-label" htmlFor="team-name">
+          <SettingsPanel>
+            <SettingsRow>
+              <label
+                className="mb-0.5 block text-[13px] font-medium"
+                htmlFor="team-name"
+              >
                 Icon &amp; Name
               </label>
-              <div className="settings-name-field">
+              <div
+                data-name-field
+                className="flex items-center gap-2.5 [&>svg]:size-7 [&>svg]:shrink-0 [&>svg]:rounded-lg [&>svg]:bg-accent [&>svg]:p-1 [&>svg]:text-muted-foreground"
+              >
                 <UsersRoundIcon aria-hidden="true" />
                 <Input
                   id="team-name"
@@ -253,10 +284,13 @@ export function CreateTeam({ detail, load }: SettingsProps) {
                   }}
                 />
               </div>
-            </div>
-            <div className="settings-row">
+            </SettingsRow>
+            <SettingsRow>
               <div>
-                <label className="settings-label" htmlFor="team-key">
+                <label
+                  className="mb-0.5 block text-[13px] font-medium"
+                  htmlFor="team-key"
+                >
                   Identifier
                 </label>
                 <p id="team-key-hint">
@@ -282,29 +316,31 @@ export function CreateTeam({ detail, load }: SettingsProps) {
                 pattern="[A-Z][A-Z0-9]{1,9}"
                 aria-describedby="team-key-hint"
               />
-            </div>
-          </div>
-          <section className="settings-block">
-            <h2>Team access</h2>
-            <p className="intro">
+            </SettingsRow>
+          </SettingsPanel>
+          <SettingsBlock>
+            <SectionTitle>Team access</SectionTitle>
+            <Intro>
               All workspace members can access the team and its content.
-            </p>
-            <div className="settings-panel">
-              <div className="settings-row">
-                <span className="settings-label">Visibility</span>
+            </Intro>
+            <SettingsPanel>
+              <SettingsRow>
+                <span className="mb-0.5 block text-[13px] font-medium">
+                  Visibility
+                </span>
                 <span>Workspace</span>
-              </div>
-            </div>
-          </section>
-          <section className="settings-block">
-            <h2>Workflow</h2>
-            <p className="intro">
+              </SettingsRow>
+            </SettingsPanel>
+          </SettingsBlock>
+          <SettingsBlock>
+            <SectionTitle>Workflow</SectionTitle>
+            <Intro>
               New teams start with the default workflow. Each new issue starts
               in Todo.
-            </p>
-            <div className="settings-panel">
+            </Intro>
+            <SettingsPanel>
               <ol
-                className="settings-default-workflow"
+                className="flex flex-wrap items-center gap-x-5 gap-y-3 py-5 text-[13px] text-muted-foreground"
                 aria-label="Default team workflow"
               >
                 {['Backlog', 'Todo', 'In Progress', 'Done', 'Canceled'].map(
@@ -313,10 +349,10 @@ export function CreateTeam({ detail, load }: SettingsProps) {
                   ),
                 )}
               </ol>
-            </div>
-          </section>
+            </SettingsPanel>
+          </SettingsBlock>
         </Form>
-      </div>
+      </SettingsPage>
     </>
   );
 }

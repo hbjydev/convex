@@ -1,3 +1,6 @@
+import { PageTitle, SectionTitle } from '@/components/typography';
+import { SettingsSection } from '@/components/settings-layout';
+import { DirectoryList } from '@/components/directory-list';
 import { Link } from '@tanstack/react-router';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -36,7 +39,7 @@ export function AccountSettings() {
           Workspaces
         </Link>
       </Button>
-      <h1>Your account</h1>
+      <PageTitle>Your account</PageTitle>
       {error && <Notice error>{error}</Notice>}
       {methods && (
         <LoginMethods
@@ -48,9 +51,9 @@ export function AccountSettings() {
         />
       )}
       {methods?.local_usable && (
-        <section className="settings-section">
+        <SettingsSection>
           <Separator />
-          <h2>Change password</h2>
+          <SectionTitle>Change password</SectionTitle>
           <Form
             submit="Change password"
             action={async (form) => {
@@ -81,12 +84,12 @@ export function AccountSettings() {
               hint="Use 12–128 characters. Changing your password signs out all other sessions."
             />
           </Form>
-        </section>
+        </SettingsSection>
       )}
-      <section className="settings-section">
+      <SettingsSection>
         <Separator />
-        <h2>Active sessions</h2>
-        <ul className="invitation-list">
+        <SectionTitle>Active sessions</SectionTitle>
+        <DirectoryList>
           {sessions.map((session) => (
             <li key={session.id}>
               <div>
@@ -119,17 +122,17 @@ export function AccountSettings() {
               </Form>
             </li>
           ))}
-        </ul>
-      </section>
+        </DirectoryList>
+      </SettingsSection>
       {account?.user.is_instance_admin && (
-        <section className="settings-section">
+        <SettingsSection>
           <Separator />
-          <h2>Installation accounts</h2>
+          <SectionTitle>Installation accounts</SectionTitle>
           <p>
             Disabling an account immediately revokes all its sessions. Workspace
             memberships remain in place for recovery.
           </p>
-          <ul className="people-list">
+          <DirectoryList>
             {accounts.map((user) => (
               <li key={user.id}>
                 <div>
@@ -161,8 +164,8 @@ export function AccountSettings() {
                 )}
               </li>
             ))}
-          </ul>
-        </section>
+          </DirectoryList>
+        </SettingsSection>
       )}
     </>
   );

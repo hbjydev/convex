@@ -1,3 +1,4 @@
+import { Intro } from '@/components/typography';
 import { Link } from '@tanstack/react-router';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth';
@@ -12,10 +13,10 @@ export function Recovery() {
       title="Recover your account"
       description="Request a password reset link for your local account."
     >
-      <p className="intro">
+      <Intro>
         {!bootstrap.mail_available &&
           'Email recovery is unavailable on this installation. Ask your installation operator for a password reset link.'}
-      </p>
+      </Intro>
       {bootstrap.mail_available && (
         <Form
           submit="Request reset link"
@@ -30,7 +31,10 @@ export function Recovery() {
           <Field name="email" label="Email" type="email" autoComplete="email" />
         </Form>
       )}
-      <Link className="after-form" to="/auth/login">
+      <Link
+        className="mt-6 inline-flex text-sm text-primary underline"
+        to="/auth/login"
+      >
         Return to sign in
       </Link>
     </AuthCard>

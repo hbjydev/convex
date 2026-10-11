@@ -1,3 +1,4 @@
+import { PageTitle } from '@/components/typography';
 import { Link, useLocation, useRouteContext } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/api/client';
@@ -63,7 +64,7 @@ export function WorkspaceSettings() {
   if (error)
     return (
       <>
-        <h1>Workspace unavailable</h1>
+        <PageTitle>Workspace unavailable</PageTitle>
         <Notice error>{error}</Notice>
         <Link to="/">Return to workspaces</Link>
       </>

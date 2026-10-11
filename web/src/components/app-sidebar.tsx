@@ -100,7 +100,9 @@ export function AppSidebar({
             </SidebarMenuItem>
           )}
         </SidebarMenu>
-        <p className="sidebar-caption">Self-hosted issue tracking</p>
+        <p className="px-2 pt-1 pb-2 text-[11px] text-muted-foreground">
+          Self-hosted issue tracking
+        </p>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
