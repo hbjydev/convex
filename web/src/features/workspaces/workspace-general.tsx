@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { unwrap } from '@/lib/requests';
 import { initials, type SettingsProps } from './settings-shared';
 import { DeleteWorkspace } from './delete-workspace';
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group';
+import { FieldLabel } from '@/components/ui/field';
 
 export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
   const { reload } = useAuth();
@@ -70,20 +72,29 @@ export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
             />
           </SettingsRow>
           <SettingsRow>
-            <label
+            <FieldLabel
               className="mb-0.5 block text-[13px] font-medium"
               htmlFor="workspace-url"
             >
               URL
-            </label>
-            <Input
-              className="md:w-64"
-              id="workspace-url"
-              aria-label="Workspace URL"
-              value={`${window.location.host}/${workspace.slug}`}
-              readOnly
-              title="Workspace URLs stay fixed when the name changes."
-            />
+            </FieldLabel>
+            <InputGroup className="md:w-64">
+              <InputGroupInput
+                minLength={3}
+                maxLength={63}
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                id="workspace-url"
+                aria-label="Workspace URL"
+                value={workspace.slug}
+                readOnly
+                title="Workspace URLs stay fixed when the name changes."
+              />
+              <InputGroupAddon className="max-w-1/2 min-w-0">
+                <InputGroupText>
+                  <span className="truncate">{window.location.host}/</span>
+                </InputGroupText>
+              </InputGroupAddon>
+            </InputGroup>
           </SettingsRow>
         </SettingsPanel>
         {!manage && (
