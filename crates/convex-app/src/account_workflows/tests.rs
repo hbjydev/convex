@@ -1,4 +1,6 @@
+use convex_ids::WorkspaceId;
 use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
 use convex_auth::{
     mock::MockRateLimiter,
@@ -307,7 +309,7 @@ async fn enabling_an_account_skips_disablement_guards_and_revokes_old_sessions()
 async fn disabling_checks_every_workspace_owner_before_changing_the_account() {
     let mut work = MockUnitOfWork::default();
     let mut sequence = Sequence::new();
-    let other_workspace = uuid::Uuid::from_u128(10);
+    let other_workspace = WorkspaceId::from_uuid(Uuid::from_u128(10));
     expect_actor(&mut work, true);
     work.workspaces
         .expect_lock_all()

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
+use convex_ids::{IssueId, MembershipId, TeamId, WorkflowStatusId, WorkspaceId};
 use serde::Serialize;
-use uuid::Uuid;
 
 use crate::events::IssueEventKind;
 
@@ -23,32 +23,32 @@ pub enum Priority {
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct Issue {
-    pub id: Uuid,
-    pub workspace_id: Uuid,
-    pub team_id: Uuid,
+    pub id: IssueId,
+    pub workspace_id: WorkspaceId,
+    pub team_id: TeamId,
     pub number: i64,
     pub identifier: String,
     pub title: String,
     pub description: String,
-    pub status_id: Uuid,
+    pub status_id: WorkflowStatusId,
     pub priority: Priority,
-    pub assignee_membership_id: Option<Uuid>,
-    pub creator_membership_id: Uuid,
+    pub assignee_membership_id: Option<MembershipId>,
+    pub creator_membership_id: MembershipId,
     pub version: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub archived_at: Option<DateTime<Utc>>,
-    pub archived_by_membership_id: Option<Uuid>,
+    pub archived_by_membership_id: Option<MembershipId>,
 }
 
 #[derive(Clone, Debug)]
 pub struct NewIssue {
-    pub team_id: Uuid,
+    pub team_id: TeamId,
     pub title: String,
     pub description: String,
-    pub status_id: Option<Uuid>,
+    pub status_id: Option<WorkflowStatusId>,
     pub priority: Priority,
-    pub assignee_membership_id: Option<Uuid>,
+    pub assignee_membership_id: Option<MembershipId>,
 }
 
 impl NewIssue {
@@ -65,9 +65,9 @@ pub struct IssuePatch {
     pub expected_version: i64,
     pub title: Option<String>,
     pub description: Option<String>,
-    pub status_id: Option<Uuid>,
+    pub status_id: Option<WorkflowStatusId>,
     pub priority: Option<Priority>,
-    pub assignee_membership_id: Option<Option<Uuid>>,
+    pub assignee_membership_id: Option<Option<MembershipId>>,
     pub archived: Option<bool>,
 }
 

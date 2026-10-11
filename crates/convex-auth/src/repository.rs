@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use uuid::Uuid;
+use convex_ids::UserId;
 
 /// Session lookup for issue operations, without account/session write locks.
 /// The caller holds a shared workspace lock until its unit of work finishes.
@@ -9,15 +9,15 @@ use uuid::Uuid;
 pub trait SessionRepository: Send {
     async fn new_session(
         &mut self,
-        user: Uuid,
+        user: UserId,
         method: crate::security::LoginMethod,
     ) -> convex_core::Result<String>;
     async fn session_method(
         &mut self,
         credentials: crate::credentials::Credentials,
     ) -> convex_core::Result<crate::security::LoginMethod>;
-    async fn revoke_all(&mut self, user: Uuid) -> convex_core::Result<()>;
-    async fn active_user(&mut self, token_digest: &str) -> Result<Option<Uuid>>;
+    async fn revoke_all(&mut self, user: UserId) -> convex_core::Result<()>;
+    async fn active_user(&mut self, token_digest: &str) -> Result<Option<UserId>>;
 }
 
 /// Confirms this replica still holds the active installation authentication policy.
@@ -44,10 +44,10 @@ pub trait AccountRepository: Send {
     ) -> convex_core::Result<crate::accounts::models::User>;
     async fn find_for_update(
         &mut self,
-        user: Uuid,
+        user: UserId,
     ) -> convex_core::Result<crate::accounts::models::User>;
-    async fn protect_enabled_administrators(&mut self, user: Uuid) -> convex_core::Result<()>;
-    async fn set_disabled(&mut self, user: Uuid, disabled: bool) -> convex_core::Result<()>;
+    async fn protect_enabled_administrators(&mut self, user: UserId) -> convex_core::Result<()>;
+    async fn set_disabled(&mut self, user: UserId, disabled: bool) -> convex_core::Result<()>;
 }
 
 #[cfg_attr(feature = "mock", mockall::automock)]

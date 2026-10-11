@@ -10,13 +10,14 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
+use convex_ids::{SessionId, UserId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 #[derive(Clone, Serialize, ToSchema)]
 pub struct User {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: UserId,
     pub display_name: String,
     pub is_instance_admin: bool,
 }
@@ -170,7 +171,8 @@ impl From<ResetRequest> for convex_auth::accounts::models::ResetRequest {
 
 #[derive(Serialize, ToSchema)]
 pub struct SessionInfo {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: SessionId,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub last_activity_at: DateTime<Utc>,
@@ -192,7 +194,8 @@ impl From<convex_auth::accounts::models::SessionInfo> for SessionInfo {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RevokeSession {
-    pub session_id: Uuid,
+    #[schema(inline)]
+    pub session_id: SessionId,
 }
 
 impl From<RevokeSession> for convex_auth::accounts::models::RevokeSession {
@@ -206,7 +209,8 @@ impl From<RevokeSession> for convex_auth::accounts::models::RevokeSession {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DisableRequest {
-    pub user_id: Uuid,
+    #[schema(inline)]
+    pub user_id: UserId,
     pub disabled: bool,
 }
 
@@ -221,7 +225,8 @@ impl From<DisableRequest> for convex_app::accounts::models::DisableRequest {
 
 #[derive(Serialize, ToSchema)]
 pub struct AdminAccount {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: UserId,
     pub display_name: String,
     pub email: Option<String>,
     pub disabled: bool,

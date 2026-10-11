@@ -1,10 +1,10 @@
 use crate::auth_policy::*;
 use anyhow::{Result, ensure};
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::UserId;
 use sqlx::{Connection, PgConnection, PgPool, Postgres, Transaction};
 use std::sync::Arc;
 use tokio::sync::{Mutex, OnceCell};
-use uuid::Uuid;
 const LOCK_NAMESPACE: i32 = 0x435658;
 const LOCK_POLICY: i32 = 3;
 pub struct ActivePolicy {
@@ -176,7 +176,10 @@ pub async fn activate(pool: &PgPool, config: &AuthenticationConfig) -> Result<Ac
     })
 }
 
-pub async fn ensure_local_allowed(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> AppResult<()> {
+pub async fn ensure_local_allowed(
+    tx: &mut Transaction<'_, Postgres>,
+    user: UserId,
+) -> AppResult<()> {
     let allowed: bool = sqlx::query_scalar(
         "SELECT NOT p.oidc_required
              OR u.is_instance_admin

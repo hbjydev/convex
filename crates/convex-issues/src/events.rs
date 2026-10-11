@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
+use convex_ids::{IssueId, MembershipId, WorkflowStatusId, WorkspaceId};
 use serde::Serialize;
-use uuid::Uuid;
 
 use crate::Priority;
 
@@ -25,13 +25,13 @@ impl IssueEventKind {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct StatusSnapshot {
-    pub id: Uuid,
+    pub id: WorkflowStatusId,
     pub name: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct AssigneeSnapshot {
-    pub id: Option<Uuid>,
+    pub id: Option<MembershipId>,
     pub name: Option<String>,
 }
 
@@ -52,9 +52,9 @@ pub struct IssueSnapshot {
 /// events are returned to callers only after commit. There is no external delivery yet.
 #[derive(Clone, Debug)]
 pub struct IssueEvent {
-    pub workspace_id: Uuid,
-    pub issue_id: Uuid,
-    pub actor_membership_id: Uuid,
+    pub workspace_id: WorkspaceId,
+    pub issue_id: IssueId,
+    pub actor_membership_id: MembershipId,
     pub kind: IssueEventKind,
     pub before: Option<IssueSnapshot>,
     pub after: IssueSnapshot,

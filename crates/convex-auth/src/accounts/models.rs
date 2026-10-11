@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use convex_ids::{SessionId, UserId};
 
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct User {
-    pub id: Uuid,
+    pub id: UserId,
     pub display_name: String,
     pub is_instance_admin: bool,
 }
@@ -49,7 +49,7 @@ pub struct ResetRequest {
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct SessionInfo {
-    pub id: Uuid,
+    pub id: SessionId,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub last_activity_at: DateTime<Utc>,
@@ -58,13 +58,13 @@ pub struct SessionInfo {
 
 #[derive(Clone)]
 pub struct RevokeSession {
-    pub session_id: Uuid,
+    pub session_id: SessionId,
 }
 
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct AdminAccount {
-    pub id: Uuid,
+    pub id: UserId,
     pub display_name: String,
     pub email: Option<String>,
     pub disabled: bool,

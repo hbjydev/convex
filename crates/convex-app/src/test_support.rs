@@ -1,3 +1,4 @@
+use convex_ids::{MembershipId, TeamId, UserId, WorkspaceId};
 use std::sync::Arc;
 
 use convex_auth::{
@@ -12,14 +13,14 @@ use crate::{
     mock::{MockUnitOfWork, MockUnitOfWorkFactory},
 };
 
-pub const USER: Uuid = Uuid::from_u128(1);
-pub const ACTOR_MEMBER: Uuid = Uuid::from_u128(2);
-pub const WORKSPACE: Uuid = Uuid::from_u128(3);
-pub const TARGET_USER: Uuid = Uuid::from_u128(4);
-pub const TARGET_MEMBER: Uuid = Uuid::from_u128(5);
-pub const TEAM: Uuid = Uuid::from_u128(6);
+pub const USER: UserId = UserId::from_uuid(Uuid::from_u128(1));
+pub const ACTOR_MEMBER: MembershipId = MembershipId::from_uuid(Uuid::from_u128(2));
+pub const WORKSPACE: WorkspaceId = WorkspaceId::from_uuid(Uuid::from_u128(3));
+pub const TARGET_USER: UserId = UserId::from_uuid(Uuid::from_u128(4));
+pub const TARGET_MEMBER: MembershipId = MembershipId::from_uuid(Uuid::from_u128(5));
+pub const TEAM: TeamId = TeamId::from_uuid(Uuid::from_u128(6));
 
-pub fn user(id: Uuid, admin: bool) -> User {
+pub fn user(id: UserId, admin: bool) -> User {
     User {
         id,
         display_name: "Alex".into(),

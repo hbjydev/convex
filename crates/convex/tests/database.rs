@@ -3,6 +3,10 @@ use axum::{
     http::{Request, StatusCode},
 };
 use convex::{MIGRATOR, runtime as http};
+use convex_ids::{
+    IssueId, MembershipId, OidcFlowId, OidcIdentityId, SessionId, UserId, WorkflowStatusId,
+    WorkspaceId,
+};
 use serde_json::{Value, json};
 use sqlx::{
     PgPool,
@@ -237,7 +241,7 @@ async fn workspace_slug_migration_preserves_existing_workspaces(pool: PgPool) {
     .unwrap();
     for name in ["Acme", "Acme", "你好", &"A".repeat(100)] {
         sqlx::query("INSERT INTO convex.workspaces (id,name) VALUES ($1,$2)")
-            .bind(uuid::Uuid::new_v4())
+            .bind(WorkspaceId::new())
             .bind(name)
             .execute(&pool)
             .await
@@ -249,7 +253,7 @@ async fn workspace_slug_migration_preserves_existing_workspaces(pool: PgPool) {
     .execute(&pool)
     .await
     .unwrap();
-    let rows: Vec<(uuid::Uuid, String, String)> =
+    let rows: Vec<(WorkspaceId, String, String)> =
         sqlx::query_as("SELECT id,name,slug FROM convex.workspaces")
             .fetch_all(&pool)
             .await
@@ -501,7 +505,7 @@ async fn invitation_single_use_roles_and_membership_removal(pool: PgPool) {
     );
     let count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM convex.workspace_memberships WHERE id=$1")
-            .bind(member_id.as_str().unwrap().parse::<uuid::Uuid>().unwrap())
+            .bind(member_id.as_str().unwrap().parse::<MembershipId>().unwrap())
             .fetch_one(&pool)
             .await
             .unwrap();
@@ -1005,10 +1009,10 @@ fn policy_config(ttl: &str, provider: bool, required: bool) -> SecurityConfig {
 
 // This seeds a validated identity at the domain interface. It deliberately does not
 // simulate protocol validation: login/callback interoperability belongs to the next slice.
-async fn oidc_account(pool: &PgPool, admin: bool) -> (uuid::Uuid, uuid::Uuid, String) {
+async fn oidc_account(pool: &PgPool, admin: bool) -> (UserId, OidcIdentityId, String) {
     use convex_auth::{postgres::accounts, security};
-    let user = uuid::Uuid::new_v4();
-    let identity = uuid::Uuid::new_v4();
+    let user = UserId::new();
+    let identity = OidcIdentityId::new();
     let mut tx = accounts::transaction(pool).await.unwrap();
     sqlx::query("INSERT INTO convex.users (id,display_name,is_instance_admin) VALUES ($1,'External user',$2)")
         .bind(user).bind(admin).execute(&mut *tx).await.unwrap();
@@ -1081,7 +1085,7 @@ async fn shared_session_lifetime_oidc_invitation_and_admin_visibility(pool: PgPo
             .0,
         401
     );
-    let provenance: (String, uuid::Uuid, f64) = sqlx::query_as("SELECT login_method,oidc_identity_id,EXTRACT(EPOCH FROM expires_at-created_at)::double precision FROM convex.sessions WHERE token_hash=$1")
+    let provenance: (String, OidcIdentityId, f64) = sqlx::query_as("SELECT login_method,oidc_identity_id,EXTRACT(EPOCH FROM expires_at-created_at)::double precision FROM convex.sessions WHERE token_hash=$1")
         .bind(convex_auth::security::digest(rotated.strip_prefix("convex_session=").unwrap()))
         .fetch_one(&pool).await.unwrap();
     assert_eq!(provenance, ("oidc".into(), identity, 10800.0));
@@ -1142,7 +1146,7 @@ async fn shortening_sessions_is_persistent_and_increases_never_resurrect(pool: P
     let mut tx = convex_auth::postgres::accounts::transaction(&pool)
         .await
         .unwrap();
-    let user: uuid::Uuid = sqlx::query_scalar("SELECT id FROM convex.users LIMIT 1")
+    let user: UserId = sqlx::query_scalar("SELECT id FROM convex.users LIMIT 1")
         .fetch_one(&mut *tx)
         .await
         .unwrap();
@@ -1221,7 +1225,7 @@ async fn required_oidc_revokes_ordinary_local_access_and_preserves_admin_recover
     let (status, _, local) = join(&app, &invite, "person@example.com").await;
     assert_eq!(status, 200);
     let (_, me, _) = call(&app, "GET", "/api/v1/auth/me", &local, Value::Null).await;
-    let ordinary: uuid::Uuid = serde_json::from_value(me["user"]["id"].clone()).unwrap();
+    let ordinary: UserId = serde_json::from_value(me["user"]["id"].clone()).unwrap();
     let mut tx = convex_auth::postgres::accounts::transaction(&pool)
         .await
         .unwrap();
@@ -1352,7 +1356,7 @@ async fn provider_secret_rotation_preserves_sessions_but_client_change_revokes(p
     let (owner, _, _) = initialized(&app).await;
     let (_, _, external) = oidc_account(&pool, false).await;
     sqlx::query("INSERT INTO convex.oidc_flows (id,state_hash,browser_hash,intent,exchange_revision,nonce,pkce_verifier) VALUES ($1,'hashed-state','hashed-browser','login',$2,'nonce','verifier')")
-        .bind(uuid::Uuid::new_v4()).bind(config.authentication.exchange_revision()).execute(&pool).await.unwrap();
+        .bind(OidcFlowId::new()).bind(config.authentication.exchange_revision()).execute(&pool).await.unwrap();
     drop(app);
     wait_for_policy_leases(&pool).await;
     let mut rotated = config;
@@ -1497,7 +1501,7 @@ async fn cp02_session_upgrade_preserves_local_authentication(pool: PgPool) {
     ] {
         sqlx::raw_sql(sql).execute(&pool).await.unwrap();
     }
-    let user = uuid::Uuid::new_v4();
+    let user = UserId::new();
     let token = convex_auth::security::token();
     sqlx::query("INSERT INTO convex.users (id,display_name,is_instance_admin) VALUES ($1,'Existing administrator',true)")
         .bind(user).execute(&pool).await.unwrap();
@@ -1505,7 +1509,7 @@ async fn cp02_session_upgrade_preserves_local_authentication(pool: PgPool) {
         .bind(user).execute(&pool).await.unwrap();
     // Exercise the old migration's session default, before the new migration exists.
     sqlx::query("INSERT INTO convex.sessions (id,user_id,token_hash,login_method) VALUES ($1,$2,$3,'local')")
-        .bind(uuid::Uuid::new_v4()).bind(user).bind(convex_auth::security::digest(&token)).execute(&pool).await.unwrap();
+        .bind(SessionId::new()).bind(user).bind(convex_auth::security::digest(&token)).execute(&pool).await.unwrap();
     let cookie = format!("convex_session={token}");
     let old_expiry = session_expiry(&pool, &cookie).await;
     sqlx::raw_sql(include_str!("../../../migrations/202610090001_issues.sql"))
@@ -1660,8 +1664,8 @@ async fn issue_workflow_concurrency_isolation_and_history(pool: PgPool) {
         json!({"archived":null}),
         json!({"title":"  "}),
         json!({"team_id":team["id"]}),
-        json!({"status_id":uuid::Uuid::new_v4()}),
-        json!({"assignee_membership_id":uuid::Uuid::new_v4()}),
+        json!({"status_id":WorkflowStatusId::new()}),
+        json!({"assignee_membership_id":MembershipId::new()}),
         json!({"archived":true,"title":"no"}),
     ] {
         let mut patch = patch;
@@ -1942,7 +1946,7 @@ async fn issue_workflow_concurrency_isolation_and_history(pool: PgPool) {
     let payloads: Vec<Value> = sqlx::query_scalar(
         "SELECT payload FROM convex.issue_activity WHERE issue_id=$1 ORDER BY created_at,id",
     )
-    .bind(issue["id"].as_str().unwrap().parse::<uuid::Uuid>().unwrap())
+    .bind(issue["id"].as_str().unwrap().parse::<IssueId>().unwrap())
     .fetch_all(&pool)
     .await
     .unwrap();
@@ -2019,9 +2023,9 @@ async fn issue_activity_failure_rolls_back_mutation_and_counter(pool: PgPool) {
 async fn assigning_and_removing_a_member_coordinate_and_removal_rolls_back(pool: PgPool) {
     let app = app(&pool);
     let (owner, space, _) = initialized(&app).await;
-    let space_id = space.parse::<uuid::Uuid>().unwrap();
-    let user = uuid::Uuid::new_v4();
-    let member = uuid::Uuid::new_v4();
+    let space_id = space.parse::<WorkspaceId>().unwrap();
+    let user = UserId::new();
+    let member = MembershipId::new();
     sqlx::query("INSERT INTO convex.users(id,display_name) VALUES($1,'Departing member')")
         .bind(user)
         .execute(&pool)

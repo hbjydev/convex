@@ -10,13 +10,14 @@ use axum::{
     response::Response,
 };
 use chrono::{DateTime, Utc};
+use convex_ids::{InvitationId, MembershipId, TeamId, UserId, WorkflowStatusId, WorkspaceId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 #[derive(Serialize, ToSchema)]
 pub struct Workspace {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: WorkspaceId,
     pub name: String,
     pub slug: String,
     pub role: String,
@@ -35,8 +36,10 @@ impl From<convex_workspaces::workspaces_model::Workspace> for Workspace {
 
 #[derive(Serialize, ToSchema)]
 pub struct Member {
-    pub id: Uuid,
-    pub user_id: Uuid,
+    #[schema(inline)]
+    pub id: MembershipId,
+    #[schema(inline)]
+    pub user_id: UserId,
     pub display_name: String,
     pub role: String,
     pub disabled: bool,
@@ -56,7 +59,8 @@ impl From<convex_workspaces::workspaces_model::Member> for Member {
 
 #[derive(Serialize, ToSchema)]
 pub struct WorkflowStatus {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: WorkflowStatusId,
     pub name: String,
     pub category: String,
     pub position: i32,
@@ -75,7 +79,8 @@ impl From<convex_workspaces::workspaces_model::WorkflowStatus> for WorkflowStatu
 
 #[derive(Serialize, ToSchema)]
 pub struct Team {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: TeamId,
     pub name: String,
     pub key: String,
     pub statuses: Vec<WorkflowStatus>,
@@ -160,7 +165,8 @@ impl From<RenameRequest> for convex_workspaces::workspaces_model::RenameRequest 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MembershipChange {
-    pub membership_id: Uuid,
+    #[schema(inline)]
+    pub membership_id: MembershipId,
     pub role: Option<String>,
     pub remove: bool,
 }
@@ -193,7 +199,8 @@ impl From<InviteRequest> for convex_workspaces::workspaces_model::InviteRequest 
 
 #[derive(Serialize, ToSchema)]
 pub struct InviteLink {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: InvitationId,
     pub url: String,
     pub expires_at: DateTime<Utc>,
     pub email_delivered: bool,
@@ -212,7 +219,8 @@ impl From<convex_workspaces::workspaces_model::InviteLink> for InviteLink {
 
 #[derive(Serialize, ToSchema)]
 pub struct Invitation {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: InvitationId,
     pub role: String,
     pub expires_at: DateTime<Utc>,
     pub accepted_at: Option<DateTime<Utc>>,
@@ -234,7 +242,8 @@ impl From<convex_workspaces::workspaces_model::Invitation> for Invitation {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RevokeInvitation {
-    pub invitation_id: Uuid,
+    #[schema(inline)]
+    pub invitation_id: InvitationId,
 }
 
 impl From<RevokeInvitation> for convex_workspaces::workspaces_model::RevokeInvitation {

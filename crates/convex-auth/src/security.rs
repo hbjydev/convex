@@ -1,4 +1,6 @@
+use convex_ids::OidcIdentityId;
 use std::sync::Arc;
+use uuid::Uuid;
 
 use crate::credentials::Credentials;
 use argon2::{
@@ -10,7 +12,6 @@ use lettre::{
     transport::smtp::authentication::Credentials as SmtpCredentials,
 };
 use sha2::{Digest, Sha256};
-use uuid::Uuid;
 
 use crate::auth_policy::AuthenticationConfig;
 use convex_core::{Error as AppError, Result as AppResult};
@@ -182,7 +183,7 @@ pub async fn verify_password(password: String, hash: String) -> AppResult<()> {
 #[derive(Clone, Copy)]
 pub enum LoginMethod {
     Local,
-    Oidc(Uuid),
+    Oidc(OidcIdentityId),
 }
 
 /// Used for absent accounts so failed local login still performs password verification.

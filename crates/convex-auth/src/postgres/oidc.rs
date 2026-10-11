@@ -7,6 +7,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::{InvitationId, OidcFlowId, OidcIdentityId, SessionId, UserId};
 use openidconnect::{
     AccessTokenHash, AuthorizationCode, ClientId, ClientSecret, CsrfToken, HttpRequest,
     HttpResponse, IssuerUrl, Nonce, OAuth2TokenResponse, PkceCodeChallenge, PkceCodeVerifier,
@@ -15,7 +16,6 @@ use openidconnect::{
 };
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
-use uuid::Uuid;
 
 pub fn binding(credentials: &Credentials) -> Option<String> {
     credentials.browser.clone()
@@ -145,13 +145,13 @@ pub enum FlowKind {
         invitation_token: Option<String>,
     },
     Link {
-        user: Uuid,
-        session: Uuid,
+        user: UserId,
+        session: SessionId,
         verified_at: DateTime<Utc>,
     },
     Reauth {
-        user: Uuid,
-        session: Uuid,
+        user: UserId,
+        session: SessionId,
         action: methods_model::MethodAction,
     },
 }
@@ -213,7 +213,7 @@ pub async fn begin(
     let source = if let Ok(token) = sec::session_token(&credentials) {
         match accounts::authenticate(&mut tx, &credentials).await {
             Ok(user) => {
-                let id: Uuid =
+                let id: SessionId =
                     sqlx::query_scalar("SELECT id FROM convex.sessions WHERE token_hash=$1")
                         .bind(sec::digest(&token))
                         .fetch_one(&mut *tx)
@@ -277,7 +277,7 @@ pub async fn begin(
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $4 IN ( 'link' , 'reauth' ) THEN
              LEAST(now() + interval '5 minutes' ,COALESCE($13,now()) + interval '5 minutes' ) ELSE now() +
              interval '10 minutes' END)")
-        .bind(Uuid::new_v4())
+        .bind(OidcFlowId::new())
         .bind(sec::digest(csrf.secret()))
         .bind(sec::digest(&browser))
         .bind(intent)
@@ -341,13 +341,13 @@ pub struct Flow {
     created_at: DateTime<Utc>,
     pub browser_hash: String,
     pub exchange_revision: String,
-    pub user_id: Option<Uuid>,
-    pub session_id: Option<Uuid>,
-    id: Uuid,
+    pub user_id: Option<UserId>,
+    pub session_id: Option<SessionId>,
+    id: OidcFlowId,
     intent: String,
     nonce: Option<String>,
     pkce_verifier: Option<String>,
-    invitation_id: Option<Uuid>,
+    invitation_id: Option<InvitationId>,
 }
 
 pub async fn complete(
@@ -522,7 +522,7 @@ pub async fn complete(
     }
     if let Some(source) = flow.session_id {
         let actor = accounts::authenticate(&mut tx, credentials).await?;
-        let session: Uuid =
+        let session: SessionId =
             sqlx::query_scalar("SELECT id FROM convex.sessions WHERE token_hash=$1")
                 .bind(sec::digest(&sec::session_token(credentials)?))
                 .fetch_one(&mut *tx)
@@ -579,7 +579,7 @@ pub async fn complete(
     } else {
         None
     };
-    let identity:  Option<(Uuid,Uuid,bool)>  =  sqlx::query_as("SELECT id,user_id,unlinked_at IS NULL FROM convex.oidc_identities WHERE issuer=$1 AND subject=$2 FOR UPDATE")
+    let identity:  Option<(OidcIdentityId,UserId,bool)>  =  sqlx::query_as("SELECT id,user_id,unlinked_at IS NULL FROM convex.oidc_identities WHERE issuer=$1 AND subject=$2 FOR UPDATE")
         .bind(&config.issuer)
         .bind(subject)
         .fetch_optional(&mut *tx)
@@ -591,8 +591,8 @@ pub async fn complete(
             if invitation.is_none() {
                 return Err(AppError::forbidden());
             }
-            let user = Uuid::new_v4();
-            let identity = Uuid::new_v4();
+            let user = UserId::new();
+            let identity = OidcIdentityId::new();
             sqlx::query(
                 "INSERT INTO convex.users (id,display_name,is_instance_admin) VALUES ($1,$2,false)",
             )

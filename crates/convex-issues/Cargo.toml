@@ -7,14 +7,14 @@ publish.workspace = true
 
 [features]
 default = []
-postgres = ["convex-core/postgres", "dep:convex-db", "convex-db/postgres", "dep:sqlx"]
+postgres = ["convex-ids/postgres", "convex-core/postgres", "dep:convex-db", "convex-db/postgres", "dep:sqlx"]
 mock = ["dep:mockall"]
 
 [dependencies]
+convex-ids = { workspace = true, features = ["serde"] }
 convex-core.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
-uuid.workspace = true
 mockall = { workspace = true, optional = true }
 convex-db = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true }

@@ -12,9 +12,9 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use convex_app::UpdateIssueResult;
+use convex_ids::{IssueId, MembershipId, TeamId, WorkflowStatusId, WorkspaceId};
 use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::{IntoParams, ToSchema};
-use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -29,34 +29,44 @@ pub enum Priority {
 
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct Issue {
-    pub id: Uuid,
-    pub workspace_id: Uuid,
-    pub team_id: Uuid,
+    #[schema(inline)]
+    pub id: IssueId,
+    #[schema(inline)]
+    pub workspace_id: WorkspaceId,
+    #[schema(inline)]
+    pub team_id: TeamId,
     pub number: i64,
     pub identifier: String,
     pub title: String,
     pub description: String,
-    pub status_id: Uuid,
+    #[schema(inline)]
+    pub status_id: WorkflowStatusId,
     pub priority: Priority,
-    pub assignee_membership_id: Option<Uuid>,
-    pub creator_membership_id: Uuid,
+    #[schema(value_type = Option<String>, format = Uuid)]
+    pub assignee_membership_id: Option<MembershipId>,
+    #[schema(inline)]
+    pub creator_membership_id: MembershipId,
     pub version: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub archived_at: Option<DateTime<Utc>>,
-    pub archived_by_membership_id: Option<Uuid>,
+    #[schema(value_type = Option<String>, format = Uuid)]
+    pub archived_by_membership_id: Option<MembershipId>,
 }
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CreateIssue {
-    pub team_id: Uuid,
+    #[schema(inline)]
+    pub team_id: TeamId,
     pub title: String,
     #[serde(default)]
     pub description: String,
-    pub status_id: Option<Uuid>,
+    #[schema(value_type = Option<String>, format = Uuid)]
+    pub status_id: Option<WorkflowStatusId>,
     #[serde(default)]
     pub priority: Priority,
-    pub assignee_membership_id: Option<Uuid>,
+    #[schema(value_type = Option<String>, format = Uuid)]
+    pub assignee_membership_id: Option<MembershipId>,
 }
 // serde's default Option collapses explicit null and omission. These helpers
 // preserve that distinction and reject null for non-nullable patch properties.
@@ -74,14 +84,14 @@ pub struct IssuePatch {
     #[schema(nullable = false)]
     pub description: Option<String>,
     #[serde(default, deserialize_with = "present")]
-    #[schema(nullable = false)]
-    pub status_id: Option<Uuid>,
+    #[schema(nullable = false, inline)]
+    pub status_id: Option<WorkflowStatusId>,
     #[serde(default, deserialize_with = "present")]
     #[schema(nullable = false)]
     pub priority: Option<Priority>,
     #[serde(default, deserialize_with = "present")]
-    #[schema(value_type=Option<Uuid>)]
-    pub assignee_membership_id: Option<Option<Uuid>>,
+    #[schema(value_type = Option<String>, format = Uuid)]
+    pub assignee_membership_id: Option<Option<MembershipId>>,
     /// Archive/restore is exclusive of property edits.
     #[serde(default, deserialize_with = "present")]
     #[schema(nullable = false)]
@@ -100,7 +110,8 @@ pub struct IssueListQuery {
     #[serde(default)]
     pub archived: bool,
     /// Restrict the collection to a team in this workspace.
-    pub team_id: Option<Uuid>,
+    #[param(inline)]
+    pub team_id: Option<TeamId>,
 }
 #[utoipa::path(
     post,
@@ -273,7 +284,7 @@ fn session_digest(headers: &HeaderMap) -> Option<String> {
         .map(|token| security::digest(&token))
 }
 
-fn workspace_id(value: &str) -> AppResult<Uuid> {
+fn workspace_id(value: &str) -> AppResult<WorkspaceId> {
     value.parse().map_err(|_| AppError::not_found())
 }
 

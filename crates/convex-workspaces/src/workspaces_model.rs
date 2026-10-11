@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use convex_ids::{InvitationId, MembershipId, TeamId, UserId, WorkflowStatusId, WorkspaceId};
 
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct Workspace {
-    pub id: Uuid,
+    pub id: WorkspaceId,
     pub name: String,
     pub slug: String,
     pub role: String,
@@ -13,8 +13,8 @@ pub struct Workspace {
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct Member {
-    pub id: Uuid,
-    pub user_id: Uuid,
+    pub id: MembershipId,
+    pub user_id: UserId,
     pub display_name: String,
     pub role: String,
     pub disabled: bool,
@@ -23,7 +23,7 @@ pub struct Member {
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct WorkflowStatus {
-    pub id: Uuid,
+    pub id: WorkflowStatusId,
     pub name: String,
     pub category: String,
     pub position: i32,
@@ -31,7 +31,7 @@ pub struct WorkflowStatus {
 
 #[derive(Clone)]
 pub struct Team {
-    pub id: Uuid,
+    pub id: TeamId,
     pub name: String,
     pub key: String,
     pub statuses: Vec<WorkflowStatus>,
@@ -65,7 +65,7 @@ pub struct RenameRequest {
 
 #[derive(Clone)]
 pub struct MembershipChange {
-    pub membership_id: Uuid,
+    pub membership_id: MembershipId,
     pub role: Option<String>,
     pub remove: bool,
 }
@@ -78,7 +78,7 @@ pub struct InviteRequest {
 
 #[derive(Clone)]
 pub struct InviteLink {
-    pub id: Uuid,
+    pub id: InvitationId,
     pub url: String,
     pub expires_at: DateTime<Utc>,
     pub email_delivered: bool,
@@ -87,7 +87,7 @@ pub struct InviteLink {
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct Invitation {
-    pub id: Uuid,
+    pub id: InvitationId,
     pub role: String,
     pub expires_at: DateTime<Utc>,
     pub accepted_at: Option<DateTime<Utc>>,
@@ -96,7 +96,7 @@ pub struct Invitation {
 
 #[derive(Clone)]
 pub struct RevokeInvitation {
-    pub invitation_id: Uuid,
+    pub invitation_id: InvitationId,
 }
 
 #[derive(Clone)]
@@ -113,8 +113,8 @@ pub struct InvitePreview {
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct ValidInvite {
-    pub id: Uuid,
-    pub workspace_id: Uuid,
+    pub id: InvitationId,
+    pub workspace_id: WorkspaceId,
     pub role: String,
     pub workspace_name: String,
     pub workspace_slug: String,

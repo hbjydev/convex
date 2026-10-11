@@ -1,6 +1,6 @@
 use convex_auth::accounts::models::User;
+use convex_ids::UserId;
 use convex_workspaces as workspaces;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SetupRequest {
@@ -22,7 +22,7 @@ pub struct AccountResponse {
 
 #[derive(Clone)]
 pub struct DisableRequest {
-    pub user_id: Uuid,
+    pub user_id: UserId,
     pub disabled: bool,
 }
 

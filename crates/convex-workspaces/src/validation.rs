@@ -1,5 +1,5 @@
 use convex_core::{Error as AppError, Result as AppResult};
-use uuid::Uuid;
+use convex_ids::WorkspaceId;
 
 pub use convex_core::validation::name;
 
@@ -67,7 +67,7 @@ pub fn role(value: &str, owners: bool) -> AppResult<()> {
     }
 }
 
-pub fn workspace_id(value: &str) -> AppResult<Uuid> {
+pub fn workspace_id(value: &str) -> AppResult<WorkspaceId> {
     value.parse().map_err(|_| AppError::not_found())
 }
 

@@ -6,6 +6,7 @@ use axum::{
     routing::{get, post},
 };
 use chrono::{Duration, Utc};
+use convex_ids::{RecoveryTokenId, UserId};
 use openidconnect::{
     Audience, ClientId, EmptyAdditionalClaims, EndUserEmail, IssuerUrl, JsonWebKeyId, Nonce,
     PkceCodeChallenge, PkceCodeVerifier, PrivateSigningKey, StandardClaims, SubjectIdentifier,
@@ -469,7 +470,11 @@ async fn callback_rechecks_invitation_after_exchange_without_holding_database_ga
     assert!(success);
     assert_eq!(call(&app, "POST", "/api/v1/invitations/accept", "", json!({"token":token,"email":"local-loser@example.com","password":PASSWORD,"display_name":"Local loser"})).await.0, 400);
     let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &member, Value::Null).await;
-    let id = uuid::Uuid::parse_str(account["user"]["id"].as_str().unwrap()).unwrap();
+    let id = account["user"]["id"]
+        .as_str()
+        .unwrap()
+        .parse::<UserId>()
+        .unwrap();
     sqlx::query("UPDATE convex.workspace_memberships SET removed_at=now() WHERE user_id=$1")
         .bind(id)
         .execute(&pool)
@@ -918,8 +923,14 @@ async fn oidc_local_attachment_and_removal_require_exact_single_use_session_boun
     assert_eq!(account["workspaces"], original["workspaces"]);
     let recovery = convex_auth::security::token();
     sqlx::query("INSERT INTO convex.recovery_tokens (id,user_id,token_hash) VALUES ($1,$2,$3)")
-        .bind(uuid::Uuid::new_v4())
-        .bind(uuid::Uuid::parse_str(account["user"]["id"].as_str().unwrap()).unwrap())
+        .bind(RecoveryTokenId::new())
+        .bind(
+            account["user"]["id"]
+                .as_str()
+                .unwrap()
+                .parse::<UserId>()
+                .unwrap(),
+        )
         .bind(convex_auth::security::digest(&recovery))
         .execute(&pool)
         .await

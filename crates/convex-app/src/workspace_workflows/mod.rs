@@ -8,11 +8,11 @@ use convex_auth::{
     security as sec,
 };
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::{InvitationId, TeamId};
 use convex_workspaces::{
     validation::{self, manage, role, workspace_id},
     workspaces_model::*,
 };
-use uuid::Uuid;
 
 #[cfg(test)]
 mod tests;
@@ -136,7 +136,7 @@ pub async fn rename_team(
     req: RenameRequest,
 ) -> AppResult<MessageResponse> {
     let space = workspace_id(&space)?;
-    let team = workspace_id(&team)?;
+    let team: TeamId = team.parse().map_err(|_| AppError::not_found())?;
     let name = sec::name(&req.name)?;
     let mut work = application.transactions.begin_administration().await?;
     let result = async {
@@ -223,7 +223,7 @@ pub async fn invite(
             return Err(AppError::forbidden());
         }
         let token = sec::token();
-        let id = Uuid::new_v4();
+        let id = InvitationId::new();
         let expires_at = work
             .invitations()
             .create(id, space, membership, req.role, sec::digest(&token))

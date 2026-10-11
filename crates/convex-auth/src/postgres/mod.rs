@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use convex_db::postgres::PostgresTransaction;
-use uuid::Uuid;
+use convex_ids::{InvitationId, UserId, WorkspaceId};
 
 use crate::repository::SessionRepository;
 
@@ -9,7 +9,7 @@ use crate::repository::SessionRepository;
 impl SessionRepository for PostgresTransaction {
     async fn new_session(
         &mut self,
-        user: Uuid,
+        user: UserId,
         method: crate::security::LoginMethod,
     ) -> convex_core::Result<String> {
         security::new_session(self.transaction(), user, method).await
@@ -20,11 +20,11 @@ impl SessionRepository for PostgresTransaction {
     ) -> convex_core::Result<crate::security::LoginMethod> {
         security::session_method(self.transaction(), &credentials).await
     }
-    async fn revoke_all(&mut self, user: Uuid) -> convex_core::Result<()> {
+    async fn revoke_all(&mut self, user: UserId) -> convex_core::Result<()> {
         accounts::revoke_all(self.transaction(), user).await
     }
 
-    async fn active_user(&mut self, token_digest: &str) -> Result<Option<Uuid>> {
+    async fn active_user(&mut self, token_digest: &str) -> Result<Option<UserId>> {
         // Preserve the issue authorization point: no last-activity writes or
         // account/session locks, which would conflict with administration's lock order.
         Ok(sqlx::query_scalar(
@@ -83,19 +83,19 @@ pub trait InvitationGateway: Send + Sync {
     async fn valid_id(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        id: Uuid,
+        id: InvitationId,
     ) -> convex_core::Result<InvitationGrant>;
     async fn accept(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         invitation: &InvitationGrant,
-        user: Uuid,
+        user: UserId,
     ) -> convex_core::Result<()>;
 }
 
 pub struct InvitationGrant {
-    pub id: Uuid,
-    pub workspace_id: Uuid,
+    pub id: InvitationId,
+    pub workspace_id: WorkspaceId,
     pub role: String,
     pub workspace_name: String,
     pub workspace_slug: String,
@@ -120,7 +120,7 @@ impl crate::repository::AccountRepository for PostgresTransaction {
     }
     async fn find_for_update(
         &mut self,
-        user: Uuid,
+        user: UserId,
     ) -> convex_core::Result<crate::accounts::models::User> {
         sqlx::query_as(
             "SELECT id,display_name,is_instance_admin FROM convex.users WHERE id=$1 FOR UPDATE",
@@ -130,7 +130,7 @@ impl crate::repository::AccountRepository for PostgresTransaction {
         .await?
         .ok_or_else(convex_core::Error::not_found)
     }
-    async fn protect_enabled_administrators(&mut self, user: Uuid) -> convex_core::Result<()> {
+    async fn protect_enabled_administrators(&mut self, user: UserId) -> convex_core::Result<()> {
         let admins:  i64  =  sqlx::query_scalar("SELECT count(*) FROM convex.users WHERE is_instance_admin AND disabled_at IS NULL AND id<>$1")
         .bind(user)
         .fetch_one(self.connection())
@@ -161,7 +161,7 @@ impl crate::repository::AccountRepository for PostgresTransaction {
         }
         Ok(())
     }
-    async fn set_disabled(&mut self, user: Uuid, disabled: bool) -> convex_core::Result<()> {
+    async fn set_disabled(&mut self, user: UserId, disabled: bool) -> convex_core::Result<()> {
         sqlx::query("UPDATE convex.users SET disabled_at=CASE WHEN $2 THEN now() ELSE NULL END,updated_at=now() WHERE id=$1")
         .bind(user)
         .bind(disabled)

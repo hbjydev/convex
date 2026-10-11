@@ -1,9 +1,9 @@
 use anyhow::{Result, ensure};
 use async_trait::async_trait;
 use convex_db::postgres::PostgresTransaction;
+use convex_ids::{IssueActivityId, IssueId, MembershipId, WorkspaceId};
 use serde_json::json;
 use sqlx::PgConnection;
-use uuid::Uuid;
 
 use crate::{
     Issue, IssueChange, IssueEvent, IssueEventKind, IssueSnapshot, NewIssue,
@@ -20,22 +20,22 @@ const SELECT_ISSUE: &str = "
 impl IssueRepository for PostgresTransaction {
     async fn clear_assignments(
         &mut self,
-        workspace: Uuid,
-        member: Uuid,
-        actor: Uuid,
+        workspace: WorkspaceId,
+        member: MembershipId,
+        actor: MembershipId,
     ) -> Result<()> {
         clear_assignments(self.connection(), workspace, member, actor).await
     }
     async fn find(
         &mut self,
-        workspace: Uuid,
+        workspace: WorkspaceId,
         reference: &str,
         lock: IssueLock,
     ) -> Result<Option<Issue>> {
         find(self.connection(), workspace, reference, lock).await
     }
 
-    async fn list(&mut self, workspace: Uuid, filter: IssueFilter) -> Result<Vec<Issue>> {
+    async fn list(&mut self, workspace: WorkspaceId, filter: IssueFilter) -> Result<Vec<Issue>> {
         let query = format!(
             "{SELECT_ISSUE}
              WHERE i.workspace_id = $1
@@ -53,8 +53,8 @@ impl IssueRepository for PostgresTransaction {
 
     async fn create(
         &mut self,
-        workspace: Uuid,
-        actor: Uuid,
+        workspace: WorkspaceId,
+        actor: MembershipId,
         issue: &NewIssue,
     ) -> Result<Option<Issue>> {
         let number: Option<i64> = sqlx::query_scalar(
@@ -70,7 +70,7 @@ impl IssueRepository for PostgresTransaction {
             return Ok(None);
         };
 
-        let id = Uuid::new_v4();
+        let id = IssueId::new();
         sqlx::query(
             "INSERT INTO convex.issues (
                  id, workspace_id, team_id, number, title, description,
@@ -98,7 +98,7 @@ impl IssueRepository for PostgresTransaction {
         .await
     }
 
-    async fn save(&mut self, change: &IssueChange, actor: Uuid) -> Result<Issue> {
+    async fn save(&mut self, change: &IssueChange, actor: MembershipId) -> Result<Issue> {
         let issue = &change.issue;
         let updated = sqlx::query(
             "UPDATE convex.issues SET
@@ -147,7 +147,7 @@ impl IssueRepository for PostgresTransaction {
 
 async fn find(
     connection: &mut PgConnection,
-    workspace: Uuid,
+    workspace: WorkspaceId,
     reference: &str,
     lock: IssueLock,
 ) -> Result<Option<Issue>> {
@@ -210,7 +210,7 @@ async fn record_event(connection: &mut PgConnection, event: &IssueEvent) -> Resu
              id, workspace_id, issue_id, actor_membership_id, kind, payload
          ) VALUES ($1, $2, $3, $4, $5, $6)",
     )
-    .bind(Uuid::new_v4())
+    .bind(IssueActivityId::new())
     .bind(event.workspace_id)
     .bind(event.issue_id)
     .bind(event.actor_membership_id)
@@ -226,9 +226,9 @@ async fn record_event(connection: &mut PgConnection, event: &IssueEvent) -> Resu
 /// issues, increments each changed version, and records activity in that transaction.
 pub async fn clear_assignments(
     connection: &mut PgConnection,
-    workspace: Uuid,
-    member: Uuid,
-    actor: Uuid,
+    workspace: WorkspaceId,
+    member: MembershipId,
+    actor: MembershipId,
 ) -> Result<()> {
     let query = format!(
         "{SELECT_ISSUE}

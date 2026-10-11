@@ -12,6 +12,7 @@ publish = false
 async-trait = "0.1.89"
 mockall = "0.14.0"
 thiserror = "2.0"
+convex-ids = { path = "crates/convex-ids" }
 convex-core = { path = "crates/convex-core" }
 convex-api = { path = "crates/convex-api" }
 http = "1.0"

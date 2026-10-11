@@ -5,9 +5,9 @@ use crate::{
     security::credentials,
 };
 use axum::{Json, extract::State, http::HeaderMap, response::Response};
+use convex_ids::OidcIdentityId;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 #[derive(Clone, Copy, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -34,7 +34,8 @@ impl From<convex_auth::methods_model::MethodAction> for MethodAction {
 }
 #[derive(Serialize, ToSchema)]
 pub struct OidcMethod {
-    pub id: Uuid,
+    #[schema(inline)]
+    pub id: OidcIdentityId,
     pub issuer: String,
     pub usable: bool,
 }
@@ -123,7 +124,8 @@ impl From<AddLocal> for convex_auth::methods_model::AddLocal {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RemoveOidc {
-    pub identity_id: Uuid,
+    #[schema(inline)]
+    pub identity_id: OidcIdentityId,
     pub current_password: String,
 }
 

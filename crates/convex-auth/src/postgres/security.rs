@@ -1,7 +1,7 @@
 use crate::{credentials::Credentials, security::*};
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::{OidcIdentityId, SessionId, UserId};
 use sqlx::{PgPool, Postgres, Transaction};
-use uuid::Uuid;
 
 pub async fn rate_limit(pool: &PgPool, subject: &str) -> AppResult<()> {
     for (bucket, maximum) in [("global".to_owned(), 120), (digest(subject), 10)] {
@@ -30,7 +30,7 @@ pub async fn session_method(
     tx: &mut Transaction<'_, Postgres>,
     credentials: &Credentials,
 ) -> AppResult<LoginMethod> {
-    let identity: Option<Uuid> =
+    let identity: Option<OidcIdentityId> =
         sqlx::query_scalar("SELECT oidc_identity_id FROM convex.sessions WHERE token_hash=$1")
             .bind(digest(&session_token(credentials)?))
             .fetch_one(&mut **tx)
@@ -40,7 +40,7 @@ pub async fn session_method(
 
 pub async fn new_session(
     tx: &mut Transaction<'_, Postgres>,
-    user: Uuid,
+    user: UserId,
     method: LoginMethod,
 ) -> AppResult<String> {
     let enabled: bool = sqlx::query_scalar(
@@ -93,7 +93,7 @@ pub async fn new_session(
              $1,$2,$3,$4,$5,CASE WHEN $5::uuid IS NOT NULL THEN provider_revision END,now() + make_interval(secs
              => session_ttl_seconds::double precision)
              FROM convex.authentication_policy")
-        .bind(Uuid::new_v4())
+        .bind(SessionId::new())
         .bind(user)
         .bind(digest(&token))
         .bind(if identity.is_some() { "oidc" } else { "local" })

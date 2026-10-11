@@ -1,0 +1,13 @@
+impl_typed_uuid_kinds!(UserId);
+impl_typed_uuid_kinds!(SessionId);
+impl_typed_uuid_kinds!(OidcIdentityId);
+impl_typed_uuid_kinds!(OidcFlowId);
+impl_typed_uuid_kinds!(MethodProofId);
+impl_typed_uuid_kinds!(RecoveryTokenId);
+impl_typed_uuid_kinds!(WorkspaceId);
+impl_typed_uuid_kinds!(MembershipId);
+impl_typed_uuid_kinds!(TeamId);
+impl_typed_uuid_kinds!(WorkflowStatusId);
+impl_typed_uuid_kinds!(InvitationId);
+impl_typed_uuid_kinds!(IssueId);
+impl_typed_uuid_kinds!(IssueActivityId);

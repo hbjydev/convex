@@ -7,13 +7,13 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::{MethodProofId, OidcIdentityId, SessionId, UserId};
 use sqlx::{Postgres, Transaction};
-use uuid::Uuid;
 
 pub async fn session_id(
     tx: &mut Transaction<'_, Postgres>,
     credentials: &Credentials,
-) -> AppResult<Uuid> {
+) -> AppResult<SessionId> {
     Ok(
         sqlx::query_scalar("SELECT id FROM convex.sessions WHERE token_hash=$1")
             .bind(sec::digest(&sec::session_token(credentials)?))
@@ -33,7 +33,7 @@ async fn throttle(context: &Context, credentials: &Credentials) -> AppResult<()>
 }
 async fn local_proof(
     tx: &mut Transaction<'_, Postgres>,
-    user: Uuid,
+    user: UserId,
     password: String,
 ) -> AppResult<()> {
     policy::ensure_local_allowed(tx, user).await?;
@@ -45,7 +45,10 @@ async fn local_proof(
             .ok_or_else(AppError::unauthorized)?;
     sec::verify_password(password, hash).await
 }
-pub async fn enabled_identity(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> AppResult<Uuid> {
+pub async fn enabled_identity(
+    tx: &mut Transaction<'_, Postgres>,
+    user: UserId,
+) -> AppResult<OidcIdentityId> {
     sqlx::query_scalar(
         "SELECT i.id
              FROM convex.oidc_identities i
@@ -92,9 +95,9 @@ async fn protect_recovery(
 async fn proof(
     tx: &mut Transaction<'_, Postgres>,
     credentials: &Credentials,
-    user: Uuid,
+    user: UserId,
     consume: Option<MethodAction>,
-) -> AppResult<Option<(Uuid, MethodAction)>> {
+) -> AppResult<Option<(OidcIdentityId, MethodAction)>> {
     let Ok(token) = credentials
         .method_proof
         .clone()
@@ -106,7 +109,7 @@ async fn proof(
         return Ok(None);
     };
     let source = session_id(tx, credentials).await?;
-    let row: Option<(Uuid, Uuid, String)> = sqlx::query_as(
+    let row: Option<(MethodProofId, OidcIdentityId, String)> = sqlx::query_as(
         "SELECT f.id,f.oidc_identity_id,f.action
              FROM convex.method_proofs f
              JOIN convex.oidc_identities i ON i.id=f.oidc_identity_id
@@ -281,11 +284,11 @@ pub async fn prove(
 }
 pub async fn link_identity(
     tx: &mut Transaction<'_, Postgres>,
-    user: Uuid,
+    user: UserId,
     issuer: &str,
     subject: &str,
-) -> AppResult<Uuid> {
-    let identity: Option<(Uuid,Uuid,bool)> = sqlx::query_as("SELECT id,user_id,unlinked_at IS NULL FROM convex.oidc_identities WHERE issuer=$1 AND subject=$2 FOR UPDATE")
+) -> AppResult<OidcIdentityId> {
+    let identity: Option<(OidcIdentityId,UserId,bool)> = sqlx::query_as("SELECT id,user_id,unlinked_at IS NULL FROM convex.oidc_identities WHERE issuer=$1 AND subject=$2 FOR UPDATE")
         .bind(issuer)
         .bind(subject)
         .fetch_optional(&mut **tx)
@@ -315,7 +318,7 @@ pub async fn link_identity(
             .await?;
         id
     } else {
-        let id = Uuid::new_v4();
+        let id = OidcIdentityId::new();
         sqlx::query(
             "INSERT INTO convex.oidc_identities (id,user_id,issuer,subject) VALUES ($1,$2,$3,$4)",
         )
@@ -332,7 +335,7 @@ pub async fn link_identity(
 pub async fn issue_proof(
     tx: &mut Transaction<'_, Postgres>,
     flow: &oidc::Flow,
-    identity: Uuid,
+    identity: OidcIdentityId,
     verified_at: DateTime<Utc>,
 ) -> AppResult<String> {
     let token = sec::token();
@@ -345,7 +348,7 @@ pub async fn issue_proof(
     sqlx::query("INSERT INTO convex.method_proofs
              (id,token_hash,user_id,session_id,oidc_identity_id,action,browser_hash,exchange_revision,verified_at,expires_at)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,LEAST(now()+interval '5 minutes' ,$9+interval '5 minutes' ))")
-        .bind(Uuid::new_v4())
+        .bind(MethodProofId::new())
         .bind(sec::digest(&token))
         .bind(flow.user_id)
         .bind(flow.session_id)

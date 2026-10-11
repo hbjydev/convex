@@ -8,10 +8,10 @@ use convex_auth::{
     security::SecurityConfig,
 };
 use convex_core::Result;
+use convex_ids::{InvitationId, UserId};
 use sqlx::{PgPool, Postgres, Transaction};
 use std::sync::Arc;
 use tokio::sync::OnceCell;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct ApplicationBackend {
@@ -103,7 +103,7 @@ impl InvitationGateway for Invitations {
     async fn valid_id(
         &self,
         tx: &mut Transaction<'_, Postgres>,
-        id: Uuid,
+        id: InvitationId,
     ) -> Result<InvitationGrant> {
         Ok(invitation_grant(
             convex_workspaces::postgres::administration::valid_invite_id(tx, id).await?,
@@ -113,7 +113,7 @@ impl InvitationGateway for Invitations {
         &self,
         tx: &mut Transaction<'_, Postgres>,
         invitation: &InvitationGrant,
-        user: Uuid,
+        user: UserId,
     ) -> Result<()> {
         let invitation = convex_workspaces::ValidInvite {
             id: invitation.id,

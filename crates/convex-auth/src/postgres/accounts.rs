@@ -6,8 +6,8 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::{RecoveryTokenId, UserId};
 use sqlx::{Postgres, Transaction};
-use uuid::Uuid;
 
 fn with_session<T>(_state: &Context, token: &str, value: T) -> SessionUpdate<T> {
     SessionUpdate::new(token, value)
@@ -64,7 +64,7 @@ pub async fn authenticate(
     Ok(user)
 }
 
-pub async fn revoke_all(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> AppResult<()> {
+pub async fn revoke_all(tx: &mut Transaction<'_, Postgres>, user: UserId) -> AppResult<()> {
     sqlx::query(
         "UPDATE convex.sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL",
     )
@@ -97,7 +97,7 @@ pub async fn create_local(
     admin: bool,
 ) -> AppResult<User> {
     let user = User {
-        id: Uuid::new_v4(),
+        id: UserId::new(),
         display_name,
         is_instance_admin: admin,
     };
@@ -147,7 +147,7 @@ pub async fn login(
     let email = sec::email(&req.email)?;
     storage::rate_limit(&context.pool, &format!("login:{email}")).await?;
     let mut tx = transaction(&context.pool).await?;
-    let record = sqlx::query_as::<_, (Uuid, String, Option<DateTime<Utc>>)>(
+    let record = sqlx::query_as::<_, (UserId, String, Option<DateTime<Utc>>)>(
         "SELECT u.id,c.password_hash,u.disabled_at
              FROM convex.users u
              JOIN convex.local_credentials c ON c.user_id=u.id
@@ -257,7 +257,7 @@ pub async fn change_password(
 
 async fn replace_password(
     tx: &mut Transaction<'_, Postgres>,
-    user: Uuid,
+    user: UserId,
     hash: String,
 ) -> AppResult<()> {
     sqlx::query(
@@ -274,7 +274,7 @@ async fn replace_password(
     revoke_all(tx, user).await
 }
 
-pub async fn recovery_token(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> AppResult<String> {
+pub async fn recovery_token(tx: &mut Transaction<'_, Postgres>, user: UserId) -> AppResult<String> {
     crate::postgres::policy::ensure_local_allowed(tx, user).await?;
     let token = sec::token();
     sqlx::query("UPDATE convex.recovery_tokens SET consumed_at=now() WHERE user_id=$1 AND consumed_at IS NULL")
@@ -282,7 +282,7 @@ pub async fn recovery_token(tx: &mut Transaction<'_, Postgres>, user: Uuid) -> A
         .execute(&mut **tx)
         .await?;
     sqlx::query("INSERT INTO convex.recovery_tokens (id,user_id,token_hash) VALUES ($1,$2,$3)")
-        .bind(Uuid::new_v4())
+        .bind(RecoveryTokenId::new())
         .bind(user)
         .bind(sec::digest(&token))
         .execute(&mut **tx)
@@ -303,7 +303,7 @@ pub async fn request_recovery(
             let delivery = async {
                 let mut tx = transaction(&context.pool)
         .await?;
-                if let Some(user) = sqlx::query_scalar::<_,Uuid>("SELECT u.id
+                if let Some(user) = sqlx::query_scalar::<_,UserId>("SELECT u.id
              FROM convex.users u
              JOIN convex.local_credentials c ON u.id=c.user_id
              CROSS JOIN convex.authentication_policy p
@@ -343,7 +343,7 @@ pub async fn reset_password(
     let hash = sec::hash_password(req.password).await?;
     let mut tx = transaction(&context.pool).await?;
     // Lock the user before its recovery rows: password changes and token issuance use the same order.
-    let user = sqlx::query_scalar::<_, Uuid>(
+    let user = sqlx::query_scalar::<_, UserId>(
         "SELECT u.id
              FROM convex.users u
              JOIN convex.recovery_tokens r ON r.user_id=u.id
@@ -459,7 +459,7 @@ pub async fn recover_account(
     use anyhow::Context as _;
     let email = sec::email(email)?;
     let mut tx = transaction(pool).await?;
-    let (user, disabled): (Uuid, bool) = sqlx::query_as("SELECT u.id,u.disabled_at IS NOT NULL
+    let (user, disabled): (UserId, bool) = sqlx::query_as("SELECT u.id,u.disabled_at IS NOT NULL
              FROM convex.users u
              JOIN convex.local_credentials c ON c.user_id=u.id
              WHERE c.email=$1

@@ -16,6 +16,7 @@ production change has an obvious home.
 | `convex-app` | Cross-domain workflows and shared unit of work | `src/accounts/mod.rs`, `src/accounts/models.rs`, `src/account_workflows/mod.rs`, `src/workspace_workflows/mod.rs`, `src/issues/mod.rs`, `src/unit_of_work.rs` |
 | `convex-db` | Connection setup, migrations, transaction storage, administration gate, readiness queries and disposable test databases | `src/postgres/mod.rs` |
 | `convex-core` | Shared operation errors and name validation | `src/lib.rs`, `src/validation.rs` |
+| `convex-ids` | Shared UUID newtypes for entity references | `src/lib.rs`, `src/ids.rs` |
 
 The API crate has no SQLx dependency. All Axum extraction, response serialization,
 cookies, redirects, status codes and utoipa schemas live there. HTTP DTOs remain
@@ -42,6 +43,15 @@ mechanics, and `convex-db/testing` additionally supplies owned disposable databa
 `convex-core/postgres` maps database failures into operation errors. The executable
 explicitly selects production features; application and API tests enable mocks through dev-dependencies.
 No-adapter and mock-only builds do not depend on SQLx.
+
+`convex-ids` defines distinct IDs with private UUID fields, such as `UserId`,
+`WorkspaceId` and `MembershipId`. Models, repository contracts, application
+workflows and HTTP DTOs use these types to prevent mixing entity references.
+`new()` generates UUIDv4 IDs; `FromStr`, `TryFrom` and explicit UUID conversions
+handle boundaries, with `from_uuid()` available for constant fixtures. Optional
+`serde`, `postgres` and `utoipa` features preserve UUID strings, native PostgreSQL
+UUID columns and OpenAPI UUID schemas. Adding an entity ID needs one macro
+invocation in `src/ids.rs`.
 
 The PostgreSQL adapters implement repository traits directly for
 `PostgresTransaction`. Each domain owns its SQL; the database crate does not depend

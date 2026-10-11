@@ -1,3 +1,4 @@
+use convex_ids::{InvitationId, TeamId, WorkflowStatusId};
 use std::sync::{Arc, Mutex};
 
 use chrono::{TimeZone, Utc};
@@ -15,7 +16,7 @@ use crate::{accounts::models::AcceptInvite, mock::MockUnitOfWork, test_support::
 
 fn invitation() -> ValidInvite {
     ValidInvite {
-        id: Uuid::from_u128(7),
+        id: InvitationId::from_uuid(Uuid::from_u128(7)),
         workspace_id: WORKSPACE,
         role: "member".into(),
         workspace_name: "Production".into(),
@@ -79,7 +80,7 @@ async fn workspace_detail_collects_each_teams_own_workflow() {
         .with(eq(WORKSPACE))
         .times(1)
         .returning(|_| Ok(vec![]));
-    let other_team = Uuid::from_u128(8);
+    let other_team = TeamId::from_uuid(Uuid::from_u128(8));
     work.teams
         .expect_list()
         .with(eq(WORKSPACE))
@@ -96,7 +97,7 @@ async fn workspace_detail_collects_each_teams_own_workflow() {
         .times(1)
         .returning(|_| {
             Ok(vec![WorkflowStatus {
-                id: Uuid::from_u128(9),
+                id: WorkflowStatusId::from_uuid(Uuid::from_u128(9)),
                 name: "Todo".into(),
                 category: "unstarted".into(),
                 position: 0,

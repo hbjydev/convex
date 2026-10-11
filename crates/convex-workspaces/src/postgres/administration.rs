@@ -1,11 +1,11 @@
 use crate::workspaces_model::*;
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::{InvitationId, MembershipId, TeamId, UserId, WorkflowStatusId, WorkspaceId};
 use sqlx::{Postgres, Transaction};
-use uuid::Uuid;
 
 pub async fn list_for_user(
     tx: &mut Transaction<'_, Postgres>,
-    user: Uuid,
+    user: UserId,
 ) -> AppResult<Vec<Workspace>> {
     Ok(sqlx::query_as(
         "SELECT w.id,w.name,w.slug,m.role
@@ -22,13 +22,13 @@ pub async fn list_for_user(
 
 pub async fn create_workspace(
     tx: &mut Transaction<'_, Postgres>,
-    user: Uuid,
+    user: UserId,
     name: String,
     slug: String,
     team_name: String,
     team_key: String,
-) -> AppResult<Uuid> {
-    let id = Uuid::new_v4();
+) -> AppResult<WorkspaceId> {
+    let id = WorkspaceId::new();
     sqlx::query("INSERT INTO convex.workspaces (id,name,slug) VALUES ($1,$2,$3)")
         .bind(id)
         .bind(name)
@@ -36,7 +36,7 @@ pub async fn create_workspace(
         .execute(&mut **tx)
         .await?;
     sqlx::query("INSERT INTO convex.workspace_memberships (id,workspace_id,user_id,role) VALUES ($1,$2,$3,'owner')")
-        .bind(Uuid::new_v4())
+        .bind(MembershipId::new())
         .bind(id)
         .bind(user)
         .execute(&mut **tx)
@@ -47,11 +47,11 @@ pub async fn create_workspace(
 
 pub async fn create_team(
     tx: &mut Transaction<'_, Postgres>,
-    workspace: Uuid,
+    workspace: WorkspaceId,
     name: String,
     key: String,
-) -> AppResult<Uuid> {
-    let id = Uuid::new_v4();
+) -> AppResult<TeamId> {
+    let id = TeamId::new();
     sqlx::query("INSERT INTO convex.teams (id,workspace_id,name,key) VALUES ($1,$2,$3,$4)")
         .bind(id)
         .bind(workspace)
@@ -73,7 +73,7 @@ pub async fn create_team(
             "INSERT INTO convex.workflow_statuses (id,workspace_id,team_id,name,category,position)
              VALUES ($1,$2,$3,$4,$5,$6)",
         )
-        .bind(Uuid::new_v4())
+        .bind(WorkflowStatusId::new())
         .bind(workspace)
         .bind(id)
         .bind(name)
@@ -87,9 +87,9 @@ pub async fn create_team(
 
 pub async fn membership(
     tx: &mut Transaction<'_, Postgres>,
-    workspace: Uuid,
-    user: Uuid,
-) -> AppResult<(Uuid, String)> {
+    workspace: WorkspaceId,
+    user: UserId,
+) -> AppResult<(MembershipId, String)> {
     sqlx::query("SELECT id FROM convex.workspaces WHERE id=$1 FOR UPDATE")
         .bind(workspace)
         .execute(&mut **tx)
@@ -104,8 +104,8 @@ pub async fn membership(
 
 pub async fn protect_last_owner(
     tx: &mut Transaction<'_, Postgres>,
-    workspace: Uuid,
-    user: Uuid,
+    workspace: WorkspaceId,
+    user: UserId,
 ) -> AppResult<()> {
     let owner: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1
@@ -147,7 +147,7 @@ pub async fn valid_invite(
     tx: &mut Transaction<'_, Postgres>,
     token: &str,
 ) -> AppResult<ValidInvite> {
-    let id:  Uuid  =  sqlx::query_scalar("SELECT id FROM convex.invitations WHERE token_hash=$1")
+    let id: InvitationId  =  sqlx::query_scalar("SELECT id FROM convex.invitations WHERE token_hash=$1")
         .bind(digest(token))
         .fetch_optional(&mut **tx)
         .await?
@@ -158,7 +158,7 @@ pub async fn valid_invite(
 pub async fn accept_for_user(
     tx: &mut Transaction<'_, Postgres>,
     invitation: &ValidInvite,
-    user: Uuid,
+    user: UserId,
 ) -> AppResult<()> {
     // Existing active membership is not demoted/promoted by accepting another invitation.
     let current: Option<bool> = sqlx::query_scalar("SELECT removed_at IS NULL FROM convex.workspace_memberships WHERE workspace_id=$1 AND user_id=$2")
@@ -175,7 +175,7 @@ pub async fn accept_for_user(
              ON CONFLICT (workspace_id,user_id) DO UPDATE
              SET removed_at=NULL,role=EXCLUDED.role,joined_at=now()",
     )
-    .bind(Uuid::new_v4())
+    .bind(MembershipId::new())
     .bind(invitation.workspace_id)
     .bind(user)
     .bind(&invitation.role)
@@ -191,7 +191,7 @@ pub async fn accept_for_user(
 
 pub async fn valid_invite_id(
     tx: &mut Transaction<'_, Postgres>,
-    id: Uuid,
+    id: InvitationId,
 ) -> AppResult<ValidInvite> {
     sqlx::query_as("SELECT i.id,i.workspace_id,i.role,w.name AS workspace_name,w.slug AS workspace_slug
              FROM convex.invitations i

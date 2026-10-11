@@ -1,6 +1,6 @@
 use convex_core::{Error as AppError, Result as AppResult};
+use convex_ids::OidcIdentityId;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -27,7 +27,7 @@ impl MethodAction {
 #[derive(Clone)]
 #[cfg_attr(feature = "postgres", derive(sqlx::FromRow))]
 pub struct OidcMethod {
-    pub id: Uuid,
+    pub id: OidcIdentityId,
     pub issuer: String,
     pub usable: bool,
 }
@@ -62,6 +62,6 @@ pub struct AddLocal {
 
 #[derive(Clone)]
 pub struct RemoveOidc {
-    pub identity_id: Uuid,
+    pub identity_id: OidcIdentityId,
     pub current_password: String,
 }

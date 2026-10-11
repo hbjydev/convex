@@ -1,3 +1,4 @@
+use convex_ids::{IssueId, WorkflowStatusId};
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
@@ -17,12 +18,12 @@ use crate::{
 };
 
 const DIGEST: &str = "session-digest";
-const STATUS: Uuid = Uuid::from_u128(7);
+const STATUS: WorkflowStatusId = WorkflowStatusId::from_uuid(Uuid::from_u128(7));
 
 fn issue() -> Issue {
     let created_at = Utc.with_ymd_and_hms(2026, 10, 10, 12, 0, 0).unwrap();
     Issue {
-        id: Uuid::from_u128(8),
+        id: IssueId::from_uuid(Uuid::from_u128(8)),
         workspace_id: WORKSPACE,
         team_id: TEAM,
         number: 42,

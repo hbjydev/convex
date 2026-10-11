@@ -1,5 +1,6 @@
 //! Endpoint tests run the production router, middleware and application logic.
 //! Only persistence and the installation policy lease are replaced with mocks.
+use convex_ids::{IssueId, MembershipId, TeamId, UserId, WorkflowStatusId, WorkspaceId};
 use std::sync::Arc;
 
 use axum::{
@@ -28,8 +29,8 @@ use crate::{http, security};
 const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 struct Fixture {
-    user: Uuid,
-    member: Uuid,
+    user: UserId,
+    member: MembershipId,
     issue: Issue,
 }
 
@@ -37,20 +38,20 @@ impl Fixture {
     fn new() -> Self {
         let created_at = Utc.with_ymd_and_hms(2026, 10, 10, 12, 0, 0).unwrap();
         Self {
-            user: Uuid::from_u128(1),
-            member: Uuid::from_u128(2),
+            user: UserId::from_uuid(Uuid::from_u128(1)),
+            member: MembershipId::from_uuid(Uuid::from_u128(2)),
             issue: Issue {
-                id: Uuid::from_u128(3),
-                workspace_id: Uuid::from_u128(4),
-                team_id: Uuid::from_u128(5),
+                id: IssueId::from_uuid(Uuid::from_u128(3)),
+                workspace_id: WorkspaceId::from_uuid(Uuid::from_u128(4)),
+                team_id: TeamId::from_uuid(Uuid::from_u128(5)),
                 number: 42,
                 identifier: "ENG-42".into(),
                 title: "Original title".into(),
                 description: "Issue description".into(),
-                status_id: Uuid::from_u128(6),
+                status_id: WorkflowStatusId::from_uuid(Uuid::from_u128(6)),
                 priority: Priority::None,
                 assignee_membership_id: None,
-                creator_membership_id: Uuid::from_u128(2),
+                creator_membership_id: MembershipId::from_uuid(Uuid::from_u128(2)),
                 version: 1,
                 created_at,
                 updated_at: created_at,
@@ -205,7 +206,7 @@ async fn editing_records_history_before_commit_and_returns_the_saved_issue() {
             change.issue.title == "Edited title"
                 && change.issue.version == 1
                 && change.kind == IssueEventKind::Updated
-                && *actor == Uuid::from_u128(2)
+                && *actor == MembershipId::from_uuid(Uuid::from_u128(2))
         })
         .times(1)
         .in_sequence(&mut sequence)
@@ -348,7 +349,7 @@ async fn missing_membership_returns_not_found_before_loading_issue() {
         .expect_active_user()
         .times(1)
         .in_sequence(&mut sequence)
-        .returning(|_| Ok(Some(Uuid::from_u128(1))));
+        .returning(|_| Ok(Some(UserId::from_uuid(Uuid::from_u128(1)))));
     work.workspaces
         .expect_active_membership()
         .times(1)
@@ -425,7 +426,11 @@ async fn a_foreign_team_returns_not_found_without_listing_issues() {
         .times(1)
         .returning(|_, _| Ok(false));
     expect_rollback(&mut work);
-    let path = format!("{}?team_id={}", fixture.collection(), Uuid::from_u128(99));
+    let path = format!(
+        "{}?team_id={}",
+        fixture.collection(),
+        TeamId::from_uuid(Uuid::from_u128(99))
+    );
     let (status, body) = call(app(Some(work)).await, "GET", &path, Value::Null).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["code"], "not_found");
@@ -527,7 +532,7 @@ async fn archive_and_property_edits_cannot_be_combined() {
 async fn null_clears_an_assignee_while_omission_preserves_it() {
     for clears_assignee in [false, true] {
         let mut fixture = Fixture::new();
-        fixture.issue.assignee_membership_id = Some(Uuid::from_u128(9));
+        fixture.issue.assignee_membership_id = Some(MembershipId::from_uuid(Uuid::from_u128(9)));
         let mut sequence = Sequence::new();
         let mut work = authorized_work(&fixture, &mut sequence);
         expect_find(&mut work, &fixture.issue, IssueLock::ForUpdate);
@@ -548,7 +553,7 @@ async fn null_clears_an_assignee_while_omission_preserves_it() {
                     == if clears_assignee {
                         None
                     } else {
-                        Some(Uuid::from_u128(9))
+                        Some(MembershipId::from_uuid(Uuid::from_u128(9)))
                     }
             })
             .times(1)

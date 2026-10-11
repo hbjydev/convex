@@ -1,4 +1,5 @@
 //! Exercise HTTP and cross-domain mutations together, replacing only repositories.
+use convex_ids::{InvitationId, MembershipId, OidcIdentityId, TeamId, UserId, WorkspaceId};
 use std::sync::Arc;
 
 use axum::{
@@ -26,11 +27,11 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-const SPACE: Uuid = Uuid::from_u128(1);
-const ACTOR: Uuid = Uuid::from_u128(2);
-const ACTOR_MEMBER: Uuid = Uuid::from_u128(3);
-const TARGET: Uuid = Uuid::from_u128(4);
-const TARGET_MEMBER: Uuid = Uuid::from_u128(5);
+const SPACE: WorkspaceId = WorkspaceId::from_uuid(Uuid::from_u128(1));
+const ACTOR: UserId = UserId::from_uuid(Uuid::from_u128(2));
+const ACTOR_MEMBER: MembershipId = MembershipId::from_uuid(Uuid::from_u128(3));
+const TARGET: UserId = UserId::from_uuid(Uuid::from_u128(4));
+const TARGET_MEMBER: MembershipId = MembershipId::from_uuid(Uuid::from_u128(5));
 
 fn router(work: MockUnitOfWork, rate_limiter: MockRateLimiter) -> Router {
     let mut factory = MockUnitOfWorkFactory::new();
@@ -260,7 +261,7 @@ async fn team_creation_uses_workspace_role_and_transactional_repository() {
         )
         .times(1)
         .in_sequence(&mut sequence)
-        .returning(|_, _, _| Ok(Uuid::from_u128(6)));
+        .returning(|_, _, _| Ok(TeamId::from_uuid(Uuid::from_u128(6))));
     work.lifecycle
         .expect_commit()
         .times(1)
@@ -288,7 +289,7 @@ async fn invitation_acceptance_keeps_oidc_login_method_and_rotates_cookie_after_
         .in_sequence(&mut sequence)
         .returning(|_| {
             Ok(ValidInvite {
-                id: Uuid::from_u128(7),
+                id: InvitationId::from_uuid(Uuid::from_u128(7)),
                 workspace_id: SPACE,
                 role: "member".into(),
                 workspace_name: "Acme".into(),
@@ -306,7 +307,7 @@ async fn invitation_acceptance_keeps_oidc_login_method_and_rotates_cookie_after_
                 is_instance_admin: false,
             })
         });
-    let identity = Uuid::from_u128(8);
+    let identity = OidcIdentityId::from_uuid(Uuid::from_u128(8));
     work.sessions
         .expect_session_method()
         .times(1)
@@ -363,7 +364,7 @@ async fn invitation_commit_failure_does_not_issue_session_cookie() {
     rate_limiter.expect_check().returning(|_| Ok(()));
     work.invitations.expect_valid_token().returning(|_| {
         Ok(ValidInvite {
-            id: Uuid::from_u128(7),
+            id: InvitationId::from_uuid(Uuid::from_u128(7)),
             workspace_id: SPACE,
             role: "member".into(),
             workspace_name: "Acme".into(),

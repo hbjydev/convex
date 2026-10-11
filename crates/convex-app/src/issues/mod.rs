@@ -1,10 +1,10 @@
+use convex_ids::{MembershipId, TeamId, WorkflowStatusId, WorkspaceId};
 use std::sync::Arc;
 
 use convex_issues::{
     Issue, IssueEvent, IssueEventKind, IssuePatch, NewIssue,
     repository::{IssueFilter, IssueLock},
 };
-use uuid::Uuid;
 
 use crate::{ApplicationError, UnitOfWork, UnitOfWorkFactory};
 
@@ -46,7 +46,7 @@ impl IssueApplication {
 
     pub async fn create(
         &self,
-        workspace: Uuid,
+        workspace: WorkspaceId,
         token_digest: Option<&str>,
         mut request: NewIssue,
     ) -> Result<OperationResult<Issue>> {
@@ -93,7 +93,7 @@ impl IssueApplication {
 
     pub async fn list(
         &self,
-        workspace: Uuid,
+        workspace: WorkspaceId,
         token_digest: Option<&str>,
         filter: IssueFilter,
     ) -> Result<OperationResult<Vec<Issue>>> {
@@ -114,7 +114,7 @@ impl IssueApplication {
 
     pub async fn detail(
         &self,
-        workspace: Uuid,
+        workspace: WorkspaceId,
         token_digest: Option<&str>,
         reference: &str,
     ) -> Result<OperationResult<Issue>> {
@@ -134,7 +134,7 @@ impl IssueApplication {
 
     pub async fn update(
         &self,
-        workspace: Uuid,
+        workspace: WorkspaceId,
         token_digest: Option<&str>,
         reference: &str,
         patch: IssuePatch,
@@ -191,9 +191,9 @@ impl IssueApplication {
 
 async fn authorize(
     work: &mut dyn UnitOfWork,
-    workspace: Uuid,
+    workspace: WorkspaceId,
     token_digest: Option<&str>,
-) -> Result<Uuid> {
+) -> Result<MembershipId> {
     // Lock before reading authentication and membership. Administration holds the
     // workspace exclusively; issue operations avoid its account/session write locks.
     work.workspaces()
@@ -212,10 +212,10 @@ async fn authorize(
 
 async fn validate_references(
     work: &mut dyn UnitOfWork,
-    workspace: Uuid,
-    team: Uuid,
-    status: Uuid,
-    assignee: Option<Uuid>,
+    workspace: WorkspaceId,
+    team: TeamId,
+    status: WorkflowStatusId,
+    assignee: Option<MembershipId>,
 ) -> Result<()> {
     let repository = work.workspaces();
     if !repository
@@ -239,7 +239,7 @@ async fn validate_references(
 async fn record_change(
     work: &mut dyn UnitOfWork,
     issue: &Issue,
-    actor: Uuid,
+    actor: MembershipId,
     kind: IssueEventKind,
     before: Option<convex_issues::IssueSnapshot>,
 ) -> Result<IssueEvent> {
