@@ -61,8 +61,8 @@ ingress:
           - convex.example.com
 ```
 
-The image tag defaults to the chart's `appVersion`. Select an available container
-tag for your installation: `main` follows development builds, while published
+Select an available container tag or digest explicitly for your installation:
+`main` follows development builds, while published
 releases use their version number. Pin a release tag or set
 `controllers.main.containers.main.image.digest` for reproducible deployments.
 Provide an ingress controller and the TLS Secret yourself, or use the common
@@ -182,6 +182,7 @@ helm package charts/convex
 The checks lint and render minimal configuration, OIDC/SMTP with TLS ingress,
 and individual Secret references with a Gateway route. They also verify required
 configuration failures and rendering from a packaged chart. `Chart.lock` pins the
-dependency; downloaded dependency archives are ignored by Git. This repository
-currently supports local installation and packaging, without publishing a Helm
-repository.
+dependency, pulled from `oci://ghcr.io/bjw-s-labs/helm/common`. No Helm repository
+registration is needed. Downloaded dependency archives are ignored by Git. This
+repository currently supports local installation and packaging, without publishing
+a Helm repository.
