@@ -4,3 +4,4 @@ target/
 *.pdb
 .impeccable/review/
 .impeccable/briefs/
+charts/*/charts/

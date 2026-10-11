@@ -1,0 +1,3 @@
+convex:
+  publicUrl: https://convex.example.com
+  existingSecret: convex-runtime

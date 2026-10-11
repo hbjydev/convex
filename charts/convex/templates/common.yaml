@@ -1,0 +1,4 @@
+{{- $ctx := deepCopy . -}}
+{{- include "bjw-s.common.loader.init" $ctx -}}
+{{- include "convex.config" $ctx -}}
+{{- include "bjw-s.common.loader.generate" $ctx -}}

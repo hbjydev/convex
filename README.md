@@ -74,6 +74,8 @@ The Dockerfile builds the frontend in a Node/pnpm stage and embeds its output in
 
 Rust checks, unit tests, doctests, builds, and test archives enable the `integration` feature without `embed-web`, so they need neither frontend dependencies nor `web/dist`. `mise run check:bundle` builds the actual frontend, lints all Cargo features, and runs the embedded-frontend routing tests. CI keeps Rust check/build jobs independent and verifies the bundle in a separate job that installs frontend dependencies. `mise run build` and `mise run build:release` continue to produce bundled applications.
 
+For Kubernetes, use the [Convex Helm chart](charts/convex/README.md), built on bjw-s' common library. It deploys the bundled container with an external PostgreSQL database, runtime configuration and Secret references, health probes, and optional Ingress or Gateway API routing.
+
 ## Issue workflow
 
 Under **Your teams** in the sidebar, expand a team and open **Issues**. Each team has its own **Home** and **Issues** links. Team URLs use the lowercase immutable key, such as `eng`, so renaming a team preserves its links. Routes under `/<workspace-slug>/team/<team-slug>` are the team home, `/all` for active issues, `/archive` for archived issues, and `/new` for creation. New issues default to that team. Create an issue from **New issue** or a status group's plus button. The dialog supports Markdown descriptions, status, priority, optional assignee, and **Create more**. It keeps failed drafts and preserves a closed draft while that list remains open.
