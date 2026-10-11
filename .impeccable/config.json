@@ -11,6 +11,33 @@
         ],
         "createdAt": "2026-10-11T11:18:04.491Z",
         "reason": "Agent: this file uses a neutral 2px border only on semantic Markdown blockquotes, preserving the existing typeset.css blockquote rule; it is not a card accent."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "arial",
+        "files": [
+          "crates/convex-auth/src/email.html"
+        ],
+        "createdAt": "2026-10-11T12:51:07.268Z",
+        "reason": "Agent: transactional email uses installed system fonts because the web app’s locally served Geist is unavailable in email clients."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "24px",
+        "files": [
+          "crates/convex-auth/src/email.html"
+        ],
+        "createdAt": "2026-10-11T12:53:13.420Z",
+        "reason": "Agent: email wordmark uses a larger reading hierarchy than the compact application UI, matching the supplied Linear email reference."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "26px",
+        "files": [
+          "crates/convex-auth/src/email.html"
+        ],
+        "createdAt": "2026-10-11T12:53:13.498Z",
+        "reason": "Agent: responsive email heading preserves the supplied Linear reading hierarchy rather than the compact application UI type scale."
       }
     ]
   }

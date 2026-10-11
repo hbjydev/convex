@@ -107,7 +107,12 @@ impl SecurityConfig {
         })
     }
 
-    pub async fn send(&self, to: &str, subject: &str, body: String) -> AppResult<bool> {
+    pub async fn send(
+        &self,
+        to: &str,
+        subject: &str,
+        body: crate::email::Email,
+    ) -> AppResult<bool> {
         let Some(mail) = &self.mail else {
             return Ok(false);
         };
@@ -117,7 +122,7 @@ impl SecurityConfig {
                 .parse()
                 .map_err(|_| AppError::validation("Enter a valid email address."))?)
             .subject(subject)
-            .body(body)
+            .multipart(body.into_multipart())
             .map_err(AppError::internal)?;
         mail.transport
             .send(message)

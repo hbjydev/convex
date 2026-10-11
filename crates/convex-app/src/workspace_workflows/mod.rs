@@ -70,7 +70,7 @@ pub async fn deletion_code(
         let (name, _) = work.workspaces().identity(space).await?;
         let code = sec::token()[..8].to_ascii_uppercase();
         work.workspaces().set_deletion_code(space, actor.id, sec::digest(&code)).await?;
-        application.security.send(&email, "Verify workspace deletion on Convex", format!("Your code to permanently delete the workspace {name} is:\n\n{code}\n\nThis code expires in 10 minutes. Deleting this workspace permanently removes its teams, issues, activity, memberships, and invitations. Your account and other workspaces remain available.\n\nIf you did not request this, do not share or use this code.")).await?;
+        application.security.send(&email, "Verify workspace deletion on Convex", convex_auth::email::Email::workspace_deletion(&name, &code)).await?;
         Ok(WorkspaceDeletionCode { email })
     }.await;
     finish(work, result).await
@@ -312,9 +312,7 @@ pub async fn invite(
     let (id, token, expires_at) = finish(work, result).await?;
     let url = format!("{}/invite#{}", application.security.origin, token);
     let delivered = if let Some(to) = to {
-        let message = format!(
-            "Join using this single-use invitation within 7 days:\n{url}\nOnly share this link with the intended teammate."
-        );
+        let message = convex_auth::email::Email::invitation(&url);
         match application
             .security
             .send(&to, "Join your workspace on Convex", message)
