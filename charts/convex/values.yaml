@@ -1,0 +1,97 @@
+# yaml-language-server: $schema=values.schema.json
+
+convex:
+  # -- Required exact browser origin. HTTPS is required outside loopback hosts.
+  publicUrl: ""
+  # -- HTTP listener port. Also sets the container port and Service target port.
+  port: 8080
+  # -- Existing Secret containing DATABASE_URL and, for first-run setup,
+  # CONVEX_SETUP_TOKEN (at least 32 characters). All keys are loaded via envFrom.
+  # Optional OIDC and SMTP credentials can live in the same Secret.
+  existingSecret: ""
+  # -- Additional runtime environment variables. Supports common-library map
+  # syntax, including valueFrom references. Native container env takes precedence.
+  # Set publicUrl and port above instead of CONVEX_PUBLIC_URL / CONVEX_BIND_ADDRESS.
+  config:
+    RUST_LOG: info
+    CONVEX_SESSION_TTL_SECONDS: "604800"
+
+defaultPodOptionsStrategy: merge
+defaultPodOptions:
+  automountServiceAccountToken: false
+  enableServiceLinks: false
+  terminationGracePeriodSeconds: 30
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+
+controllers:
+  main:
+    enabled: true
+    type: deployment
+    replicas: 1
+    # Authentication policy changes require all old replicas to stop first.
+    strategy: Recreate
+    containers:
+      main:
+        image:
+          repository: ghcr.io/hbjydev/convex
+          tag: ""
+          digest: ""
+          pullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        envFrom: []
+        probes:
+          startup:
+            enabled: true
+            type: HTTP
+            path: /api/v1/health
+            port: http
+            spec:
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 60
+          readiness:
+            enabled: true
+            type: HTTP
+            path: /api/v1/health
+            port: http
+            spec:
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+          # The health endpoint checks PostgreSQL and the authentication policy.
+          # TCP liveness avoids restarting healthy processes during a DB outage.
+          liveness:
+            enabled: true
+            type: TCP
+            port: http
+            spec:
+              periodSeconds: 10
+              timeoutSeconds: 3
+              failureThreshold: 3
+        resources: {}
+
+service:
+  main:
+    controller: main
+    primary: true
+    type: ClusterIP
+    ports:
+      http:
+        primary: true
+        port: 80
+        targetPort: http
+        protocol: HTTP
+
+# -- Use common-library Ingress or Gateway API routes to expose the application.
+ingress: {}
+route: {}

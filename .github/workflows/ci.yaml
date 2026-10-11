@@ -15,6 +15,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-helm:
+    name: Check Helm chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-repo
+        with:
+          rust: 'false'
+      - name: Build chart dependencies
+        run: mise run helm:deps
+      - name: Lint, render and package the chart
+        run: mise run check:helm
+
   check-rust:
     if: >-
       ${{ !(startsWith(github.head_ref, 'release-please--')

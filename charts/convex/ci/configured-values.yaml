@@ -1,0 +1,59 @@
+convex:
+  publicUrl: https://issues.example.com
+  port: 9090
+  existingSecret: convex-runtime
+  config:
+    RUST_LOG: debug
+    CONVEX_SESSION_TTL_SECONDS: "86400"
+    CONVEX_OIDC_ISSUER_URL: https://identity.example.com/realms/convex
+    CONVEX_OIDC_CLIENT_ID: convex
+    CONVEX_OIDC_DISPLAY_NAME: Company login
+    CONVEX_OIDC_ENABLED: true
+    CONVEX_OIDC_REQUIRED: true
+    CONVEX_SMTP_HOST: smtp.example.com
+    CONVEX_SMTP_PORT: 587
+    CONVEX_SMTP_FROM: Convex <convex@example.com>
+    CONVEX_SMTP_USERNAME: convex
+
+controllers:
+  main:
+    replicas: 2
+    pod:
+      nodeSelector:
+        kubernetes.io/os: linux
+    containers:
+      main:
+        env:
+          RUST_LOG: warn
+          CONVEX_OIDC_REQUIRED: false
+          CONVEX_OIDC_CLIENT_SECRET:
+            valueFrom:
+              secretKeyRef:
+                name: convex-oidc
+                key: client-secret
+        ports:
+          - name: extra
+            containerPort: 9100
+            protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+
+ingress:
+  main:
+    className: nginx
+    hosts:
+      - host: issues.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            service:
+              identifier: main
+              port: http
+    tls:
+      - secretName: convex-tls
+        hosts:
+          - issues.example.com
