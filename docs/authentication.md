@@ -107,7 +107,7 @@ mise run account:recover person@example.com --enable
 
 It revokes all account sessions and prints a single-use recovery URL, valid for 30 minutes. Privately deliver it to the account holder. They choose a new password in the browser and sign in. Treat that printed URL as a temporary credential. Run the command with the same `DATABASE_URL` and `CONVEX_PUBLIC_URL` as the installation. Direct deployments can invoke the `recover-account` application binary with the same arguments and environment.
 
-For optional local SMTP, run `mise run mail:up`, set the example SMTP variables in `.env`, and restart the API. Use `CONVEX_SMTP_HOST=127.0.0.1`, `CONVEX_SMTP_PORT=1025`, `CONVEX_SMTP_TLS=plain`, and a valid `CONVEX_SMTP_FROM`. Read delivered messages at <http://127.0.0.1:8025>. Production SMTP uses STARTTLS on port 587 by default; configure the host, from address, and any required username/password. Do not use the Mailpit inbox for production mail.
+For optional local SMTP, run `mise run mail:up`, set the example SMTP variables in `.env`, and restart the API. Use `CONVEX_SMTP_HOST=127.0.0.1`, `CONVEX_SMTP_PORT=1025`, `CONVEX_SMTP_TLS=plain`, and a valid `CONVEX_SMTP_FROM`. Leave `CONVEX_SMTP_USERNAME` and `CONVEX_SMTP_PASSWORD` unset for Mailpit; blank usernames are treated as unauthenticated SMTP. Read delivered messages at <http://127.0.0.1:8025>. Production SMTP uses STARTTLS on port 587 by default; configure the host, from address, and any required username/password. Do not use the Mailpit inbox for production mail.
 
 ## Session configuration and CP03 foundation
 

@@ -82,7 +82,10 @@ impl SecurityConfig {
                         .parse()?,
                 )
                 .timeout(Some(std::time::Duration::from_secs(10)));
-            if let Ok(username) = std::env::var("CONVEX_SMTP_USERNAME") {
+            if let Some(username) = std::env::var("CONVEX_SMTP_USERNAME")
+                .ok()
+                .filter(|username| !username.trim().is_empty())
+            {
                 builder = builder.credentials(SmtpCredentials::new(
                     username,
                     std::env::var("CONVEX_SMTP_PASSWORD")?,
