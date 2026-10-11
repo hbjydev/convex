@@ -12,7 +12,12 @@ import { Input } from '@/components/ui/input';
 import { unwrap } from '@/lib/requests';
 import { initials, type SettingsProps } from './settings-shared';
 import { DeleteWorkspace } from './delete-workspace';
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from '@/components/ui/input-group';
 import { FieldLabel } from '@/components/ui/field';
 
 export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {

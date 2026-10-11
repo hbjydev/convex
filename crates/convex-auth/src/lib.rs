@@ -14,6 +14,7 @@ pub mod mock {
 
 pub mod auth_policy;
 pub mod credentials;
+pub mod email;
 pub mod methods;
 pub mod methods_model;
 pub mod oidc;

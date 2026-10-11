@@ -301,9 +301,9 @@ pub async fn request_recovery(
         // SMTP latency cannot be distinguished through this endpoint's response time.
         tokio::spawn(async move {
             let delivery = async {
-                let mut tx = transaction(&context.pool)
-        .await?;
-                if let Some(user) = sqlx::query_scalar::<_,UserId>("SELECT u.id
+                let mut tx = transaction(&context.pool).await?;
+                if let Some(user) = sqlx::query_scalar::<_, UserId>(
+                    "SELECT u.id
              FROM convex.users u
              JOIN convex.local_credentials c ON u.id=c.user_id
              CROSS JOIN convex.authentication_policy p
@@ -311,22 +311,24 @@ pub async fn request_recovery(
              AND u.disabled_at IS NULL
              AND (NOT p.oidc_required
              OR u.is_instance_admin)
-             FOR UPDATE OF u,c")
-        .bind(&email)
-        .fetch_optional(&mut *tx)
-        .await? {
-                    let token = recovery_token(&mut tx, user)
-        .await?;
-                    tx.commit()
-        .await?;
-                    let message = format!(
-                        "Reset your password within 30 minutes:\n{}/auth/reset#{}\nIf you did not request this, ignore this email.",
-                        context.security.origin, token,
-                    );
-                    context.security.send(&email, "Reset your Convex password", message).await?;
+             FOR UPDATE OF u,c",
+                )
+                .bind(&email)
+                .fetch_optional(&mut *tx)
+                .await?
+                {
+                    let token = recovery_token(&mut tx, user).await?;
+                    tx.commit().await?;
+                    let url = format!("{}/auth/reset#{}", context.security.origin, token);
+                    let message = crate::email::Email::password_reset(&url);
+                    context
+                        .security
+                        .send(&email, "Reset your Convex password", message)
+                        .await?;
                 }
                 Ok::<_, AppError>(())
-            }.await;
+            }
+            .await;
             if let Err(error) = delivery {
                 tracing::error!(%error,"Recovery email delivery failed");
             }
