@@ -36,7 +36,7 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Your workspaces', exact: true }),
+    page.getByRole('heading', { name: 'Engineering', exact: true }),
   ).toBeVisible();
   const slug = `issues-${test.info().project.name}-${Date.now()}`;
   const response = await page.request.post('/api/v1/workspaces', {

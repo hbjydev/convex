@@ -66,8 +66,8 @@ export function WorkspaceMenu({
         {account.workspaces.map((space) => (
           <DropdownMenuItem asChild key={space.id}>
             <Link
-              to="/$workspaceSlug"
-              params={{ workspaceSlug: space.slug }}
+              to="/workspaces/$workspaceId"
+              params={{ workspaceId: space.id }}
               onClick={closeNavigation}
               aria-current={workspace?.id === space.id ? 'page' : undefined}
             >
@@ -88,19 +88,11 @@ export function WorkspaceMenu({
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem asChild>
-          <Link to="/" onClick={closeNavigation}>
-            <LayersIcon />
-            All workspaces
+          <Link to="/workspaces/create" onClick={closeNavigation}>
+            <PlusIcon />
+            Create a workspace
           </Link>
         </DropdownMenuItem>
-        {account.user.is_instance_admin && (
-          <DropdownMenuItem asChild>
-            <Link to="/" hash="create-workspace" onClick={closeNavigation}>
-              <PlusIcon />
-              Create a workspace
-            </Link>
-          </DropdownMenuItem>
-        )}
       </DropdownMenuGroup>
     </>
   );

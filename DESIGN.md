@@ -257,7 +257,7 @@ Authentication cards use the card surface, restrained foreground ring, and the r
 
 ### Navigation
 
-The main sidebar contains team navigation. Workspace switching, All workspaces, and settings access live in the top workspace dropdown. The dedicated settings sidebar provides section navigation while settings are open.
+The main sidebar contains team navigation. Workspace switching, Create a workspace, and settings access live in the top workspace dropdown. The dedicated settings sidebar provides section navigation while settings are open.
 
 Under **Your teams**, each team has a collapsible group with indented **Home** and **Issues** links. Use real team names and immutable keys. Team Home shows its workflow; Issues shows only that team's work, with the team name in the breadcrumb. Preserve the selected team through active/archived navigation, direct issue links, and creation defaults. These groups follow the user's sidebar reference, using flat submenus without connecting borders.
 

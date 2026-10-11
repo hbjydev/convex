@@ -31,6 +31,7 @@ pub trait AuthenticationPolicy: Send + Sync {
 #[cfg_attr(feature = "mock", mockall::automock)]
 #[async_trait]
 pub trait AccountRepository: Send {
+    async fn contact_email(&mut self, user: UserId) -> convex_core::Result<Option<String>>;
     async fn authenticate(
         &mut self,
         credentials: crate::credentials::Credentials,

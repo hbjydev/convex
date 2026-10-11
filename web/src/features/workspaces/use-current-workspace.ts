@@ -1,8 +1,23 @@
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/auth';
+import type { components } from '@/api/schema';
 
 const STORAGE_KEY = 'convex.current-workspace';
+
+export function preferredWorkspace(
+  workspaces: components['schemas']['Workspace'][],
+) {
+  let lastId: string | null = null;
+  try {
+    lastId = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    /* Storage is optional. */
+  }
+  return (
+    workspaces.find((workspace) => workspace.id === lastId) ?? workspaces[0]
+  );
+}
 
 export function useCurrentWorkspace() {
   const { account } = useAuth();

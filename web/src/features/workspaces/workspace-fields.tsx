@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   Field,
   FieldDescription,
@@ -35,8 +35,18 @@ function suggestSlug(name: string) {
   return RESERVED_SLUGS.includes(slug) ? `${slug}-workspace` : slug;
 }
 
-export function WorkspaceFields({ setup = false }: { setup?: boolean }) {
+export function WorkspaceFields({
+  setup = false,
+  focusName = false,
+}: {
+  setup?: boolean;
+  focusName?: boolean;
+}) {
   const id = useId();
+  const nameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focusName) nameInput.current?.focus();
+  }, [focusName]);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [editedSlug, setEditedSlug] = useState(false);
@@ -55,6 +65,7 @@ export function WorkspaceFields({ setup = false }: { setup?: boolean }) {
           required
           maxLength={100}
           autoComplete="off"
+          ref={nameInput}
           onChange={(event) => {
             setName(event.target.value);
             if (!editedSlug) setSlug(suggestSlug(event.target.value));

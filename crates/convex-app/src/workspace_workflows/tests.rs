@@ -49,20 +49,32 @@ fn accept_request() -> AcceptInvite {
 }
 
 #[tokio::test]
-async fn workspace_creation_requires_instance_administration() {
+async fn any_authenticated_user_can_create_a_workspace() {
     let mut work = MockUnitOfWork::default();
     expect_actor(&mut work, false);
-    expect_rollback(&mut work);
+    work.workspaces
+        .expect_create()
+        .with(
+            eq(USER),
+            eq("Production".to_owned()),
+            eq("production".to_owned()),
+            eq("Engineering".to_owned()),
+            eq("ENG".to_owned()),
+        )
+        .times(1)
+        .returning(|_, _, _, _, _| Ok(WORKSPACE));
+    expect_commit(&mut work);
     let request = CreateWorkspace {
         name: "Production".into(),
         slug: "production".into(),
         team_name: "Engineering".into(),
         team_key: "ENG".into(),
     };
-    assert!(matches!(
-        create(control_plane(Some(work)), credentials(), request).await,
-        Err(Error::Forbidden)
-    ));
+    let workspace = create(control_plane(Some(work)), credentials(), request)
+        .await
+        .unwrap();
+    assert_eq!(workspace.id, WORKSPACE);
+    assert_eq!(workspace.role, "owner");
 }
 
 #[tokio::test]
@@ -510,4 +522,175 @@ async fn removal_clears_assignments_before_deleting_membership_and_revoking_sess
             assert!(result.is_ok());
         }
     }
+}
+
+fn deleting_application(work: MockUnitOfWork) -> crate::control_plane::ControlPlane {
+    let mut application = control_plane(Some(work));
+    let mut limiter = MockRateLimiter::new();
+    limiter.expect_check().times(1).returning(|_| Ok(()));
+    application.rate_limiter = Arc::new(limiter);
+    application
+}
+
+fn deletion_request() -> DeleteWorkspace {
+    DeleteWorkspace {
+        code: "abcd1234".into(),
+        acknowledged: true,
+    }
+}
+
+#[tokio::test]
+async fn deletion_requires_acknowledgment_and_a_well_formed_code_before_work() {
+    for request in [
+        DeleteWorkspace {
+            acknowledged: false,
+            ..deletion_request()
+        },
+        DeleteWorkspace {
+            code: "bad".into(),
+            ..deletion_request()
+        },
+    ] {
+        assert!(matches!(
+            super::delete(
+                control_plane(None),
+                credentials(),
+                WORKSPACE.to_string(),
+                request
+            )
+            .await,
+            Err(Error::Validation(_))
+        ));
+    }
+}
+
+#[tokio::test]
+async fn only_current_owners_can_delete_or_request_codes() {
+    for role in ["admin", "member"] {
+        for requesting in [true, false] {
+            let mut work = MockUnitOfWork::default();
+            expect_actor(&mut work, true);
+            expect_membership(&mut work, role);
+            expect_rollback(&mut work);
+            let application = deleting_application(work);
+            let result = if requesting {
+                super::deletion_code(application, credentials(), WORKSPACE.to_string())
+                    .await
+                    .map(|_| ())
+            } else {
+                super::delete(
+                    application,
+                    credentials(),
+                    WORKSPACE.to_string(),
+                    deletion_request(),
+                )
+                .await
+                .map(|_| ())
+            };
+            assert!(matches!(result, Err(Error::Forbidden)));
+        }
+    }
+}
+
+#[tokio::test]
+async fn deletion_refuses_invalid_or_expired_codes_and_preserves_the_workspace() {
+    let mut work = MockUnitOfWork::default();
+    expect_actor(&mut work, false);
+    expect_membership(&mut work, "owner");
+    work.workspaces
+        .expect_consume_deletion_code()
+        .with(eq(WORKSPACE), eq(USER), eq(security::digest("ABCD1234")))
+        .times(1)
+        .returning(|_, _, _| Ok(false));
+    expect_rollback(&mut work);
+    assert!(matches!(
+        super::delete(
+            deleting_application(work),
+            credentials(),
+            WORKSPACE.to_string(),
+            deletion_request()
+        )
+        .await,
+        Err(Error::Validation(_))
+    ));
+}
+
+#[tokio::test]
+async fn deletion_consumes_the_owners_code_and_commits_only_after_all_data_is_removed() {
+    let mut work = MockUnitOfWork::default();
+    expect_actor(&mut work, false);
+    expect_membership(&mut work, "owner");
+    let mut sequence = Sequence::new();
+    work.workspaces
+        .expect_consume_deletion_code()
+        .with(eq(WORKSPACE), eq(USER), eq(security::digest("ABCD1234")))
+        .times(1)
+        .in_sequence(&mut sequence)
+        .returning(|_, _, _| Ok(true));
+    work.workspaces
+        .expect_delete()
+        .with(eq(WORKSPACE))
+        .times(1)
+        .in_sequence(&mut sequence)
+        .returning(|_| Ok(()));
+    work.lifecycle
+        .expect_commit()
+        .times(1)
+        .in_sequence(&mut sequence)
+        .returning(|| Ok(()));
+    assert_eq!(
+        super::delete(
+            deleting_application(work),
+            credentials(),
+            WORKSPACE.to_string(),
+            deletion_request()
+        )
+        .await
+        .unwrap()
+        .message,
+        "Workspace deleted."
+    );
+}
+
+#[tokio::test]
+async fn deletion_rolls_back_the_code_when_removing_data_fails() {
+    let mut work = MockUnitOfWork::default();
+    expect_actor(&mut work, false);
+    expect_membership(&mut work, "owner");
+    work.workspaces
+        .expect_consume_deletion_code()
+        .times(1)
+        .returning(|_, _, _| Ok(true));
+    work.workspaces
+        .expect_delete()
+        .times(1)
+        .returning(|_| Err(Error::conflict("Database failure")));
+    expect_rollback(&mut work);
+    assert!(matches!(
+        super::delete(
+            deleting_application(work),
+            credentials(),
+            WORKSPACE.to_string(),
+            deletion_request()
+        )
+        .await,
+        Err(Error::Conflict(_))
+    ));
+}
+
+#[tokio::test]
+async fn deletion_code_requires_configured_email_delivery() {
+    let mut work = MockUnitOfWork::default();
+    expect_actor(&mut work, false);
+    expect_membership(&mut work, "owner");
+    expect_rollback(&mut work);
+    assert!(matches!(
+        super::deletion_code(
+            deleting_application(work),
+            credentials(),
+            WORKSPACE.to_string()
+        )
+        .await,
+        Err(Error::Validation(_))
+    ));
 }

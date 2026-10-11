@@ -11,6 +11,7 @@ import { Form, text } from '@/components/app-form';
 import { Input } from '@/components/ui/input';
 import { unwrap } from '@/lib/requests';
 import { initials, type SettingsProps } from './settings-shared';
+import { DeleteWorkspace } from './delete-workspace';
 
 export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
   const { reload } = useAuth();
@@ -111,6 +112,9 @@ export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
           </SettingsRow>
         </SettingsPanel>
       </SettingsBlock>
+      {workspace.role === 'owner' && (
+        <DeleteWorkspace key={workspace.id} workspace={workspace} />
+      )}
     </SettingsPage>
   );
 }

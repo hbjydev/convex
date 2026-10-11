@@ -103,6 +103,14 @@ pub struct InvitationGrant {
 
 #[async_trait]
 impl crate::repository::AccountRepository for PostgresTransaction {
+    async fn contact_email(&mut self, user: UserId) -> convex_core::Result<Option<String>> {
+        Ok(
+            sqlx::query_scalar("SELECT email FROM convex.local_credentials WHERE user_id=$1")
+                .bind(user)
+                .fetch_optional(self.connection())
+                .await?,
+        )
+    }
     async fn authenticate(
         &mut self,
         credentials: crate::credentials::Credentials,

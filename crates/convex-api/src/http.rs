@@ -136,6 +136,8 @@ fn documented_router() -> OpenApiRouter<AppState> {
         .routes(routes!(issues::create, issues::list))
         .routes(routes!(issues::detail, issues::update))
         .routes(routes!(workspaces::create))
+        .routes(routes!(workspaces::deletion_code))
+        .routes(routes!(workspaces::delete))
         .routes(routes!(workspaces::detail))
         .routes(routes!(workspaces::rename))
         .routes(routes!(workspaces::team))

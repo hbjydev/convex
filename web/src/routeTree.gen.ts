@@ -18,6 +18,7 @@ import { Route as AppAccountRouteImport } from "./routes/_app/account";
 import { Route as AuthInviteRouteImport } from "./routes/_auth/invite";
 import { Route as AuthSetupRouteImport } from "./routes/_auth/setup";
 import { Route as AppWorkspacesWorkspaceIdRouteImport } from "./routes/_app/workspaces/$workspaceId";
+import { Route as AppWorkspacesCreateRouteImport } from "./routes/_app/workspaces/create";
 import { Route as AuthAuthLoginRouteImport } from "./routes/_auth/auth/login";
 import { Route as AuthAuthOidcRouteImport } from "./routes/_auth/auth/oidc";
 import { Route as AuthAuthRecoveryRouteImport } from "./routes/_auth/auth/recovery";
@@ -74,6 +75,11 @@ const AppWorkspacesWorkspaceIdRoute =
     path: "/workspaces/$workspaceId",
     getParentRoute: () => AppRoute,
   } as any);
+const AppWorkspacesCreateRoute = AppWorkspacesCreateRouteImport.update({
+  id: "/workspaces/create",
+  path: "/workspaces/create",
+  getParentRoute: () => AppRoute,
+} as any);
 const AuthAuthLoginRoute = AuthAuthLoginRouteImport.update({
   id: "/auth/login",
   path: "/auth/login",
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   "/invite": typeof AuthInviteRoute;
   "/setup": typeof AuthSetupRoute;
   "/workspaces/$workspaceId": typeof AppWorkspacesWorkspaceIdRoute;
+  "/workspaces/create": typeof AppWorkspacesCreateRoute;
   "/auth/login": typeof AuthAuthLoginRoute;
   "/auth/oidc": typeof AuthAuthOidcRoute;
   "/auth/recovery": typeof AuthAuthRecoveryRoute;
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   "/invite": typeof AuthInviteRoute;
   "/setup": typeof AuthSetupRoute;
   "/workspaces/$workspaceId": typeof AppWorkspacesWorkspaceIdRoute;
+  "/workspaces/create": typeof AppWorkspacesCreateRoute;
   "/auth/login": typeof AuthAuthLoginRoute;
   "/auth/oidc": typeof AuthAuthOidcRoute;
   "/auth/recovery": typeof AuthAuthRecoveryRoute;
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   "/_auth/setup": typeof AuthSetupRoute;
   "/_app/": typeof AppIndexRoute;
   "/_app/workspaces/$workspaceId": typeof AppWorkspacesWorkspaceIdRoute;
+  "/_app/workspaces/create": typeof AppWorkspacesCreateRoute;
   "/_auth/auth/login": typeof AuthAuthLoginRoute;
   "/_auth/auth/oidc": typeof AuthAuthOidcRoute;
   "/_auth/auth/recovery": typeof AuthAuthRecoveryRoute;
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | "/invite"
     | "/setup"
     | "/workspaces/$workspaceId"
+    | "/workspaces/create"
     | "/auth/login"
     | "/auth/oidc"
     | "/auth/recovery"
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | "/invite"
     | "/setup"
     | "/workspaces/$workspaceId"
+    | "/workspaces/create"
     | "/auth/login"
     | "/auth/oidc"
     | "/auth/recovery"
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | "/_auth/setup"
     | "/_app/"
     | "/_app/workspaces/$workspaceId"
+    | "/_app/workspaces/create"
     | "/_auth/auth/login"
     | "/_auth/auth/oidc"
     | "/_auth/auth/recovery"
@@ -332,6 +344,13 @@ declare module "@tanstack/react-router" {
       path: "/workspaces/$workspaceId";
       fullPath: "/workspaces/$workspaceId";
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/workspaces/create": {
+      id: "/_app/workspaces/create";
+      path: "/workspaces/create";
+      fullPath: "/workspaces/create";
+      preLoaderRoute: typeof AppWorkspacesCreateRouteImport;
       parentRoute: typeof AppRoute;
     };
     "/_auth/auth/login": {
@@ -459,6 +478,7 @@ interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute;
   AppIndexRoute: typeof AppIndexRoute;
   AppWorkspacesWorkspaceIdRoute: typeof AppWorkspacesWorkspaceIdRoute;
+  AppWorkspacesCreateRoute: typeof AppWorkspacesCreateRoute;
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -466,6 +486,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppIndexRoute: AppIndexRoute,
   AppWorkspacesWorkspaceIdRoute: AppWorkspacesWorkspaceIdRoute,
+  AppWorkspacesCreateRoute: AppWorkspacesCreateRoute,
 };
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren);

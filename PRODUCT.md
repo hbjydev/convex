@@ -18,11 +18,13 @@ The user requested a Linear-inspired redesign and use of shadcn's Sidebar. The c
 
 The sidebar groups navigation by team, following the user's second reference. Each team has Home and Issues links; issue lists and creation defaults follow the selected team.
 
-Workspace switching, All workspaces, and workspace settings are reached through the top dropdown; these links are not repeated in the main sidebar.
+Workspace switching, Create a workspace, and workspace settings are reached through the top dropdown; these links are not repeated in the main sidebar.
 
 Issue details follow the user's Linear reference, with a borderless ProseMirror description editor and a separate column of editable property menus. Keep Markdown as the storage format. Save title and description changes automatically after a pause and on blur, and properties when selected; preserve drafts through failed requests and conflict review.
 
 Use Tailwind v4 utilities at the React component that owns the markup. Share reusable styles through React components and component variants. Global CSS contains theme tokens and browser-wide defaults.
+
+The root URL opens the last-used workspace’s first team, falling back to the first available workspace. There is no workspace directory. Workspace creation is a standalone, centered page available to every signed-in user; its first team uses the workspace name and a key derived from its first three Latin letters (Hobbit Hole → HOB, Convex → CON). Workspace settings expose owner-only permanent deletion with an emailed code and acknowledgment. Codes expire after 10 minutes; SMTP and an email sign-in method are required.
 
 ## Constraints
 

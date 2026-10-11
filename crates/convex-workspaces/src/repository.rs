@@ -5,6 +5,19 @@ use convex_ids::{InvitationId, MembershipId, TeamId, UserId, WorkflowStatusId, W
 #[cfg_attr(feature = "mock", mockall::automock)]
 #[async_trait]
 pub trait WorkspaceRepository: Send {
+    async fn set_deletion_code(
+        &mut self,
+        workspace: WorkspaceId,
+        user: UserId,
+        code_hash: String,
+    ) -> convex_core::Result<()>;
+    async fn consume_deletion_code(
+        &mut self,
+        workspace: WorkspaceId,
+        user: UserId,
+        code_hash: String,
+    ) -> convex_core::Result<bool>;
+    async fn delete(&mut self, workspace: WorkspaceId) -> convex_core::Result<()>;
     async fn list_for_user(&mut self, user: UserId) -> convex_core::Result<Vec<crate::Workspace>>;
     async fn create(
         &mut self,

@@ -66,7 +66,7 @@ export function WorkspaceSettings() {
       <>
         <PageTitle>Workspace unavailable</PageTitle>
         <Notice error>{error}</Notice>
-        <Link to="/">Return to workspaces</Link>
+        <Link to="/">Back to app</Link>
       </>
     );
   if (!detail || detail.workspace.id !== workspaceId || !account)
