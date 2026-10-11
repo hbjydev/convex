@@ -475,12 +475,13 @@ test('workspace creation suggests a slug, preserves edits after conflicts, and n
   ).toBeVisible();
 });
 
-test('initial setup submits the selected slug', async ({ page }) => {
+test('initial setup creates an admin before creating a workspace', async ({
+  page,
+}) => {
   const account = await mockAccount(page);
-  const workspace = account.workspaces[0];
-  if (!workspace)
-    throw new Error('Expected a workspace in the account fixture');
-  workspace.slug = 'our-product';
+  const workspace = { ...account.workspaces[0]!, slug: 'our-product' };
+  account.user.is_instance_admin = true;
+  account.workspaces = [];
   let initialized = false;
   await page.route('**/api/v1/auth/bootstrap', (route) =>
     route.fulfill({
@@ -499,49 +500,120 @@ test('initial setup submits the selected slug', async ({ page }) => {
       : route.fulfill({ status: 401, json: { message: 'Sign in required' } }),
   );
   await page.route('**/api/v1/auth/setup', (route) => {
-    expect(route.request().postDataJSON().workspace_slug).toBe('our-product');
+    expect(route.request().postDataJSON()).toEqual({
+      setup_token: 'installation-token',
+      display_name: 'Owner',
+      email: 'owner@example.test',
+      password: 'a-valid-password',
+    });
     initialized = true;
     return route.fulfill({ json: account.user });
   });
+  await page.route('**/api/v1/workspaces', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      name: 'Product',
+      slug: 'our-product',
+      team_name: 'Product',
+      team_key: 'PRO',
+    });
+    account.workspaces.push(workspace);
+    return route.fulfill({ json: workspace });
+  });
   await page.route('**/api/v1/workspaces/workspace', (route) =>
-    route.fulfill({
-      json: { workspace: account.workspaces[0], members: [], teams: [] },
-    }),
-  );
-  await page.route('**/api/v1/workspaces/workspace/invitations', (route) =>
-    route.fulfill({ json: [] }),
+    route.fulfill({ json: { workspace, members: [], teams: [] } }),
   );
   await page.goto('/');
+  await expect(page.getByLabel('Workspace name', { exact: true })).toHaveCount(
+    0,
+  );
   await page
     .getByLabel('Installation setup credential')
     .fill('installation-token');
   await page.getByLabel('Your name', { exact: true }).fill('Owner');
   await page.getByLabel('Email', { exact: true }).fill('owner@example.test');
   await page.getByLabel('Password', { exact: true }).fill('a-valid-password');
-  await page.getByLabel('Workspace name', { exact: true }).fill('Product');
-  await expect(page.getByLabel('Workspace URL', { exact: true })).toHaveValue(
-    'product',
-  );
-  await page.getByLabel('Workspace URL', { exact: true }).fill('our-product');
-  await page.getByLabel('First team name').fill('Engineering');
-  await page.getByLabel('Team key', { exact: true }).fill('ENG');
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.evaluate(async () => {
       await document.fonts.ready;
-      window.scrollTo(0, 0);
     });
     await page.screenshot({
-      path: `../.impeccable/review/slug-setup-${test.info().project.name}-${colorScheme}.png`,
+      path: `../.impeccable/review/admin-setup-${test.info().project.name}-${colorScheme}.png`,
       fullPage: true,
       animations: 'disabled',
     });
   }
+  await page.getByRole('button', { name: 'Create admin account' }).click();
+  await expect(page).toHaveURL(/\/workspaces\/create$/);
+  await page.reload();
+  await expect(
+    page.getByLabel('Workspace name', { exact: true }),
+  ).toBeVisible();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.screenshot({
+      path: `../.impeccable/review/admin-workspace-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
+  }
+  await page.getByLabel('Workspace name', { exact: true }).fill('Product');
+  await page.getByLabel('Workspace URL', { exact: true }).fill('our-product');
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page).toHaveURL(/\/our-product$/);
   await expect(
     page.getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
+});
+
+for (const role of [null, 'member', 'admin', 'owner'] as const) {
+  test(`admin login requires an owned workspace when existing role is ${role}`, async ({
+    page,
+  }) => {
+    const account = await mockAccount(page);
+    account.user.is_instance_admin = true;
+    if (role) account.workspaces[0]!.role = role;
+    else account.workspaces = [];
+    let signedIn = false;
+    await page.route('**/api/v1/auth/me', (route) =>
+      signedIn
+        ? route.fulfill({ json: account })
+        : route.fulfill({ status: 401, json: { message: 'Sign in required' } }),
+    );
+    await page.route('**/api/v1/auth/login', (route) => {
+      signedIn = true;
+      return route.fulfill({ json: account.user });
+    });
+    await page.route('**/api/v1/auth/logout', (route) => {
+      signedIn = false;
+      return route.fulfill({ json: { message: 'Signed out' } });
+    });
+    await page.goto('/auth/login');
+    await page.getByLabel('Email', { exact: true }).fill('owner@example.test');
+    await page.getByLabel('Password', { exact: true }).fill('a-valid-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    if (role === 'owner') {
+      await expect(page).toHaveURL(/\/product\/team\/eng$/);
+      return;
+    }
+    await expect(page).toHaveURL(/\/workspaces\/create$/);
+    await page.goto(role ? '/product/team/eng' : '/');
+    await expect(page).toHaveURL(/\/workspaces\/create$/);
+    await expect(
+      page.getByRole('button', { name: 'Sign out', exact: true }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/login$/);
+  });
+}
+
+test('a regular member can sign in without owning a workspace', async ({
+  page,
+}) => {
+  const account = await mockAccount(page);
+  account.workspaces[0]!.role = 'member';
+  await page.goto('/auth/login');
+  await expect(page).toHaveURL(/\/product\/team\/eng$/);
 });
 
 test('old UUID workspace links redirect to slug URLs and preserve sections', async ({

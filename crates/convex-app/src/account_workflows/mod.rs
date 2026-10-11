@@ -8,7 +8,6 @@ use convex_auth::{
     security as sec,
 };
 use convex_core::{Error as AppError, Result as AppResult};
-use convex_workspaces::validation;
 
 #[cfg(test)]
 mod tests;
@@ -31,10 +30,6 @@ pub async fn setup(application: ControlPlane, req: SetupRequest) -> AppResult<Se
     }
     let email = sec::email(&req.email)?;
     let display_name = sec::name(&req.display_name)?;
-    let workspace_name = sec::name(&req.workspace_name)?;
-    let workspace_slug = validation::workspace_slug(&req.workspace_slug)?;
-    let team_name = sec::name(&req.team_name)?;
-    let team_key = validation::team_key(&req.team_key)?;
     let hash = sec::hash_password(req.password).await?;
     let mut work = application.transactions.begin_administration().await?;
     let result = async {
@@ -45,9 +40,6 @@ pub async fn setup(application: ControlPlane, req: SetupRequest) -> AppResult<Se
         let user = work
             .accounts()
             .create_local(email, hash, display_name, true)
-            .await?;
-        work.workspaces()
-            .create(user.id, workspace_name, workspace_slug, team_name, team_key)
             .await?;
         work.installation().mark_initialized().await?;
         let token = work

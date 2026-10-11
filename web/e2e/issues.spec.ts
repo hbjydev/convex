@@ -21,13 +21,19 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
         email: 'browser-owner@example.com',
         password,
         display_name: 'Installation owner',
-        workspace_name: 'Initial workspace',
-        workspace_slug: 'initial-workspace',
+      },
+    });
+    expect(setup.ok()).toBe(true);
+    const initialWorkspace = await request.post('/api/v1/workspaces', {
+      headers,
+      data: {
+        name: 'Initial workspace',
+        slug: 'initial-workspace',
         team_name: 'Engineering',
         team_key: 'ENG',
       },
     });
-    expect(setup.ok()).toBe(true);
+    expect(initialWorkspace.ok()).toBe(true);
   }
   await page.goto('/auth/login');
   await page

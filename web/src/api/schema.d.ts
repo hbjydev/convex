@@ -833,10 +833,6 @@ export interface components {
       email: string;
       password: string;
       setup_token: string;
-      team_key: string;
-      team_name: string;
-      workspace_name: string;
-      workspace_slug: string;
     };
     StartRequest: {
       invitation_token?: string | null;

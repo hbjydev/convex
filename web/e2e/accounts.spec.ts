@@ -39,11 +39,17 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
       .getByLabel('Email', { exact: true })
       .fill('browser-owner@example.com');
     await page.getByLabel('Password', { exact: true }).fill(password);
+    await page.getByRole('button', { name: 'Create admin account' }).click();
+    await expect(page).toHaveURL(/\/workspaces\/create$/);
+    const account = await (await page.request.get('/api/v1/auth/me')).json();
+    expect(account.user.is_instance_admin).toBe(true);
+    expect(account.workspaces).toEqual([]);
     await page
       .getByLabel('Workspace name', { exact: true })
-      .fill('Initial workspace');
-    await page.getByLabel('First team name').fill('Engineering');
-    await page.getByLabel('Team key', { exact: true }).fill('ENG');
+      .fill('Engineering');
+    await page
+      .getByLabel('Workspace URL', { exact: true })
+      .fill('initial-workspace');
     await page.getByRole('button', { name: 'Create workspace' }).click();
     await expect(page).toHaveURL(/\/initial-workspace$/);
     await page.goto('/');
@@ -241,10 +247,6 @@ test('valid unbroken names fit and network errors preserve login drafts', async 
         email: 'browser-owner@example.com',
         password,
         display_name: 'Installation owner',
-        workspace_name: 'Initial workspace',
-        workspace_slug: 'initial-workspace',
-        team_name: 'Engineering',
-        team_key: 'ENG',
       },
     });
     expect(setup.ok()).toBe(true);

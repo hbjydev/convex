@@ -73,7 +73,7 @@ Deliver the path from a fresh installation to two people working in a shared wor
 
 Included work:
 
-- Installer-authorized, one-time first-admin setup and creation of the initial workspace and team.
+- Installer-authorized, one-time first-admin setup, followed by creation of the initial workspace and team on the standalone workspace creation page.
 - Local account creation through the agreed onboarding policy, login, logout, session management, and password changes/recovery.
 - Workspace memberships, roles, teammate invitations, and membership removal.
 - Team creation and initial workflow statuses, with the configuration needed for issue creation.

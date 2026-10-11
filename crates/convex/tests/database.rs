@@ -94,7 +94,7 @@ fn app(pool: &PgPool) -> axum::Router {
     http::router_with_config(pool.clone(), config)
 }
 fn setup_request() -> Value {
-    json!({"setup_token":SETUP_TOKEN,"email":"Owner@Example.com","password":PASSWORD,"display_name":"Owner","workspace_name":"Acme","workspace_slug":"acme","team_name":"Engineering","team_key":"eng"})
+    json!({"setup_token":SETUP_TOKEN,"email":"Owner@Example.com","password":PASSWORD,"display_name":"Owner"})
 }
 
 async fn call(
@@ -153,10 +153,20 @@ async fn initialized(app: &axum::Router) -> (String, String, String) {
     let (status, user, cookie) = call(app, "POST", "/api/v1/auth/setup", "", setup_request()).await;
     assert_eq!(status, 200, "{user}");
     let (_, account, _) = call(app, "GET", "/api/v1/auth/me", &cookie, Value::Null).await;
-    assert_eq!(account["workspaces"][0]["slug"], "acme");
+    assert_eq!(account["workspaces"], json!([]));
+    let (status, workspace, _) = call(
+        app,
+        "POST",
+        "/api/v1/workspaces",
+        &cookie,
+        json!({"name":"Acme","slug":"acme","team_name":"Engineering","team_key":"eng"}),
+    )
+    .await;
+    assert_eq!(status, 200, "{workspace}");
+    assert_eq!(workspace["slug"], "acme");
     (
         cookie,
-        account["workspaces"][0]["id"].as_str().unwrap().into(),
+        workspace["id"].as_str().unwrap().into(),
         user["id"].as_str().unwrap().into(),
     )
 }
@@ -165,20 +175,26 @@ async fn initialized(app: &axum::Router) -> (String, String, String) {
 #[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
 async fn workspace_slugs_are_validated_unique_and_stable(pool: PgPool) {
     let app = app(&pool);
-    let mut invalid_setup = setup_request();
-    invalid_setup["workspace_slug"] = json!("invalid/slug");
+    let (owner, space, _) = initialized(&app).await;
+    let invalid_workspace =
+        json!({"name":"Other","slug":"invalid/slug","team_name":"Other","team_key":"OPS"});
     assert_eq!(
-        call(&app, "POST", "/api/v1/auth/setup", "", invalid_setup)
-            .await
-            .0,
+        call(
+            &app,
+            "POST",
+            "/api/v1/workspaces",
+            &owner,
+            invalid_workspace
+        )
+        .await
+        .0,
         400
     );
-    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM convex.users")
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM convex.workspaces")
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(count, 0);
-    let (owner, space, _) = initialized(&app).await;
+    assert_eq!(count, 1);
     let request = json!({"name":"Other","slug":" ACME ","team_name":"Other","team_key":"OPS"});
     let (status, error, _) = call(&app, "POST", "/api/v1/workspaces", &owner, request).await;
     assert_eq!(status, 409);
@@ -342,8 +358,11 @@ async fn installer_authority_and_atomic_setup(pool: PgPool) {
             .fetch_one(&pool)
             .await
             .unwrap(),
-        5
+        0
     );
+    let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &cookie, Value::Null).await;
+    assert_eq!(account["user"]["is_instance_admin"], true);
+    assert_eq!(account["workspaces"], json!([]));
     let request = Request::builder()
         .method("POST")
         .uri("/api/v1/auth/logout")

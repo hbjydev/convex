@@ -8,10 +8,6 @@ pub struct SetupRequest {
     pub email: String,
     pub password: String,
     pub display_name: String,
-    pub workspace_name: String,
-    pub workspace_slug: String,
-    pub team_name: String,
-    pub team_key: String,
 }
 
 #[derive(Clone)]

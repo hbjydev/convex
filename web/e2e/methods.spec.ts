@@ -53,10 +53,6 @@ test('link, remove and re-add a password with fresh provider proofs and preserve
             email: 'browser-owner@example.com',
             password,
             display_name: 'Owner',
-            workspace_name: 'Methods',
-            workspace_slug: 'methods',
-            team_name: 'Engineering',
-            team_key: 'ENG',
           },
         })
       ).status(),
@@ -70,6 +66,18 @@ test('link, remove and re-add a password with fresh provider proofs and preserve
         })
       ).status(),
     ).toBe(200);
+  }
+  if (bootstrap.setup_required) {
+    const initialWorkspace = await page.request.post('/api/v1/workspaces', {
+      headers,
+      data: {
+        name: 'Methods',
+        slug: 'methods',
+        team_name: 'Engineering',
+        team_key: 'ENG',
+      },
+    });
+    expect(initialWorkspace.status()).toBe(200);
   }
   const owner = await (await page.request.get('/api/v1/auth/me')).json();
   const invitation = await (

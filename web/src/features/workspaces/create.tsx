@@ -7,6 +7,7 @@ import { PageTitle, Intro } from '@/components/typography';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFields } from './workspace-fields';
 import { firstTeam } from './first-team';
+import { requiresWorkspaceCreation } from './onboarding';
 import { unwrap } from '@/lib/requests';
 
 export function CreateWorkspace() {
@@ -16,12 +17,28 @@ export function CreateWorkspace() {
   return (
     <div className="flex min-h-svh flex-col bg-background px-5 py-5 wrap-anywhere md:px-8 md:py-7">
       <header className="flex items-start justify-between gap-5">
-        <Button asChild variant="ghost">
-          <Link to={account.workspaces.length ? '/' : '/account'}>
-            <ChevronLeftIcon data-icon="inline-start" />
-            Back to {account.workspaces.length ? 'app' : 'account'}
-          </Link>
-        </Button>
+        {requiresWorkspaceCreation(account) ? (
+          <Form
+            inline
+            variant="outline"
+            submit="Sign out"
+            action={async () => {
+              unwrap(await api.POST('/api/v1/auth/logout'));
+              await reload();
+              await navigate({ to: '/auth/login' });
+              return undefined;
+            }}
+          >
+            {null}
+          </Form>
+        ) : (
+          <Button asChild variant="ghost">
+            <Link to={account.workspaces.length ? '/' : '/account'}>
+              <ChevronLeftIcon data-icon="inline-start" />
+              Back to {account.workspaces.length ? 'app' : 'account'}
+            </Link>
+          </Button>
+        )}
         <div className="min-w-0 text-right text-[13px]">
           <p className="text-muted-foreground">Logged in as</p>
           <p className="mt-1">{account.user.display_name}</p>

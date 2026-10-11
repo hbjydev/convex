@@ -14,7 +14,7 @@ Web application with desktop and mobile layouts. React, TanStack Router, TypeScr
 
 ## Confirmed design preferences
 
-The user requested a Linear-inspired redesign and use of shadcn's Sidebar. The current workspace leads the sidebar header, with settings and a nested workspace-switching menu, matching the user-provided Linear screenshots. Both light and dark themes must follow system preference. Workspace creation includes an editable, unique slug, and workspace browser URLs start at `<domain>/<slug>`. Initial setup opens the newly created workspace.
+The user requested a Linear-inspired redesign and use of shadcn's Sidebar. The current workspace leads the sidebar header, with settings and a nested workspace-switching menu, matching the user-provided Linear screenshots. Both light and dark themes must follow system preference. Workspace creation includes an editable, unique slug, and workspace browser URLs start at `<domain>/<slug>`. Initial setup creates the administrator account and signs them in. Administrators without an owned workspace are directed to the standalone workspace creation page after setup and login.
 
 The sidebar groups navigation by team, following the user's second reference. Each team has Home and Issues links; issue lists and creation defaults follow the selected team.
 

@@ -36,10 +36,8 @@ function suggestSlug(name: string) {
 }
 
 export function WorkspaceFields({
-  setup = false,
   focusName = false,
 }: {
-  setup?: boolean;
   focusName?: boolean;
 }) {
   const id = useId();
@@ -60,7 +58,7 @@ export function WorkspaceFields({
         <FieldLabel htmlFor={`${id}-name`}>Workspace name</FieldLabel>
         <Input
           id={`${id}-name`}
-          name={setup ? 'workspace_name' : 'name'}
+          name="name"
           value={name}
           required
           maxLength={100}
@@ -80,7 +78,7 @@ export function WorkspaceFields({
             ref={(input) => {
               input?.setCustomValidity(slugError);
             }}
-            name={setup ? 'workspace_slug' : 'slug'}
+            name="slug"
             value={slug}
             required
             minLength={3}

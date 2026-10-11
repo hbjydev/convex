@@ -25,10 +25,6 @@ fn setup_request() -> SetupRequest {
         email: " Alex@Example.com ".into(),
         password: PASSWORD.into(),
         display_name: " Alex ".into(),
-        workspace_name: " Production ".into(),
-        workspace_slug: "production".into(),
-        team_name: " Engineering ".into(),
-        team_key: "eng".into(),
     }
 }
 
@@ -74,7 +70,7 @@ async fn throttled_setup_does_not_start_work() {
 }
 
 #[tokio::test]
-async fn setup_creates_the_admin_workspace_and_session_in_one_transaction() {
+async fn setup_creates_only_the_admin_and_session_in_one_transaction() {
     let mut work = MockUnitOfWork::default();
     let mut sequence = Sequence::new();
     let password_hash = Arc::new(Mutex::new(String::new()));
@@ -93,18 +89,7 @@ async fn setup_creates_the_admin_workspace_and_session_in_one_transaction() {
             *captured_hash.lock().unwrap() = hash;
             Ok(user(USER, true))
         });
-    work.workspaces
-        .expect_create()
-        .with(
-            eq(USER),
-            eq("Production".to_owned()),
-            eq("production".to_owned()),
-            eq("Engineering".to_owned()),
-            eq("ENG".to_owned()),
-        )
-        .times(1)
-        .in_sequence(&mut sequence)
-        .returning(|_, _, _, _, _| Ok(WORKSPACE));
+    work.workspaces.expect_create().times(0);
     work.installation
         .expect_mark_initialized()
         .times(1)
@@ -152,7 +137,7 @@ async fn initialized_installations_reject_setup_without_creating_accounts() {
 }
 
 #[tokio::test]
-async fn failed_initial_workspace_rolls_back_the_account_without_initializing_or_signing_in() {
+async fn failed_admin_creation_rolls_back_without_initializing_or_signing_in() {
     let mut work = MockUnitOfWork::default();
     work.installation
         .expect_initialized()
@@ -161,14 +146,12 @@ async fn failed_initial_workspace_rolls_back_the_account_without_initializing_or
     work.accounts
         .expect_create_local()
         .times(1)
-        .returning(|_, _, _, _| Ok(user(USER, true)));
-    work.workspaces
-        .expect_create()
-        .times(1)
-        .returning(|_, _, _, _, _| Err(Error::conflict("workspace slug taken")));
+        .returning(|_, _, _, _| Err(Error::conflict("email already registered")));
     expect_rollback(&mut work);
     let result = setup(setup_application(Some(work)), setup_request()).await;
-    assert!(matches!(result, Err(Error::Conflict(message)) if message == "workspace slug taken"));
+    assert!(
+        matches!(result, Err(Error::Conflict(message)) if message == "email already registered")
+    );
 }
 
 #[tokio::test]

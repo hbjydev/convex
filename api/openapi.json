@@ -3656,16 +3656,7 @@
       },
       "SetupRequest": {
         "type": "object",
-        "required": [
-          "setup_token",
-          "email",
-          "password",
-          "display_name",
-          "workspace_name",
-          "workspace_slug",
-          "team_name",
-          "team_key"
-        ],
+        "required": ["setup_token", "email", "password", "display_name"],
         "properties": {
           "display_name": {
             "type": "string"
@@ -3677,18 +3668,6 @@
             "type": "string"
           },
           "setup_token": {
-            "type": "string"
-          },
-          "team_key": {
-            "type": "string"
-          },
-          "team_name": {
-            "type": "string"
-          },
-          "workspace_name": {
-            "type": "string"
-          },
-          "workspace_slug": {
             "type": "string"
           }
         },

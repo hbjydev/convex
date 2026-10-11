@@ -4,9 +4,6 @@ import { useAuth } from '@/auth';
 import { Credentials, Field, Form, text } from '@/components/app-form';
 import { AuthCard } from '@/components/auth-card';
 import { Notice } from '@/components/feedback';
-import { FieldGroup } from '@/components/ui/field';
-import { Separator } from '@/components/ui/separator';
-import { WorkspaceFields } from '@/features/workspaces/workspace-fields';
 import { unwrap } from '@/lib/requests';
 
 export function Setup() {
@@ -15,11 +12,11 @@ export function Setup() {
   return (
     <AuthCard
       title="Set up Convex"
-      description="Create your first workspace and team."
+      description="Create your administrator account. You’ll create a workspace next."
     >
       {bootstrap.setup_enabled ? (
         <Form
-          submit="Create workspace"
+          submit="Create admin account"
           action={async (form) => {
             unwrap(
               await api.POST('/api/v1/auth/setup', {
@@ -28,21 +25,11 @@ export function Setup() {
                   email: text(form, 'email'),
                   password: text(form, 'password'),
                   display_name: text(form, 'display_name'),
-                  workspace_name: text(form, 'workspace_name'),
-                  workspace_slug: text(form, 'workspace_slug'),
-                  team_name: text(form, 'team_name'),
-                  team_key: text(form, 'team_key'),
                 },
               }),
             );
-            const account = await reload();
-            const workspace = account?.workspaces[0];
-            if (workspace)
-              await navigate({
-                to: '/$workspaceSlug',
-                params: { workspaceSlug: workspace.slug },
-              });
-            else await navigate({ to: '/' });
+            await reload();
+            await navigate({ to: '/workspaces/create' });
             return undefined;
           }}
         >
@@ -53,18 +40,6 @@ export function Setup() {
             hint="Provided by your installation operator."
           />
           <Credentials creating />
-          <FieldGroup>
-            <Separator />
-            <WorkspaceFields setup />
-            <FieldGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field name="team_name" label="First team name" />
-              <Field
-                name="team_key"
-                label="Team key"
-                hint="2–10 letters or numbers, e.g. ENG."
-              />
-            </FieldGroup>
-          </FieldGroup>
         </Form>
       ) : (
         <Notice>
