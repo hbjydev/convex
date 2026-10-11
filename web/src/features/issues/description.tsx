@@ -1,17 +1,18 @@
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prose } from '@/components/prose';
 // oxlint-disable jsx-a11y/no-noninteractive-tabindex -- Scrollable tables need keyboard access.
 
 export function IssueDescription({ description }: { description: string }) {
   return (
-    <div className="typeset issue-description">
+    <Prose>
       <Markdown
         remarkPlugins={[remarkGfm]}
         skipHtml
         components={{
           table: ({ children }) => (
             <div
-              className="typeset-scroll"
+              className="mt-[1.25em] overflow-x-auto [&>table]:mt-0 [&>table]:w-max [&>table]:max-w-none"
               tabIndex={0}
               role="region"
               aria-label="Table"
@@ -32,6 +33,6 @@ export function IssueDescription({ description }: { description: string }) {
       >
         {description}
       </Markdown>
-    </div>
+    </Prose>
   );
 }

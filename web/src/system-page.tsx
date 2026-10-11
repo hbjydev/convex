@@ -1,3 +1,4 @@
+import { SectionTitle } from '@/components/typography';
 import {
   ActivityIcon,
   CircleAlertIcon,
@@ -67,7 +68,9 @@ export function SystemPage() {
       <Card className="mt-8 max-w-2xl" aria-labelledby="connection-heading">
         <CardHeader>
           <CardTitle>
-            <h2 id="connection-heading">System connection</h2>
+            <SectionTitle id="connection-heading">
+              System connection
+            </SectionTitle>
           </CardTitle>
           <CardDescription>
             Convex API and database availability

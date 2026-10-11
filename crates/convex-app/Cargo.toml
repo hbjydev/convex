@@ -1,0 +1,36 @@
+[package]
+name = "convex-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+postgres = ["convex-ids/postgres", "convex-core/postgres", "dep:convex-db", "convex-db/postgres", "dep:sqlx", "convex-auth/postgres", "convex-workspaces/postgres", "convex-issues/postgres"]
+mock = ["dep:mockall", "convex-auth/mock", "convex-workspaces/mock", "convex-issues/mock"]
+
+[dependencies]
+convex-ids.workspace = true
+convex-core.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
+convex-db = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
+convex-auth.workspace = true
+convex-workspaces.workspace = true
+convex-issues.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true
+# Enable repository mocks for ordinary `cargo test`, without production defaults.
+convex-app = { path = ".", features = ["mock"] }
+mockall.workspace = true
+
+[lints]
+workspace = true

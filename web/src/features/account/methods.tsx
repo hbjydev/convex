@@ -1,3 +1,5 @@
+import { SettingsSection } from '@/components/settings-layout';
+import { SectionTitle } from '@/components/typography';
 import { useEffect, useState } from 'react';
 import { useSearch } from '@tanstack/react-router';
 import { api } from '@/api/client';
@@ -33,9 +35,9 @@ export function LoginMethods({
     return undefined;
   }
   return (
-    <section className="settings-section">
+    <SettingsSection>
       <Separator />
-      <h2>Login methods</h2>
+      <SectionTitle>Login methods</SectionTitle>
       <p>
         Adding or removing a login method signs out your other sessions. Your
         account and workspace memberships stay the same.
@@ -183,6 +185,6 @@ export function LoginMethods({
             recovery.
           </p>
         )}
-    </section>
+    </SettingsSection>
   );
 }

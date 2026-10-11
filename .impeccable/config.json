@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "web/src/components/prose.tsx"
+        ],
+        "createdAt": "2026-10-11T11:18:04.491Z",
+        "reason": "Agent: this file uses a neutral 2px border only on semantic Markdown blockquotes, preserving the existing typeset.css blockquote rule; it is not a card accent."
+      }
+    ]
+  }
+}

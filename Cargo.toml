@@ -9,6 +9,18 @@ rust-version = "1.99"
 publish = false
 
 [workspace.dependencies]
+async-trait = "0.1.89"
+mockall = "0.14.0"
+thiserror = "2.0"
+convex-ids = { path = "crates/convex-ids" }
+convex-core = { path = "crates/convex-core" }
+convex-api = { path = "crates/convex-api" }
+http = "1.0"
+convex-db = { path = "crates/convex-db" }
+convex-auth = { path = "crates/convex-auth" }
+convex-workspaces = { path = "crates/convex-workspaces" }
+convex-issues = { path = "crates/convex-issues" }
+convex-app = { path = "crates/convex-app" }
 openidconnect = { version = "4.0.1", default-features = false, features = ["reqwest", "rustls-tls"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 argon2 = "0.5.3"

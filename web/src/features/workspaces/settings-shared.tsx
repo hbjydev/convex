@@ -19,7 +19,7 @@ export function SettingsSearch({
   label: string;
 }) {
   return (
-    <div className="settings-search">
+    <div className="relative min-w-0 w-[300px] max-w-full max-md:flex-1 max-md:min-w-[180px] [&>svg]:pointer-events-none [&>svg]:absolute [&>svg]:top-1/2 [&>svg]:left-2.5 [&>svg]:size-3.5 [&>svg]:-translate-y-1/2 [&>svg]:text-muted-foreground [&>input]:pl-8 [&>input]:text-[13px]">
       <SearchIcon aria-hidden="true" />
       <Input
         className="pl-8"

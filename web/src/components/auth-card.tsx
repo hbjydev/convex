@@ -1,3 +1,4 @@
+import { PageTitle } from '@/components/typography';
 import {
   Card,
   CardContent,
@@ -14,10 +15,10 @@ type Props = {
 
 export const AuthCard = ({ title, description, children }: Props) => {
   return (
-    <Card className="auth-card w-full max-w-md">
+    <Card className="wrap-anywhere [--card-spacing:24px] w-full max-w-md">
       <CardHeader>
         <CardTitle>
-          <h1>{title}</h1>
+          <PageTitle className="mb-0 leading-normal">{title}</PageTitle>
         </CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>

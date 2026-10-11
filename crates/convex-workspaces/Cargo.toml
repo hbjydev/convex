@@ -1,0 +1,25 @@
+[package]
+name = "convex-workspaces"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+postgres = ["convex-ids/postgres", "convex-core/postgres", "dep:convex-db", "convex-db/postgres", "dep:sqlx"]
+mock = ["dep:mockall"]
+
+[dependencies]
+convex-ids.workspace = true
+convex-core.workspace = true
+chrono.workspace = true
+sha2.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
+convex-db = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
+
+[lints]
+workspace = true

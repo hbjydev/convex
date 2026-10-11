@@ -35,7 +35,11 @@ export function PropertyMenu({
           type="button"
           variant={inline ? 'ghost' : 'secondary'}
           size="sm"
-          className={cn('issue-property', inline && 'issue-property-inline')}
+          className={cn(
+            'h-[26px] max-w-[220px] overflow-hidden rounded-full text-xs text-ellipsis max-[600px]:min-h-11',
+            inline &&
+              'h-auto min-h-8 justify-start rounded-lg px-0 text-left whitespace-normal max-md:min-h-11',
+          )}
           disabled={disabled}
           aria-label={`${label}: ${selected?.label ?? 'Choose'}`}
         >

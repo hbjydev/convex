@@ -1,3 +1,17 @@
+import { SettingsTable } from '@/components/settings-table';
+import {
+  SettingsSortButton,
+  SettingsPerson,
+  WorkspaceAvatar,
+} from '@/components/settings-controls';
+import {
+  SettingsDirectory,
+  SettingsToolbar,
+  SettingsToolbarActions,
+  SettingsBlock,
+} from '@/components/settings-layout';
+import { PageTitle, SectionTitle } from '@/components/typography';
+import { DirectoryList } from '@/components/directory-list';
 import { ArrowDownIcon, MoreHorizontalIcon } from 'lucide-react';
 import { useRef, useState, type SubmitEvent } from 'react';
 import { api } from '@/api/client';
@@ -69,9 +83,9 @@ export function MembersSettings({
     else await load();
   }
   return (
-    <div className="settings-directory">
-      <h1>Members</h1>
-      <div className="settings-toolbar">
+    <SettingsDirectory>
+      <PageTitle>Members</PageTitle>
+      <SettingsToolbar>
         <SettingsSearch
           label="Search by name…"
           value={search}
@@ -86,7 +100,7 @@ export function MembersSettings({
           <NativeSelectOption value="active">Active</NativeSelectOption>
           <NativeSelectOption value="disabled">Disabled</NativeSelectOption>
         </NativeSelect>
-        <div className="settings-toolbar-actions">
+        <SettingsToolbarActions>
           <Button
             variant="outline"
             className="rounded-full"
@@ -111,22 +125,22 @@ export function MembersSettings({
               load={load}
             />
           )}
-        </div>
-      </div>
-      <div className="settings-table-scroll">
-        <table className="settings-table members-table">
+        </SettingsToolbarActions>
+      </SettingsToolbar>
+      <div className="overflow-x-auto">
+        <SettingsTable kind="members">
           <caption className="sr-only">Workspace members</caption>
           <thead>
             <tr>
               <th aria-sort={ascending ? 'ascending' : 'descending'}>
-                <button
+                <SettingsSortButton
                   ref={sortButton}
-                  className="settings-sort"
+
                   onClick={() => setAscending(!ascending)}
                 >
                   Name{' '}
                   <ArrowDownIcon className={ascending ? '' : 'rotate-180'} />
-                </button>
+                </SettingsSortButton>
               </th>
               <th>Status</th>
               <th>Teams</th>
@@ -137,7 +151,10 @@ export function MembersSettings({
           </thead>
           <tbody>
             {members.length > 0 && (
-              <tr className="settings-group-row">
+              <tr
+                data-group
+                className="[&_th]:bg-muted [&_th]:py-1.5 [&_th]:text-xs [&_span]:ml-1.5 max-md:[&_th]:col-span-full"
+              >
                 <th colSpan={4} scope="rowgroup">
                   Members <span>{members.length}</span>
                 </th>
@@ -146,7 +163,7 @@ export function MembersSettings({
             {members.map((item) => (
               <tr key={item.id}>
                 <td aria-label={item.display_name}>
-                  <div className="settings-person">
+                  <SettingsPerson>
                     <Avatar size="sm">
                       <AvatarFallback>
                         {initials(item.display_name)}
@@ -156,7 +173,7 @@ export function MembersSettings({
                       {item.display_name}
                       {item.user_id === account?.user.id && <small>You</small>}
                     </span>
-                  </div>
+                  </SettingsPerson>
                 </td>
                 <td>
                   <Badge
@@ -187,7 +204,10 @@ export function MembersSettings({
             ))}
             {members.length === 0 && (
               <tr>
-                <td colSpan={4} className="settings-empty">
+                <td
+                  colSpan={4}
+                  className="py-10! text-center max-md:col-span-full"
+                >
                   {search || filter !== 'all'
                     ? 'No members match your filters.'
                     : 'No members yet.'}
@@ -195,7 +215,7 @@ export function MembersSettings({
               </tr>
             )}
           </tbody>
-        </table>
+        </SettingsTable>
       </div>
       <Dialog
         open={!!member}
@@ -213,10 +233,10 @@ export function MembersSettings({
               )?.focus();
             }}
           >
-            <DialogTitle className="settings-dialog-title">
+            <DialogTitle className="mb-3 flex items-center gap-2 pr-8 text-[15px] font-medium">
               Manage {member.display_name}
             </DialogTitle>
-            <DialogDescription className="muted">
+            <DialogDescription className="text-[13px] leading-[1.6] text-muted-foreground">
               Change workspace access for this member.
             </DialogDescription>
             <Form
@@ -233,8 +253,8 @@ export function MembersSettings({
                 includeOwner
               />
             </Form>
-            <section className="settings-block">
-              <h2>Remove member</h2>
+            <SettingsBlock>
+              <SectionTitle>Remove member</SectionTitle>
               {removing ? (
                 <Form
                   variant="destructive"
@@ -245,7 +265,7 @@ export function MembersSettings({
                     return 'Membership removed.';
                   }}
                 >
-                  <p className="muted">
+                  <p className="text-[13px] leading-[1.6] text-muted-foreground">
                     Remove {member.display_name} from this workspace? Their
                     workspace access and sessions will be revoked.
                   </p>
@@ -262,14 +282,14 @@ export function MembersSettings({
                   Remove
                 </Button>
               )}
-            </section>
+            </SettingsBlock>
           </DialogContent>
         )}
       </Dialog>
       {manage && invitations.length > 0 && (
-        <section className="settings-block">
-          <h2>Invitations</h2>
-          <ul className="invitation-list">
+        <SettingsBlock>
+          <SectionTitle>Invitations</SectionTitle>
+          <DirectoryList>
             {invitations.map((invite) => (
               <li key={invite.id}>
                 <span className="capitalize">
@@ -305,10 +325,10 @@ export function MembersSettings({
                   )}
               </li>
             ))}
-          </ul>
-        </section>
+          </DirectoryList>
+        </SettingsBlock>
       )}
-    </div>
+    </SettingsDirectory>
   );
 }
 
@@ -408,10 +428,10 @@ function InviteDialog({
           if (pending) event.preventDefault();
         }}
       >
-        <DialogTitle className="settings-dialog-title">
-          <span className="workspace-avatar" aria-hidden="true">
+        <DialogTitle className="mb-3 flex items-center gap-2 pr-8 text-[15px] font-medium">
+          <WorkspaceAvatar aria-hidden="true">
             {initials(workspace.name)}
-          </span>
+          </WorkspaceAvatar>
           Invite to your workspace
         </DialogTitle>
         <DialogDescription className="sr-only">
@@ -419,14 +439,17 @@ function InviteDialog({
           days.
         </DialogDescription>
         <form
-          className="settings-invite-form"
+          className="mt-8 [&_textarea]:min-h-16 [&_textarea]:caret-primary"
           onSubmit={send}
           aria-busy={pending}
         >
           <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
             {bootstrap.mail_available ? (
               <div>
-                <label htmlFor="invite-emails" className="settings-label">
+                <label
+                  htmlFor="invite-emails"
+                  className="mb-0.5 block text-[13px] font-medium"
+                >
                   Email
                 </label>
                 <Textarea
@@ -438,19 +461,25 @@ function InviteDialog({
                   required
                   aria-describedby="invite-hint"
                 />
-                <p id="invite-hint" className="muted mt-2">
+                <p
+                  id="invite-hint"
+                  className="text-[13px] leading-[1.6] text-muted-foreground mt-2"
+                >
                   Separate addresses with commas or new lines. Up to 20 at a
                   time.
                 </p>
               </div>
             ) : (
-              <p className="muted">
+              <p className="text-[13px] leading-[1.6] text-muted-foreground">
                 Email delivery is unavailable. Create a single-use link to share
                 with your teammate.
               </p>
             )}
             <div>
-              <label htmlFor="invite-role" className="settings-label">
+              <label
+                htmlFor="invite-role"
+                className="mb-0.5 block text-[13px] font-medium"
+              >
                 Invitation role
               </label>
               <NativeSelect
@@ -464,7 +493,7 @@ function InviteDialog({
                 )}
               </NativeSelect>
             </div>
-            <p className="muted">
+            <p className="text-[13px] leading-[1.6] text-muted-foreground">
               Links expire after seven days. Share only with the intended
               teammate; anyone with the link can accept it.
             </p>
@@ -485,17 +514,20 @@ function InviteDialog({
         {error && <Notice error>{error}</Notice>}
         {message && <Notice>{message}</Notice>}
         {results.length > 0 && (
-          <div className="settings-invite-results">
+          <div className="mt-6 flex flex-col gap-4">
             {results.map(({ email, link }, index) => (
-              <div className="invite-link" key={link.id}>
+              <div
+                className="flex max-w-[680px] flex-col items-start gap-3"
+                key={link.id}
+              >
                 <label
-                  className="settings-label"
+                  className="mb-0.5 block text-[13px] font-medium"
                   htmlFor={`invite-link-${index}`}
                 >
                   {email || 'Single-use invitation link'}
                 </label>
                 {email && (
-                  <p className="muted">
+                  <p className="text-[13px] leading-[1.6] text-muted-foreground">
                     {link.email_delivered
                       ? 'Sent by email'
                       : 'Email delivery failed. Share this link directly.'}
@@ -531,7 +563,10 @@ function InviteDialog({
                 </div>
               </div>
             ))}
-            <p className="muted" role="status">
+            <p
+              className="text-[13px] leading-[1.6] text-muted-foreground"
+              role="status"
+            >
               {copyMessage}
             </p>
           </div>

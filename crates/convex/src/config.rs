@@ -1,10 +1,7 @@
-use std::{env, net::SocketAddr, time::Duration};
+use std::{env, net::SocketAddr};
 
 use anyhow::{Context, Result};
-use sqlx::{
-    PgPool,
-    postgres::{PgConnectOptions, PgPoolOptions},
-};
+use convex_db::postgres::Pool;
 
 pub struct Config {
     pub bind_address: SocketAddr,
@@ -22,18 +19,7 @@ impl Config {
         })
     }
 
-    pub async fn connect(&self) -> Result<PgPool> {
-        // Keep SQLx's migration ledger in public even when the database role is
-        // named convex. Domain queries will explicitly qualify the convex schema.
-        let options = self
-            .database_url
-            .parse::<PgConnectOptions>()?
-            .options([("search_path", "public")]);
-        PgPoolOptions::new()
-            .max_connections(10)
-            .acquire_timeout(Duration::from_secs(3))
-            .connect_with(options)
-            .await
-            .context("could not connect to PostgreSQL")
+    pub async fn connect(&self) -> Result<Pool> {
+        convex_db::postgres::connect(&self.database_url).await
     }
 }

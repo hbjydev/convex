@@ -1,3 +1,10 @@
+import {
+  SettingsPage,
+  SettingsPanel,
+  SettingsRow,
+  SettingsBlock,
+} from '@/components/settings-layout';
+import { PageTitle, SectionTitle } from '@/components/typography';
 import { api } from '@/api/client';
 import { useAuth } from '@/auth';
 import { Form, text } from '@/components/app-form';
@@ -9,11 +16,11 @@ export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
   const { reload } = useAuth();
   const workspace = detail.workspace;
   return (
-    <div className="settings-narrow">
-      <h1>Workspace</h1>
+    <SettingsPage>
+      <PageTitle>Workspace</PageTitle>
       <Form
         key={workspace.id}
-        className="settings-profile-form"
+        className="mt-0 max-w-none [&>fieldset>[data-slot=field-group]]:gap-4 [&>fieldset>[data-slot=field-group]>button]:self-end"
         hideSubmit={!manage}
         submit="Save changes"
         action={async (form) => {
@@ -28,18 +35,26 @@ export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
           return result.message;
         }}
       >
-        <div className="settings-panel">
-          <div className="settings-row">
+        <SettingsPanel>
+          <SettingsRow>
             <div>
-              <span className="settings-label">Workspace icon</span>
+              <span className="mb-0.5 block text-[13px] font-medium">
+                Workspace icon
+              </span>
               <p>Initials from your workspace name</p>
             </div>
-            <span className="settings-workspace-icon" aria-hidden="true">
+            <span
+              className="inline-flex size-8 items-center justify-center rounded-lg bg-primary text-[11px] font-semibold text-primary-foreground"
+              aria-hidden="true"
+            >
               {initials(workspace.name)}
             </span>
-          </div>
-          <div className="settings-row">
-            <label className="settings-label" htmlFor="workspace-name">
+          </SettingsRow>
+          <SettingsRow>
+            <label
+              className="mb-0.5 block text-[13px] font-medium"
+              htmlFor="workspace-name"
+            >
               Name
             </label>
             <Input
@@ -52,9 +67,12 @@ export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
               maxLength={100}
               disabled={!manage}
             />
-          </div>
-          <div className="settings-row">
-            <label className="settings-label" htmlFor="workspace-url">
+          </SettingsRow>
+          <SettingsRow>
+            <label
+              className="mb-0.5 block text-[13px] font-medium"
+              htmlFor="workspace-url"
+            >
               URL
             </label>
             <Input
@@ -65,30 +83,34 @@ export function WorkspaceGeneral({ detail, manage, load }: SettingsProps) {
               readOnly
               title="Workspace URLs stay fixed when the name changes."
             />
-          </div>
-        </div>
+          </SettingsRow>
+        </SettingsPanel>
         {!manage && (
-          <p className="muted">
+          <p className="text-[13px] leading-[1.6] text-muted-foreground">
             Only workspace owners and admins can change the name.
           </p>
         )}
       </Form>
-      <section className="settings-block">
-        <h2>Workspace access</h2>
-        <div className="settings-panel">
-          <div className="settings-row">
-            <span className="settings-label">Your role</span>
+      <SettingsBlock>
+        <SectionTitle>Workspace access</SectionTitle>
+        <SettingsPanel>
+          <SettingsRow>
+            <span className="mb-0.5 block text-[13px] font-medium">
+              Your role
+            </span>
             <span className="capitalize">{workspace.role}</span>
-          </div>
-          <div className="settings-row">
+          </SettingsRow>
+          <SettingsRow>
             <div>
-              <span className="settings-label">Team visibility</span>
+              <span className="mb-0.5 block text-[13px] font-medium">
+                Team visibility
+              </span>
               <p>Members can access every team in this workspace.</p>
             </div>
             <span>Workspace</span>
-          </div>
-        </div>
-      </section>
-    </div>
+          </SettingsRow>
+        </SettingsPanel>
+      </SettingsBlock>
+    </SettingsPage>
   );
 }

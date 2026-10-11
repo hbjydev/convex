@@ -11,6 +11,7 @@ rust = "1.99.0"
 node = "24.21.0"
 pnpm = "12.10.1"
 "aqua:nextest-rs/nextest/cargo-nextest" = "0.9.146"
+"aqua:taiki-e/cargo-llvm-cov" = "0.9.1"
 
 [tasks.rust-components]
 description = "Install Rust formatting and lint components"
@@ -79,7 +80,17 @@ run = ["pnpm --dir web lint", "pnpm --dir web format:check"]
 
 [tasks."check:rust"]
 description = "Check Rust formatting and lint all targets without a live database"
-run = ["mise run fmt:check:rust", "cargo clippy --locked --workspace --all-targets --features integration -- -D warnings", "mise run test:rust:doc"]
+run = ["mise run fmt:check:rust", "cargo clippy --locked --workspace --all-targets --features integration -- -D warnings", "mise run check:domain", "mise run test:rust:doc"]
+
+[tasks."check:domain"]
+description = "Check domain/application crates without adapters, with PostgreSQL, and with mocks"
+run = [
+  "cargo clippy --locked -p convex-app --lib --no-default-features -- -D warnings",
+  "cargo clippy --locked -p convex-app --all-targets --no-default-features -- -D warnings",
+  "cargo clippy --locked -p convex-app --all-targets --no-default-features --features postgres -- -D warnings",
+  "cargo clippy --locked -p convex-app --all-targets --no-default-features --features mock -- -D warnings",
+  "cargo clippy --locked -p convex-api --all-targets --no-default-features -- -D warnings",
+]
 
 [tasks."check:bundle"]
 description = "Build, lint and test the application with its real frontend embedded"
@@ -108,6 +119,18 @@ run = "cargo nextest run --workspace --features integration --locked --no-fail-f
 [tasks."test:rust:doc"]
 description = "Run Rust doctests (separate from Nextest archives)"
 run = "cargo test --locked --workspace --features integration --doc"
+
+[tasks."test:rust:cov"]
+description = "Coverage over the hermetic suite -> lcov.info (report-only; no threshold)"
+run = "cargo llvm-cov --workspace --locked --lcov --output-path lcov.info"
+
+[tasks."test:rust:cov:html"]
+description = "Coverage as a browsable HTML report under target/llvm-cov/html"
+run = "cargo llvm-cov --workspace --locked --html"
+
+[tasks."test:rust:cov:summary"]
+description = "Coverage summary printed to the terminal"
+run = "cargo llvm-cov --workspace --locked --summary-only"
 
 [tasks."test:rust:archive"]
 description = "Build the Rust application and archive all test binaries for CI"

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use convex::{MIGRATOR, config::Config, http};
+use convex::{MIGRATOR, config::Config, runtime};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -12,8 +12,11 @@ async fn main() -> Result<()> {
     let config = Config::from_env()?;
     let pool = config.connect().await?;
     MIGRATOR.run(&pool).await?;
-    let app =
-        http::prepare_app(pool.clone(), convex::security::SecurityConfig::from_env()?).await?;
+    let app = runtime::prepare_app(
+        pool.clone(),
+        convex_auth::security::SecurityConfig::from_env()?,
+    )
+    .await?;
     let listener = tokio::net::TcpListener::bind(config.bind_address).await?;
     tracing::info!(address = %listener.local_addr()?, "Convex listening");
     axum::serve(listener, app)

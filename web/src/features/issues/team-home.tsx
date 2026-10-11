@@ -1,3 +1,4 @@
+import { PageTitle, SectionTitle } from '@/components/typography';
 import { Link } from '@tanstack/react-router';
 import { ListTodoIcon } from 'lucide-react';
 import { LoadingState, Notice } from '@/components/feedback';
@@ -27,8 +28,8 @@ export function TeamHome({ slug, teamKey }: { slug: string; teamKey: string }) {
     );
   return (
     <>
-      <div className="page-heading">
-        <h1>{team.name}</h1>
+      <div className="mb-2 flex items-center gap-2.5 [&>h1]:mb-0">
+        <PageTitle>{team.name}</PageTitle>
         <Badge variant="outline">{team.key}</Badge>
       </div>
       <p className="text-sm text-muted-foreground">
@@ -44,8 +45,8 @@ export function TeamHome({ slug, teamKey }: { slug: string; teamKey: string }) {
         </Link>
       </Button>
       <section className="mt-8" aria-labelledby="team-workflow">
-        <h2 id="team-workflow">Workflow</h2>
-        <ul className="team-workflow">
+        <SectionTitle id="team-workflow">Workflow</SectionTitle>
+        <ul className="mt-3 max-w-[560px] [&_li]:flex [&_li]:items-center [&_li]:gap-2 [&_li]:border-b [&_li]:py-3 [&_li]:text-sm [&_svg]:size-4 [&_svg]:text-muted-foreground">
           {team.statuses.map((status) => (
             <li key={status.id}>
               <StatusIcon category={status.category} />

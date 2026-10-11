@@ -183,14 +183,14 @@ export function SelectionToolbar({ editor }: { editor: Editor }) {
       options={placement}
       appendTo={appendToBody}
       getReferencedVirtualElement={selectedLine}
-      className="issue-selection-floating z-50"
+      className="w-max max-w-[calc(100vw-24px)] z-50"
       shouldShow={shouldShow}
     >
       <ButtonGroup
         role="toolbar"
         aria-label="Description formatting"
         data-description-toolbar
-        className="issue-selection-toolbar"
+        className="max-w-[calc(100vw-24px)] flex-wrap items-center rounded-lg border bg-popover p-1 text-popover-foreground shadow-[0_4px_12px_color-mix(in_oklch,var(--foreground)_12%,transparent)] [&_[data-slot=button-group-separator]]:min-h-6 max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11"
         onKeyDown={(event) => {
           if (
             !(event.target instanceof HTMLElement) ||

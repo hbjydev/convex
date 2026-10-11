@@ -56,7 +56,7 @@ function TeamMenu({
       <SidebarMenuSub
         id={menuId}
         hidden={!open}
-        className="team-navigation-items"
+        className="mr-0 ml-4 border-0 px-0 hidden:hidden"
       >
         <SidebarMenuSubItem>
           <SidebarMenuSubButton asChild isActive={active && home}>

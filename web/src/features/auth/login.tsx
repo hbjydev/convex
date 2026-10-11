@@ -19,7 +19,7 @@ export function Login() {
     >
       <OidcContinue returnTo={returnTo} />
       {bootstrap.oidc_required && (
-        <p className="intro mt-3">
+        <p className="max-w-[65ch] text-sm leading-[1.6] text-muted-foreground mt-3">
           Workspace members must use single sign-on. Administrators can sign in
           below for recovery.
         </p>
@@ -42,7 +42,10 @@ export function Login() {
       >
         <Credentials />
       </Form>
-      <Link className="after-form" to="/auth/recovery">
+      <Link
+        className="mt-6 inline-flex text-sm text-primary underline"
+        to="/auth/recovery"
+      >
         Forgot your password?
       </Link>
     </AuthCard>
