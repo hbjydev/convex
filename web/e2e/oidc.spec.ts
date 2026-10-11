@@ -34,10 +34,6 @@ test('required OIDC invitation, email isolation, session login and sanitized cal
         email: 'browser-owner@example.com',
         password,
         display_name: 'Local owner',
-        workspace_name: 'OIDC workspace',
-        workspace_slug: 'oidc-workspace',
-        team_name: 'Engineering',
-        team_key: 'ENG',
       },
     });
     expect(response.status()).toBe(200);

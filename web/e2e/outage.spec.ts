@@ -99,10 +99,6 @@ test('real provider outage retains sessions and enforcement, permits local opera
           email: ownerEmail,
           password,
           display_name: 'Outage owner',
-          workspace_name: 'Outage',
-          workspace_slug: 'outage',
-          team_name: 'Engineering',
-          team_key: 'ENG',
         },
       })
     : await page.request.post('/api/v1/auth/login', {
@@ -110,6 +106,18 @@ test('real provider outage retains sessions and enforcement, permits local opera
         data: { email: ownerEmail, password },
       });
   expect(login.status()).toBe(200);
+  if (bootstrap.setup_required) {
+    const initialWorkspace = await page.request.post('/api/v1/workspaces', {
+      headers,
+      data: {
+        name: 'Outage',
+        slug: 'outage',
+        team_name: 'Engineering',
+        team_key: 'ENG',
+      },
+    });
+    expect(initialWorkspace.status()).toBe(200);
+  }
   const originalOwner = await (
     await page.request.get('/api/v1/auth/me')
   ).json();

@@ -39,11 +39,17 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
       .getByLabel('Email', { exact: true })
       .fill('browser-owner@example.com');
     await page.getByLabel('Password', { exact: true }).fill(password);
+    await page.getByRole('button', { name: 'Create admin account' }).click();
+    await expect(page).toHaveURL(/\/workspaces\/create$/);
+    const account = await (await page.request.get('/api/v1/auth/me')).json();
+    expect(account.user.is_instance_admin).toBe(true);
+    expect(account.workspaces).toEqual([]);
     await page
       .getByLabel('Workspace name', { exact: true })
-      .fill('Initial workspace');
-    await page.getByLabel('First team name').fill('Engineering');
-    await page.getByLabel('Team key', { exact: true }).fill('ENG');
+      .fill('Engineering');
+    await page
+      .getByLabel('Workspace URL', { exact: true })
+      .fill('initial-workspace');
     await page.getByRole('button', { name: 'Create workspace' }).click();
     await expect(page).toHaveURL(/\/initial-workspace$/);
     await page.goto('/');
@@ -55,13 +61,12 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   }
   await expect(
-    page.getByRole('heading', { name: 'Your workspaces', exact: true }),
+    page.getByRole('heading', { name: 'Engineering', exact: true }),
   ).toBeVisible();
+  await page.goto('/workspaces/create');
   await page
     .getByLabel('Workspace name', { exact: true })
     .fill(`Workspace ${suffix}`);
-  await page.getByLabel('First team name').fill('Product');
-  await page.getByLabel('Team key', { exact: true }).fill('PROD');
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(
     page.getByRole('heading', { name: 'Workspace', exact: true }),
@@ -139,7 +144,7 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   await member.getByLabel('Password', { exact: true }).fill(newPassword);
   await member.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(
-    member.getByRole('heading', { name: 'Your workspaces', exact: true }),
+    member.getByRole('heading', { name: `Workspace ${suffix}`, exact: true }),
   ).toBeVisible();
   const account = await (await page.request.get('/api/v1/auth/me')).json();
   const workspaceId = account.workspaces.find(
@@ -221,9 +226,7 @@ test('two people onboard, sign in, manage sessions, and lose removed access', as
   await member.getByLabel('Password', { exact: true }).fill(password);
   await member.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(
-    member.getByText('You have no active workspace memberships.', {
-      exact: false,
-    }),
+    member.getByRole('heading', { name: 'Create a workspace', exact: true }),
   ).toBeVisible();
   await teammate.close();
 });
@@ -244,10 +247,6 @@ test('valid unbroken names fit and network errors preserve login drafts', async 
         email: 'browser-owner@example.com',
         password,
         display_name: 'Installation owner',
-        workspace_name: 'Initial workspace',
-        workspace_slug: 'initial-workspace',
-        team_name: 'Engineering',
-        team_key: 'ENG',
       },
     });
     expect(setup.ok()).toBe(true);
@@ -275,15 +274,14 @@ test('valid unbroken names fit and network errors preserve login drafts', async 
   await page.unroute('**/api/v1/auth/login');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Your workspaces', exact: true }),
+    page.getByRole('heading', { name: 'Engineering', exact: true }),
   ).toBeVisible();
+  await page.goto('/workspaces/create');
   const name = 'W'.repeat(100);
   await page.getByLabel('Workspace name', { exact: true }).fill(name);
   await page
     .getByLabel('Workspace URL', { exact: true })
     .fill(`long-${test.info().project.name}-${Date.now()}`);
-  await page.getByLabel('First team name').fill('T'.repeat(100));
-  await page.getByLabel('Team key', { exact: true }).fill('LONG');
   await page
     .getByRole('button', { name: 'Create workspace', exact: true })
     .click();

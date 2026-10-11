@@ -7,6 +7,45 @@ use crate::repository::WorkspaceRepository;
 
 #[async_trait]
 impl WorkspaceRepository for PostgresTransaction {
+    async fn set_deletion_code(
+        &mut self,
+        workspace: WorkspaceId,
+        user: UserId,
+        code_hash: String,
+    ) -> convex_core::Result<()> {
+        sqlx::query("INSERT INTO convex.workspace_deletion_codes (workspace_id,user_id,code_hash) VALUES ($1,$2,$3)
+            ON CONFLICT (workspace_id,user_id) DO UPDATE SET code_hash=$3,expires_at=now() + interval '10 minutes'")
+            .bind(workspace).bind(user).bind(code_hash).execute(self.connection()).await?;
+        Ok(())
+    }
+    async fn consume_deletion_code(
+        &mut self,
+        workspace: WorkspaceId,
+        user: UserId,
+        code_hash: String,
+    ) -> convex_core::Result<bool> {
+        Ok(sqlx::query("DELETE FROM convex.workspace_deletion_codes WHERE workspace_id=$1 AND user_id=$2 AND code_hash=$3 AND expires_at>now()")
+            .bind(workspace).bind(user).bind(code_hash).execute(self.connection()).await?.rows_affected() == 1)
+    }
+    async fn delete(&mut self, workspace: WorkspaceId) -> convex_core::Result<()> {
+        // Delete dependents in foreign-key order; accounts and their other workspaces survive.
+        for query in [
+            "DELETE FROM convex.oidc_flows WHERE invitation_id IN (SELECT id FROM convex.invitations WHERE workspace_id=$1)",
+            "DELETE FROM convex.invitations WHERE workspace_id=$1",
+            "DELETE FROM convex.issue_activity WHERE workspace_id=$1",
+            "DELETE FROM convex.issues WHERE workspace_id=$1",
+            "DELETE FROM convex.workflow_statuses WHERE workspace_id=$1",
+            "DELETE FROM convex.teams WHERE workspace_id=$1",
+            "DELETE FROM convex.workspace_memberships WHERE workspace_id=$1",
+            "DELETE FROM convex.workspaces WHERE id=$1",
+        ] {
+            sqlx::query(query)
+                .bind(workspace)
+                .execute(self.connection())
+                .await?;
+        }
+        Ok(())
+    }
     async fn list_for_user(&mut self, user: UserId) -> convex_core::Result<Vec<crate::Workspace>> {
         administration::list_for_user(self.transaction(), user).await
     }

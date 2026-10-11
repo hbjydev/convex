@@ -643,3 +643,86 @@ pub async fn accept(
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Serialize, ToSchema)]
+pub struct WorkspaceDeletionCode {
+    pub email: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteWorkspace {
+    pub code: String,
+    pub acknowledged: bool,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/workspaces/{workspace_id}/deletion-code",
+    operation_id = "requestWorkspaceDeletionCode",
+    tag = "Workspaces",
+    security(("cookieSession" = [])),
+    params(("workspace_id" = String, Path)),
+    responses(
+        (status = 200, body = WorkspaceDeletionCode),
+        (status = 400, body = crate::http::ApiError),
+        (status = 401, body = crate::http::ApiError),
+        (status = 403, body = crate::http::ApiError),
+        (status = 404, body = crate::http::ApiError),
+        (status = 429, body = crate::http::ApiError),
+        (status = 503, body = crate::http::ApiError),
+    ),
+)]
+pub async fn deletion_code(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(space): Path<String>,
+) -> AppResult<Json<WorkspaceDeletionCode>> {
+    let result = state
+        .services
+        .workspaces
+        .deletion_code(credentials(&headers), space)
+        .await?;
+    Ok(Json(WorkspaceDeletionCode {
+        email: result.email,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/workspaces/{workspace_id}/delete",
+    operation_id = "deleteWorkspace",
+    tag = "Workspaces",
+    security(("cookieSession" = [])),
+    params(("workspace_id" = String, Path)),
+    request_body = DeleteWorkspace,
+    responses(
+        (status = 200, body = MessageResponse),
+        (status = 400, body = crate::http::ApiError),
+        (status = 401, body = crate::http::ApiError),
+        (status = 403, body = crate::http::ApiError),
+        (status = 404, body = crate::http::ApiError),
+        (status = 429, body = crate::http::ApiError),
+        (status = 503, body = crate::http::ApiError),
+    ),
+)]
+pub async fn delete(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(space): Path<String>,
+    ApiJson(req): ApiJson<DeleteWorkspace>,
+) -> AppResult<Json<MessageResponse>> {
+    let result = state
+        .services
+        .workspaces
+        .delete(
+            credentials(&headers),
+            space,
+            convex_workspaces::DeleteWorkspace {
+                code: req.code,
+                acknowledged: req.acknowledged,
+            },
+        )
+        .await?;
+    Ok(Json(result.into()))
+}

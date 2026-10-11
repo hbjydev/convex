@@ -1,4 +1,4 @@
-import { Outlet } from '@tanstack/react-router';
+import { Outlet, useLocation } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Notice } from '@/components/feedback';
@@ -11,6 +11,8 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export function AppShell({ children }: { children?: ReactNode }) {
+  const { pathname } = useLocation();
+  if (pathname === '/workspaces/create') return <Outlet />;
   return (
     <TooltipProvider>
       <SidebarProvider className="wrap-anywhere">

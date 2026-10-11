@@ -60,10 +60,6 @@ pub struct SetupRequest {
     pub email: String,
     pub password: String,
     pub display_name: String,
-    pub workspace_name: String,
-    pub workspace_slug: String,
-    pub team_name: String,
-    pub team_key: String,
 }
 
 impl From<SetupRequest> for convex_app::accounts::models::SetupRequest {
@@ -73,10 +69,6 @@ impl From<SetupRequest> for convex_app::accounts::models::SetupRequest {
             email: value.email,
             password: value.password,
             display_name: value.display_name,
-            workspace_name: value.workspace_name,
-            workspace_slug: value.workspace_slug,
-            team_name: value.team_name,
-            team_key: value.team_key,
         }
     }
 }

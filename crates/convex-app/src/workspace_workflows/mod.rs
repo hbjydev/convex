@@ -29,9 +29,6 @@ pub async fn create(
     let mut work = application.transactions.begin_administration().await?;
     let result = async {
         let actor = work.accounts().authenticate(credentials.clone()).await?;
-        if !actor.is_instance_admin {
-            return Err(AppError::forbidden());
-        }
         let id = work
             .workspaces()
             .create(actor.id, name.clone(), slug.clone(), team_name, team_key)
@@ -41,6 +38,87 @@ pub async fn create(
             name,
             slug,
             role: "owner".into(),
+        })
+    }
+    .await;
+    finish(work, result).await
+}
+
+pub async fn deletion_code(
+    application: ControlPlane,
+    credentials: Credentials,
+    space: String,
+) -> AppResult<WorkspaceDeletionCode> {
+    let space = workspace_id(&space)?;
+    application
+        .rate_limiter
+        .check(&format!(
+            "workspace-deletion-send:{space}:{}",
+            sec::digest(&sec::session_token(&credentials)?)
+        ))
+        .await?;
+    let mut work = application.transactions.begin_administration().await?;
+    let result = async {
+        let actor = work.accounts().authenticate(credentials).await?;
+        if work.memberships().for_user(space, actor.id).await?.1 != "owner" {
+            return Err(AppError::forbidden());
+        }
+        if application.security.mail.is_none() {
+            return Err(AppError::validation("Workspace deletion requires email delivery. Ask your instance administrator to configure SMTP."));
+        }
+        let email = work.accounts().contact_email(actor.id).await?.ok_or_else(|| AppError::validation("Add an email sign-in method in your account settings to receive a deletion code."))?;
+        let (name, _) = work.workspaces().identity(space).await?;
+        let code = sec::token()[..8].to_ascii_uppercase();
+        work.workspaces().set_deletion_code(space, actor.id, sec::digest(&code)).await?;
+        application.security.send(&email, "Verify workspace deletion on Convex", format!("Your code to permanently delete the workspace {name} is:\n\n{code}\n\nThis code expires in 10 minutes. Deleting this workspace permanently removes its teams, issues, activity, memberships, and invitations. Your account and other workspaces remain available.\n\nIf you did not request this, do not share or use this code.")).await?;
+        Ok(WorkspaceDeletionCode { email })
+    }.await;
+    finish(work, result).await
+}
+
+pub async fn delete(
+    application: ControlPlane,
+    credentials: Credentials,
+    space: String,
+    req: DeleteWorkspace,
+) -> AppResult<MessageResponse> {
+    let space = workspace_id(&space)?;
+    if !req.acknowledged {
+        return Err(AppError::validation(
+            "Acknowledge that all workspace data will be permanently deleted.",
+        ));
+    }
+    let code = req.code.trim().to_ascii_uppercase();
+    if code.len() != 8 || !code.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(AppError::validation(
+            "Enter the eight-character deletion code from your email.",
+        ));
+    }
+    application
+        .rate_limiter
+        .check(&format!(
+            "workspace-deletion-verify:{space}:{}",
+            sec::digest(&sec::session_token(&credentials)?)
+        ))
+        .await?;
+    let mut work = application.transactions.begin_administration().await?;
+    let result = async {
+        let actor = work.accounts().authenticate(credentials).await?;
+        if work.memberships().for_user(space, actor.id).await?.1 != "owner" {
+            return Err(AppError::forbidden());
+        }
+        if !work
+            .workspaces()
+            .consume_deletion_code(space, actor.id, sec::digest(&code))
+            .await?
+        {
+            return Err(AppError::validation(
+                "This deletion code is invalid or expired. Request a new code and try again.",
+            ));
+        }
+        work.workspaces().delete(space).await?;
+        Ok(MessageResponse {
+            message: "Workspace deleted.".into(),
         })
     }
     .await;

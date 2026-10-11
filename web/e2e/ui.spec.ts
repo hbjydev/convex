@@ -42,6 +42,9 @@ async function mockAccount(page: Page) {
   await page.route('**/api/v1/auth/me', (route) =>
     route.fulfill({ json: account }),
   );
+  await page.route('**/api/v1/workspaces/*/invitations', (route) =>
+    route.fulfill({ json: [] }),
+  );
   await page.route(/\/api\/v1\/workspaces\/[^/?]+$/, (route) => {
     const id = new URL(route.request().url()).pathname.split('/').at(-1);
     const workspace = account.workspaces.find(
@@ -52,7 +55,9 @@ async function mockAccount(page: Page) {
           json: {
             workspace,
             members: [],
-            teams: [],
+            teams: [
+              { id: 'team', name: 'Engineering', key: 'ENG', statuses: [] },
+            ],
           } satisfies Schema['WorkspaceDetail'],
         })
       : route.fallback();
@@ -95,11 +100,11 @@ test('authenticated homepage renders inside the app shell', async ({
   await mockAccount(page);
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'Your workspaces' }),
+    page.getByRole('heading', { name: 'Engineering' }),
   ).toBeVisible();
   await expectNavigation(page);
   await expect(
-    page.getByRole('main').getByRole('heading', { name: 'Your workspaces' }),
+    page.getByRole('main').getByRole('heading', { name: 'Engineering' }),
   ).toBeVisible();
 });
 
@@ -127,9 +132,9 @@ test('homepage redirects to sign in and keeps the shell after login', async ({
     .fill('owner@example.test');
   await page.getByLabel('Password', { exact: true }).fill('a-valid-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/product\/team\/eng$/);
   await expect(
-    page.getByRole('main').getByRole('heading', { name: 'Your workspaces' }),
+    page.getByRole('main').getByRole('heading', { name: 'Engineering' }),
   ).toBeVisible();
   await expectNavigation(page);
 });
@@ -281,7 +286,7 @@ test('nested workspace switcher remembers selection across account pages and rel
   ).toHaveAttribute('aria-current', 'page');
   await expect(
     page.getByRole('menuitem', { name: 'Create a workspace' }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   if (mobile) {
     await page.getByRole('menuitem', { name: 'Back', exact: true }).click();
     await expect(
@@ -397,7 +402,6 @@ test('workspace creation suggests a slug, preserves edits after conflicts, and n
   page,
 }) => {
   const account = await mockAccount(page);
-  account.user.is_instance_admin = true;
   const workspace: Schema['Workspace'] = {
     id: 'new-workspace',
     name: 'Renamed company',
@@ -410,8 +414,8 @@ test('workspace creation suggests a slug, preserves edits after conflicts, and n
     expect(body).toEqual({
       name: 'Renamed company',
       slug: 'my-company',
-      team_name: 'Engineering',
-      team_key: 'ENG',
+      team_name: 'Renamed company',
+      team_key: 'REN',
     });
     if (conflict) {
       conflict = false;
@@ -432,7 +436,7 @@ test('workspace creation suggests a slug, preserves edits after conflicts, and n
   await page.route('**/api/v1/workspaces/new-workspace/invitations', (route) =>
     route.fulfill({ json: [] }),
   );
-  await page.goto('/');
+  await page.goto('/workspaces/create');
   const name = page.getByLabel('Workspace name', { exact: true });
   const slug = page.getByLabel('Workspace URL', { exact: true });
   await name.fill('Café & Company');
@@ -448,8 +452,6 @@ test('workspace creation suggests a slug, preserves edits after conflicts, and n
     }),
   ).toBeVisible();
   await slug.fill('my-company');
-  await page.getByLabel('First team name').fill('Engineering');
-  await page.getByLabel('Team key', { exact: true }).fill('ENG');
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.evaluate(async () => {
@@ -473,12 +475,13 @@ test('workspace creation suggests a slug, preserves edits after conflicts, and n
   ).toBeVisible();
 });
 
-test('initial setup submits the selected slug', async ({ page }) => {
+test('initial setup creates an admin before creating a workspace', async ({
+  page,
+}) => {
   const account = await mockAccount(page);
-  const workspace = account.workspaces[0];
-  if (!workspace)
-    throw new Error('Expected a workspace in the account fixture');
-  workspace.slug = 'our-product';
+  const workspace = { ...account.workspaces[0]!, slug: 'our-product' };
+  account.user.is_instance_admin = true;
+  account.workspaces = [];
   let initialized = false;
   await page.route('**/api/v1/auth/bootstrap', (route) =>
     route.fulfill({
@@ -497,49 +500,120 @@ test('initial setup submits the selected slug', async ({ page }) => {
       : route.fulfill({ status: 401, json: { message: 'Sign in required' } }),
   );
   await page.route('**/api/v1/auth/setup', (route) => {
-    expect(route.request().postDataJSON().workspace_slug).toBe('our-product');
+    expect(route.request().postDataJSON()).toEqual({
+      setup_token: 'installation-token',
+      display_name: 'Owner',
+      email: 'owner@example.test',
+      password: 'a-valid-password',
+    });
     initialized = true;
     return route.fulfill({ json: account.user });
   });
+  await page.route('**/api/v1/workspaces', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      name: 'Product',
+      slug: 'our-product',
+      team_name: 'Product',
+      team_key: 'PRO',
+    });
+    account.workspaces.push(workspace);
+    return route.fulfill({ json: workspace });
+  });
   await page.route('**/api/v1/workspaces/workspace', (route) =>
-    route.fulfill({
-      json: { workspace: account.workspaces[0], members: [], teams: [] },
-    }),
-  );
-  await page.route('**/api/v1/workspaces/workspace/invitations', (route) =>
-    route.fulfill({ json: [] }),
+    route.fulfill({ json: { workspace, members: [], teams: [] } }),
   );
   await page.goto('/');
+  await expect(page.getByLabel('Workspace name', { exact: true })).toHaveCount(
+    0,
+  );
   await page
     .getByLabel('Installation setup credential')
     .fill('installation-token');
   await page.getByLabel('Your name', { exact: true }).fill('Owner');
   await page.getByLabel('Email', { exact: true }).fill('owner@example.test');
   await page.getByLabel('Password', { exact: true }).fill('a-valid-password');
-  await page.getByLabel('Workspace name', { exact: true }).fill('Product');
-  await expect(page.getByLabel('Workspace URL', { exact: true })).toHaveValue(
-    'product',
-  );
-  await page.getByLabel('Workspace URL', { exact: true }).fill('our-product');
-  await page.getByLabel('First team name').fill('Engineering');
-  await page.getByLabel('Team key', { exact: true }).fill('ENG');
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.evaluate(async () => {
       await document.fonts.ready;
-      window.scrollTo(0, 0);
     });
     await page.screenshot({
-      path: `../.impeccable/review/slug-setup-${test.info().project.name}-${colorScheme}.png`,
+      path: `../.impeccable/review/admin-setup-${test.info().project.name}-${colorScheme}.png`,
       fullPage: true,
       animations: 'disabled',
     });
   }
+  await page.getByRole('button', { name: 'Create admin account' }).click();
+  await expect(page).toHaveURL(/\/workspaces\/create$/);
+  await page.reload();
+  await expect(
+    page.getByLabel('Workspace name', { exact: true }),
+  ).toBeVisible();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.screenshot({
+      path: `../.impeccable/review/admin-workspace-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
+  }
+  await page.getByLabel('Workspace name', { exact: true }).fill('Product');
+  await page.getByLabel('Workspace URL', { exact: true }).fill('our-product');
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page).toHaveURL(/\/our-product$/);
   await expect(
     page.getByRole('heading', { name: 'Workspace', exact: true }),
   ).toBeVisible();
+});
+
+for (const role of [null, 'member', 'admin', 'owner'] as const) {
+  test(`admin login requires an owned workspace when existing role is ${role}`, async ({
+    page,
+  }) => {
+    const account = await mockAccount(page);
+    account.user.is_instance_admin = true;
+    if (role) account.workspaces[0]!.role = role;
+    else account.workspaces = [];
+    let signedIn = false;
+    await page.route('**/api/v1/auth/me', (route) =>
+      signedIn
+        ? route.fulfill({ json: account })
+        : route.fulfill({ status: 401, json: { message: 'Sign in required' } }),
+    );
+    await page.route('**/api/v1/auth/login', (route) => {
+      signedIn = true;
+      return route.fulfill({ json: account.user });
+    });
+    await page.route('**/api/v1/auth/logout', (route) => {
+      signedIn = false;
+      return route.fulfill({ json: { message: 'Signed out' } });
+    });
+    await page.goto('/auth/login');
+    await page.getByLabel('Email', { exact: true }).fill('owner@example.test');
+    await page.getByLabel('Password', { exact: true }).fill('a-valid-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    if (role === 'owner') {
+      await expect(page).toHaveURL(/\/product\/team\/eng$/);
+      return;
+    }
+    await expect(page).toHaveURL(/\/workspaces\/create$/);
+    await page.goto(role ? '/product/team/eng' : '/');
+    await expect(page).toHaveURL(/\/workspaces\/create$/);
+    await expect(
+      page.getByRole('button', { name: 'Sign out', exact: true }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await expect(page).toHaveURL(/\/auth\/login$/);
+  });
+}
+
+test('a regular member can sign in without owning a workspace', async ({
+  page,
+}) => {
+  const account = await mockAccount(page);
+  account.workspaces[0]!.role = 'member';
+  await page.goto('/auth/login');
+  await expect(page).toHaveURL(/\/product\/team\/eng$/);
 });
 
 test('old UUID workspace links redirect to slug URLs and preserve sections', async ({
@@ -735,7 +809,7 @@ test('settings screens use one sidebar and fit desktop and mobile in both themes
   }
   await page.getByRole('link', { name: 'Back to app' }).click();
   await expect(
-    page.getByRole('heading', { name: 'Your workspaces' }),
+    page.getByRole('heading', { name: 'Engineering' }),
   ).toBeVisible();
   await expectNavigation(page);
 });
@@ -924,4 +998,183 @@ test('member removal restores focus to the directory when its row disappears', a
     page.getByRole('button', { name: 'Name', exact: true }),
   ).toBeFocused();
   await expect(page.getByText('Alex Morgan', { exact: true })).toHaveCount(0);
+});
+
+test('workspace creation derives the first team and has no app sidebar', async ({
+  page,
+}) => {
+  await mockAccount(page);
+  for (const [name, key] of [
+    ['Hobbit Hole', 'HOB'],
+    ['Convex', 'CON'],
+  ] as const) {
+    let submitted = false;
+    await page.route('**/api/v1/workspaces', (route) => {
+      expect(route.request().postDataJSON()).toEqual({
+        name,
+        slug: name.toLowerCase().replaceAll(' ', '-'),
+        team_name: name,
+        team_key: key,
+      });
+      submitted = true;
+      return route.fulfill({
+        status: 409,
+        json: { message: 'This workspace URL is already in use.' },
+      });
+    });
+    await page.goto('/workspaces/create');
+    await expect(
+      page.getByRole('heading', { name: 'Create a workspace' }),
+    ).toBeVisible();
+    await expect(page.locator('[data-slot="sidebar"]')).toHaveCount(0);
+    await expect(page.getByLabel('First team name')).toHaveCount(0);
+    await page.getByLabel('Workspace name', { exact: true }).fill(name);
+    await page
+      .getByRole('button', { name: 'Create workspace', exact: true })
+      .click();
+    await expect(page.getByRole('alert')).toContainText('already in use');
+    expect(submitted).toBe(true);
+    await page.unroute('**/api/v1/workspaces');
+  }
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto('/workspaces/create');
+    await page
+      .getByLabel('Workspace name', { exact: true })
+      .fill('Hobbit Hole');
+    await page.screenshot({
+      path: `../.impeccable/review/create-workspace-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+});
+
+test('an account without workspaces lands on creation and can return to account', async ({
+  page,
+}) => {
+  const account = await mockAccount(page);
+  account.workspaces = [];
+  await page.route('**/api/v1/auth/sessions', (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/workspaces\/create$/);
+  await page.getByRole('link', { name: 'Back to account' }).click();
+  await expect(page).toHaveURL(/\/account$/);
+});
+
+test('workspace deletion emails a code, preserves failed drafts, and falls back to another workspace', async ({
+  page,
+}) => {
+  const account = await mockAccount(page);
+  account.workspaces.push({
+    id: 'other',
+    name: 'Other workspace',
+    slug: 'other',
+    role: 'member',
+  });
+  await page.route('**/api/v1/auth/bootstrap', (route) =>
+    route.fulfill({
+      json: {
+        setup_required: false,
+        setup_enabled: false,
+        mail_available: true,
+        oidc_required: false,
+        oidc_display_name: null,
+      } satisfies Schema['BootstrapInfo'],
+    }),
+  );
+  let sends = 0;
+  await page.route('**/api/v1/workspaces/workspace/deletion-code', (route) => {
+    sends++;
+    return route.fulfill({ json: { email: 'owner@example.com' } });
+  });
+  let attempts = 0;
+  await page.route('**/api/v1/workspaces/workspace/delete', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      code: 'ABCD1234',
+      acknowledged: true,
+    });
+    attempts++;
+    if (attempts === 1)
+      return route.fulfill({
+        status: 400,
+        json: {
+          message:
+            'This deletion code is invalid or expired. Request a new code and try again.',
+        },
+      });
+    account.workspaces = account.workspaces.filter(
+      (workspace) => workspace.id !== 'workspace',
+    );
+    return route.fulfill({ json: { message: 'Workspace deleted.' } });
+  });
+  await page.goto('/product');
+  await page
+    .getByRole('button', { name: 'Delete workspace', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Verify workspace deletion',
+  });
+  const input = dialog.getByLabel(
+    'Enter deletion code sent to owner@example.com',
+  );
+  await expect(input).toBeFocused();
+  const submit = dialog.getByRole('button', { name: 'Delete my workspace' });
+  await expect(submit).toBeDisabled();
+  await input.fill('abcd1234');
+  await expect(submit).toBeDisabled();
+  await dialog.getByRole('checkbox').check();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expectInside(dialog, page.locator('body'));
+    await page.screenshot({
+      path: `../.impeccable/review/delete-workspace-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: false,
+    });
+  }
+  await submit.click();
+  await expect(dialog.getByRole('alert')).toContainText('invalid or expired');
+  await expect(input).toHaveValue('ABCD1234');
+  await expect(dialog.getByRole('checkbox')).toBeChecked();
+  await dialog.getByRole('button', { name: 'Send a new code' }).click();
+  await expect(input).toHaveValue('');
+  expect(sends).toBe(2);
+  await input.fill('ABCD1234');
+  await submit.click();
+  await expect(page).toHaveURL(/\/other\/team\/eng$/);
+  expect(attempts).toBe(2);
+  await page.goto('/account');
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/other\/team\/eng$/);
+});
+
+test('deletion requires email delivery and is hidden from workspace admins and members', async ({
+  page,
+}) => {
+  const account = await mockAccount(page);
+  await page.goto('/product');
+  await expect(
+    page.getByRole('button', { name: 'Delete workspace', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByText('Email delivery must be configured', { exact: false }),
+  ).toBeVisible();
+  for (const role of ['admin', 'member']) {
+    const workspace = account.workspaces[0];
+    if (!workspace) throw new Error('Missing workspace fixture');
+    workspace.role = role;
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Workspace', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Delete workspace', exact: true }),
+    ).toHaveCount(0);
+  }
 });

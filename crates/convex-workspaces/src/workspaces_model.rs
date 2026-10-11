@@ -64,6 +64,16 @@ pub struct RenameRequest {
 }
 
 #[derive(Clone)]
+pub struct DeleteWorkspace {
+    pub code: String,
+    pub acknowledged: bool,
+}
+
+pub struct WorkspaceDeletionCode {
+    pub email: String,
+}
+
+#[derive(Clone)]
 pub struct MembershipChange {
     pub membership_id: MembershipId,
     pub role: Option<String>,

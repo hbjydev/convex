@@ -14,7 +14,7 @@ mise run setup
 mise run dev
 ```
 
-Open <http://127.0.0.1:5173>. The frontend opens first-admin onboarding, then local login and workspace settings. Configure `CONVEX_SETUP_TOKEN` before creating the first admin; see [installation and recovery](docs/authentication.md#first-installation-and-operator-recovery). The system connection screen is available at `/system`. The API listens on <http://127.0.0.1:3000> and applies migrations before serving requests. Stop development with Ctrl-C; `mise run db:down` stops the database containers while preserving development data.
+Open <http://127.0.0.1:5173>. First-run setup creates the initial administrator and signs them in. Administrators without an owned workspace are directed to the workspace creation page after setup and login. Configure `CONVEX_SETUP_TOKEN` before creating the first admin; see [installation and recovery](docs/authentication.md#first-installation-and-operator-recovery). The system connection screen is available at `/system`. The API listens on <http://127.0.0.1:3000> and applies migrations before serving requests. Stop development with Ctrl-C; `mise run db:down` stops the database containers while preserving development data.
 
 Local defaults work without an `.env` file. Copy `.env.example` to `.env` to customize the database URLs, bind address, or log filter. The frontend uses Vite's `/api` proxy; `CONVEX_API_PROXY` changes its backend target. Never expose the local Compose databases outside your machine; their credentials are development defaults.
 

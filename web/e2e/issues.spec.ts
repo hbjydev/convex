@@ -21,13 +21,19 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
         email: 'browser-owner@example.com',
         password,
         display_name: 'Installation owner',
-        workspace_name: 'Initial workspace',
-        workspace_slug: 'initial-workspace',
+      },
+    });
+    expect(setup.ok()).toBe(true);
+    const initialWorkspace = await request.post('/api/v1/workspaces', {
+      headers,
+      data: {
+        name: 'Initial workspace',
+        slug: 'initial-workspace',
         team_name: 'Engineering',
         team_key: 'ENG',
       },
     });
-    expect(setup.ok()).toBe(true);
+    expect(initialWorkspace.ok()).toBe(true);
   }
   await page.goto('/auth/login');
   await page
@@ -36,7 +42,7 @@ test('two members create, edit, reconcile, archive, and restore an issue', async
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Your workspaces', exact: true }),
+    page.getByRole('heading', { name: 'Engineering', exact: true }),
   ).toBeVisible();
   const slug = `issues-${test.info().project.name}-${Date.now()}`;
   const response = await page.request.post('/api/v1/workspaces', {

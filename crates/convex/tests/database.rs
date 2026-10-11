@@ -43,7 +43,7 @@ async fn empty_database_migrates_and_responds_with_documented_health(
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(applied, 7);
+    assert_eq!(applied, 8);
 
     let response = http::router(pool)
         .oneshot(
@@ -94,7 +94,7 @@ fn app(pool: &PgPool) -> axum::Router {
     http::router_with_config(pool.clone(), config)
 }
 fn setup_request() -> Value {
-    json!({"setup_token":SETUP_TOKEN,"email":"Owner@Example.com","password":PASSWORD,"display_name":"Owner","workspace_name":"Acme","workspace_slug":"acme","team_name":"Engineering","team_key":"eng"})
+    json!({"setup_token":SETUP_TOKEN,"email":"Owner@Example.com","password":PASSWORD,"display_name":"Owner"})
 }
 
 async fn call(
@@ -153,10 +153,20 @@ async fn initialized(app: &axum::Router) -> (String, String, String) {
     let (status, user, cookie) = call(app, "POST", "/api/v1/auth/setup", "", setup_request()).await;
     assert_eq!(status, 200, "{user}");
     let (_, account, _) = call(app, "GET", "/api/v1/auth/me", &cookie, Value::Null).await;
-    assert_eq!(account["workspaces"][0]["slug"], "acme");
+    assert_eq!(account["workspaces"], json!([]));
+    let (status, workspace, _) = call(
+        app,
+        "POST",
+        "/api/v1/workspaces",
+        &cookie,
+        json!({"name":"Acme","slug":"acme","team_name":"Engineering","team_key":"eng"}),
+    )
+    .await;
+    assert_eq!(status, 200, "{workspace}");
+    assert_eq!(workspace["slug"], "acme");
     (
         cookie,
-        account["workspaces"][0]["id"].as_str().unwrap().into(),
+        workspace["id"].as_str().unwrap().into(),
         user["id"].as_str().unwrap().into(),
     )
 }
@@ -165,20 +175,26 @@ async fn initialized(app: &axum::Router) -> (String, String, String) {
 #[ignore = "requires PostgreSQL; run mise run test:rust:integration"]
 async fn workspace_slugs_are_validated_unique_and_stable(pool: PgPool) {
     let app = app(&pool);
-    let mut invalid_setup = setup_request();
-    invalid_setup["workspace_slug"] = json!("invalid/slug");
+    let (owner, space, _) = initialized(&app).await;
+    let invalid_workspace =
+        json!({"name":"Other","slug":"invalid/slug","team_name":"Other","team_key":"OPS"});
     assert_eq!(
-        call(&app, "POST", "/api/v1/auth/setup", "", invalid_setup)
-            .await
-            .0,
+        call(
+            &app,
+            "POST",
+            "/api/v1/workspaces",
+            &owner,
+            invalid_workspace
+        )
+        .await
+        .0,
         400
     );
-    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM convex.users")
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM convex.workspaces")
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(count, 0);
-    let (owner, space, _) = initialized(&app).await;
+    assert_eq!(count, 1);
     let request = json!({"name":"Other","slug":" ACME ","team_name":"Other","team_key":"OPS"});
     let (status, error, _) = call(&app, "POST", "/api/v1/workspaces", &owner, request).await;
     assert_eq!(status, 409);
@@ -342,8 +358,11 @@ async fn installer_authority_and_atomic_setup(pool: PgPool) {
             .fetch_one(&pool)
             .await
             .unwrap(),
-        5
+        0
     );
+    let (_, account, _) = call(&app, "GET", "/api/v1/auth/me", &cookie, Value::Null).await;
+    assert_eq!(account["user"]["is_instance_admin"], true);
+    assert_eq!(account["workspaces"], json!([]));
     let request = Request::builder()
         .method("POST")
         .uri("/api/v1/auth/logout")
@@ -574,7 +593,7 @@ async fn workspace_isolation_admin_limits_and_inviter_authority(pool: PgPool) {
         )
         .await
         .0,
-        403
+        200
     );
     let pending = invitation(&app, &admin, &space, "member").await;
     let (_, detail, _) = call(
@@ -830,14 +849,16 @@ async fn passwords_sessions_disable_and_operator_recovery(pool: PgPool) {
     );
 }
 
-#[sqlx::test(migrator = "convex::MIGRATOR")]
-#[ignore = "requires PostgreSQL and loopback SMTP; run mise run test:rust:integration"]
-async fn configured_smtp_delivers_invitation_and_non_enumerating_recovery(pool: PgPool) {
+async fn smtp_inbox() -> (
+    std::sync::Arc<convex_auth::security::Mail>,
+    tokio::sync::mpsc::Receiver<String>,
+    tokio::task::JoinHandle<()>,
+) {
     use lettre::{AsyncSmtpTransport, Tokio1Executor};
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let (sender, mut receiver) = tokio::sync::mpsc::channel::<String>(4);
+    let (sender, receiver) = tokio::sync::mpsc::channel::<String>(4);
     let smtp = tokio::spawn(async move {
         loop {
             let (stream, _) = listener.accept().await.unwrap();
@@ -879,14 +900,22 @@ async fn configured_smtp_delivers_invitation_and_non_enumerating_recovery(pool: 
             });
         }
     });
-    let mut config = SecurityConfig::development();
-    config.setup_token = Some(SETUP_TOKEN.into());
-    config.mail = Some(std::sync::Arc::new(convex_auth::security::Mail {
+    let mail = std::sync::Arc::new(convex_auth::security::Mail {
         transport: AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous("127.0.0.1")
             .port(port)
             .build(),
         from: "convex@example.com".parse().unwrap(),
-    }));
+    });
+    (mail, receiver, smtp)
+}
+
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL and loopback SMTP; run mise run test:rust:integration"]
+async fn configured_smtp_delivers_invitation_and_non_enumerating_recovery(pool: PgPool) {
+    let (mail, mut receiver, smtp) = smtp_inbox().await;
+    let mut config = SecurityConfig::development();
+    config.setup_token = Some(SETUP_TOKEN.into());
+    config.mail = Some(mail);
     let app = http::router_with_config(pool.clone(), config);
     let (owner, space, _) = initialized(&app).await;
     let (status, body, _) = call(
@@ -2114,4 +2143,181 @@ async fn assigning_and_removing_a_member_coordinate_and_removal_rolls_back(pool:
     .await
     .unwrap();
     assert!(active);
+}
+
+#[sqlx::test(migrator = "convex::MIGRATOR")]
+#[ignore = "requires PostgreSQL and loopback SMTP; run mise run test:rust:integration"]
+async fn workspace_deletion_emails_bound_expiring_codes_and_removes_only_its_data(pool: PgPool) {
+    let (mail, mut inbox, smtp) = smtp_inbox().await;
+    let mut config = SecurityConfig::development();
+    config.setup_token = Some(SETUP_TOKEN.into());
+    config.mail = Some(mail);
+    let app = http::router_with_config(pool.clone(), config);
+    let (owner, space, _) = initialized(&app).await;
+    let token = invitation(&app, &owner, &space, "member").await;
+    let (_, _, member) = join(&app, &token, "deletion-member@example.com").await;
+    // Ordinary members can create a workspace of their own.
+    let (status, other, _) = call(
+        &app,
+        "POST",
+        "/api/v1/workspaces",
+        &member,
+        json!({"name":"Other","slug":"other","team_name":"Other","team_key":"OTH"}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(other["role"], "owner");
+    let (_, detail, _) = call(
+        &app,
+        "GET",
+        &format!("/api/v1/workspaces/{space}"),
+        &owner,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &format!("/api/v1/workspaces/{space}/issues"),
+            &owner,
+            json!({"team_id":detail["teams"][0]["id"],"title":"Work to delete"})
+        )
+        .await
+        .0,
+        201
+    );
+    // An outstanding OIDC invitation flow must not keep the invitation alive.
+    let invite = invitation(&app, &owner, &space, "member").await;
+    sqlx::query("INSERT INTO convex.oidc_flows (id,state_hash,browser_hash,intent,exchange_revision,invitation_id)
+        SELECT gen_random_uuid(),'deletion-state','browser','invite','revision',id FROM convex.invitations WHERE token_hash=$1")
+        .bind(convex_auth::security::digest(&invite)).execute(&pool).await.unwrap();
+    let send = format!("/api/v1/workspaces/{space}/deletion-code");
+    let delete = format!("/api/v1/workspaces/{space}/delete");
+    assert_eq!(call(&app, "POST", &send, &member, Value::Null).await.0, 403);
+    let mut previous = String::new();
+    let mut current = String::new();
+    for _ in 0..2 {
+        let (status, response, _) = call(&app, "POST", &send, &owner, Value::Null).await;
+        assert_eq!(status, 200, "{response}");
+        assert_eq!(response["email"], "owner@example.com");
+        let message = tokio::time::timeout(std::time::Duration::from_secs(3), inbox.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(message.contains("owner@example.com"));
+        assert!(message.contains("Acme"));
+        assert!(message.contains("10 minutes"));
+        previous = current;
+        current = message
+            .lines()
+            .find(|line| line.len() == 8 && line.bytes().all(|b| b.is_ascii_hexdigit()))
+            .unwrap()
+            .into();
+    }
+    let request = |code: &str| json!({"code":code,"acknowledged":true});
+    assert_eq!(
+        call(&app, "POST", &delete, &owner, request(&previous))
+            .await
+            .0,
+        400
+    );
+    assert_eq!(
+        call(&app, "POST", &delete, &member, request(&current))
+            .await
+            .0,
+        403
+    );
+    let other_delete = format!(
+        "/api/v1/workspaces/{}/delete",
+        other["id"].as_str().unwrap()
+    );
+    assert_eq!(
+        call(&app, "POST", &other_delete, &member, request(&current))
+            .await
+            .0,
+        400
+    );
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &delete,
+            &owner,
+            json!({"code":current,"acknowledged":false})
+        )
+        .await
+        .0,
+        400
+    );
+    sqlx::query("UPDATE convex.workspace_deletion_codes SET expires_at=now()-interval '1 second'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        call(&app, "POST", &delete, &owner, request(&current))
+            .await
+            .0,
+        400
+    );
+    assert_eq!(call(&app, "POST", &send, &owner, Value::Null).await.0, 200);
+    let message = tokio::time::timeout(std::time::Duration::from_secs(3), inbox.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    let current = message
+        .lines()
+        .find(|line| line.len() == 8 && line.bytes().all(|b| b.is_ascii_hexdigit()))
+        .unwrap();
+    assert_eq!(
+        call(&app, "POST", &delete, &owner, request(current))
+            .await
+            .0,
+        200
+    );
+    assert_eq!(
+        call(&app, "POST", &delete, &owner, request(current))
+            .await
+            .0,
+        404
+    );
+    for table in [
+        "workspaces",
+        "workspace_memberships",
+        "teams",
+        "workflow_statuses",
+        "issues",
+        "issue_activity",
+        "invitations",
+        "workspace_deletion_codes",
+    ] {
+        let column = if table == "workspaces" {
+            "id"
+        } else {
+            "workspace_id"
+        };
+        let count: i64 = sqlx::query_scalar(&format!(
+            "SELECT count(*) FROM convex.{table} WHERE {column}::text=$1"
+        ))
+        .bind(&space)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(count, 0, "{table} still has workspace data");
+    }
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM convex.oidc_flows")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        0
+    );
+    let (status, account, _) = call(&app, "GET", "/api/v1/auth/me", &member, Value::Null).await;
+    assert_eq!(status, 200);
+    assert_eq!(account["workspaces"].as_array().unwrap().len(), 1);
+    assert_eq!(account["workspaces"][0]["id"], other["id"]);
+    let (status, account, _) = call(&app, "GET", "/api/v1/auth/me", &owner, Value::Null).await;
+    assert_eq!(status, 200);
+    assert!(account["workspaces"].as_array().unwrap().is_empty());
+    smtp.abort();
 }

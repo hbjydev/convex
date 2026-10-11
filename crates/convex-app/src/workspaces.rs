@@ -8,6 +8,17 @@ use convex_workspaces::workspaces_model::*;
 #[cfg_attr(feature = "mock", mockall::automock)]
 #[async_trait]
 pub trait Workspaces: Send + Sync {
+    async fn deletion_code(
+        &self,
+        credentials: Credentials,
+        space: String,
+    ) -> Result<WorkspaceDeletionCode>;
+    async fn delete(
+        &self,
+        credentials: Credentials,
+        space: String,
+        req: DeleteWorkspace,
+    ) -> Result<MessageResponse>;
     async fn create(&self, credentials: Credentials, req: CreateWorkspace) -> Result<Workspace>;
     async fn detail(&self, credentials: Credentials, space: String) -> Result<WorkspaceDetail>;
     async fn rename(
@@ -59,6 +70,21 @@ pub trait Workspaces: Send + Sync {
 
 #[async_trait]
 impl Workspaces for crate::control_plane::ControlPlane {
+    async fn deletion_code(
+        &self,
+        credentials: Credentials,
+        space: String,
+    ) -> Result<WorkspaceDeletionCode> {
+        crate::workspace_workflows::deletion_code(self.clone(), credentials, space).await
+    }
+    async fn delete(
+        &self,
+        credentials: Credentials,
+        space: String,
+        req: DeleteWorkspace,
+    ) -> Result<MessageResponse> {
+        crate::workspace_workflows::delete(self.clone(), credentials, space, req).await
+    }
     async fn create(&self, credentials: Credentials, req: CreateWorkspace) -> Result<Workspace> {
         crate::workspace_workflows::create(self.clone(), credentials, req).await
     }
