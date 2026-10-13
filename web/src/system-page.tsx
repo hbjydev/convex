@@ -65,7 +65,7 @@ export function SystemPage() {
 
   return (
     <>
-      <Card className="mt-8 max-w-2xl" aria-labelledby="connection-heading">
+      <Card className="mt-8 max-w-sm w-full" aria-labelledby="connection-heading">
         <CardHeader>
           <CardTitle>
             <SectionTitle id="connection-heading">
@@ -112,14 +112,14 @@ export function SystemPage() {
               {connection.state === 'loading'
                 ? 'Connecting to Convex'
                 : connection.state === 'ready'
-                  ? 'Ready to build'
+                  ? 'Healthy'
                   : 'Connection unavailable'}
             </AlertTitle>
             <AlertDescription>
               {connection.state === 'loading'
-                ? 'Checking the API and PostgreSQL connection…'
+                ? 'Checking the APIconnection...'
                 : connection.state === 'ready'
-                  ? 'The API is responding and PostgreSQL is ready.'
+                  ? 'The API is responding and ready.'
                   : connection.message}
             </AlertDescription>
           </Alert>
